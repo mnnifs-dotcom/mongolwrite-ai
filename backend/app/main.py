@@ -3,6 +3,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api import api_router
@@ -70,4 +71,14 @@ if _frontend is None:
         }
 
 else:
+    # Next static export writes admin.html; Starlette StaticFiles(html=True) does not
+    # map /admin → admin.html, so register an explicit page route before the mount.
+    _admin_html = _frontend / "admin.html"
+    if _admin_html.is_file():
+
+        @app.get("/admin")
+        @app.get("/admin/")
+        def admin_page() -> FileResponse:
+            return FileResponse(_admin_html)
+
     app.mount("/", StaticFiles(directory=_frontend, html=True), name="frontend")
