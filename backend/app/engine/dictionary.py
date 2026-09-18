@@ -28,6 +28,13 @@ def hunspell_base_path() -> Path:
     return _repo_root() / "data" / "hunspell" / "mn_MN"
 
 
+def persist_dir() -> Path:
+    """Shared runtime volume (Fly mounts here)."""
+    path = _repo_root() / "data" / "persist"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
 def user_dictionary_path() -> Path:
     """Admin-approved lemmas. Prefer the Fly-mounted persist dir when present."""
     persist = _repo_root() / "data" / "persist" / "user_dictionary.txt"
@@ -197,6 +204,25 @@ class DictionaryProvider:
     @property
     def has_hunspell(self) -> bool:
         return self._hunspell is not None
+
+    @property
+    def curated_lemma_count(self) -> int:
+        return len({item.casefold() for item in self._seed})
+
+    @property
+    def hunspell_stem_count(self) -> int:
+        path = hunspell_base_path().with_suffix(".dic")
+        if not path.exists():
+            return 0
+        try:
+            first = path.read_text(encoding="utf-8", errors="ignore").splitlines()[0].strip()
+            return int(first) if first.isdigit() else 0
+        except (OSError, IndexError, ValueError):
+            return 0
+
+    def user_words(self) -> list[str]:
+        """Lemmas from the user dictionary file (newest-first when possible)."""
+        return list_user_dictionary_lemmas()
 
     def hunspell_knows(self, word: str) -> bool:
         if self._hunspell is None:

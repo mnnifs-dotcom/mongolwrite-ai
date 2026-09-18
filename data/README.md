@@ -1,10 +1,16 @@
-# Seed wordlist for о/ө and у/ү suggestions.
-# Not a full Hunspell lexicon. Unknown words are not auto-flagged.
+# MongolWrite data
 
-`word_frequency.txt` — Mongolian Wikipedia surface-form counts (CC BY-SA,
-dumps.wikimedia.org/mnwiki). Used to pick the most likely correction among
-valid Hunspell/wordlist neighbors. Rebuild with:
+| File | Role |
+| --- | --- |
+| `wordlist.txt` | Curated seed (~12k) for о/ө · у/ү suggestions and admin «Найдвартай үгийн сан». Grown from mnwiki frequency + Hunspell. |
+| `hunspell/mn_MN.*` | Full dict-mn Hunspell (~621k stems) — acceptance, suggestions, candidate harvest. |
+| `word_frequency.txt` | Wikipedia surface-form counts (CC BY-SA). |
+| `common_misspellings.txt` | Hand-curated typo → correct map. |
+| `persist/` | Runtime volume (Fly): candidates, admin-added log, user dictionary. |
+
+Expand seed again:
 
 ```bash
-uv run --project backend python scripts/build_word_frequency.py
+python scripts/fetch_mn_dictionary.py
+python scripts/expand_seed_lexicon.py
 ```
