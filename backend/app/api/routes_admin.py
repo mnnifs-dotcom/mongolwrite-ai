@@ -21,7 +21,9 @@ from app.engine.hunspell_candidates import (
     record_from_text,
     reject_words,
 )
+from app.engine.learn import learn_accepted_words
 from app.engine.metrics import snapshot
+from app.engine.pending import list_pending, pop_pending
 from app.engine.runtime import get_engine
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
@@ -37,7 +39,15 @@ class WordsAction(BaseModel):
     words: list[str] = Field(default_factory=list, max_length=2000)
 
 
+class WordAction(BaseModel):
+    word: str = Field(min_length=1, max_length=80)
+
+
 class HarvestRequest(BaseModel):
+    text: str = Field(default="", max_length=500_000)
+
+
+class IngestRequest(BaseModel):
     text: str = Field(default="", max_length=500_000)
 
 
@@ -67,12 +77,18 @@ def overview(_: AdminDep) -> dict[str, Any]:
     engine = get_engine()
     lists = admin_lists_payload()
     health = snapshot()
+    pending = list_pending()
     return {
         "lexicon": {
-            "seed": len(engine.dictionary._seed),
+            "seed": engine.dictionary.curated_lemma_count
+            if hasattr(engine.dictionary, "curated_lemma_count")
+            else len({w.casefold() for w in engine.dictionary._seed}),
             "has_hunspell": engine.dictionary.has_hunspell,
+            "hunspell_stems": getattr(engine.dictionary, "hunspell_stem_count", 0),
             "admin_added": lists["counts"]["added"],
         },
+        "pending_skipped": pending,
+        "pending_count": len(pending),
         "candidates": {
             "reliable": lists["counts"]["reliable"],
             "doubt": lists["counts"]["doubt"],
@@ -90,6 +106,38 @@ def overview(_: AdminDep) -> dict[str, Any]:
 @router.get("/health")
 def site_health(_: AdminDep) -> dict[str, Any]:
     return snapshot()
+
+
+@router.get("/pending")
+def pending(_: AdminDep) -> dict[str, Any]:
+    items = list_pending()
+    return {"items": items, "count": len(items)}
+
+
+@router.post("/pending/approve")
+def pending_approve(body: WordAction, _: AdminDep) -> dict[str, Any]:
+    item = pop_pending(body.word)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Энэ үг хүлээгдэж байхгүй")
+    dictionary = get_engine().dictionary
+    added = dictionary.add_words([item["word"]])
+    if not added:
+        added = dictionary.ensure_curated([item["word"]])
+    return {"added": added, "added_count": len(added), "word": item["word"]}
+
+
+@router.post("/pending/reject")
+def pending_reject(body: WordAction, _: AdminDep) -> dict[str, str]:
+    item = pop_pending(body.word)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Энэ үг хүлээгдэж байхгүй")
+    return {"word": item["word"]}
+
+
+@router.post("/ingest")
+def ingest(body: IngestRequest, _: AdminDep) -> dict[str, Any]:
+    added = learn_accepted_words(get_engine(), body.text)
+    return {"added": added, "added_count": len(added)}
 
 
 @router.get("/added-words")
@@ -125,6 +173,5 @@ def candidates_reject(body: WordsAction, _: AdminDep) -> dict[str, Any]:
 
 @router.post("/candidates/harvest")
 def candidates_harvest(body: HarvestRequest, _: AdminDep) -> dict[str, Any]:
-    """Manual harvest from pasted text (also runs automatically on checks)."""
     queued = record_from_text(get_engine(), body.text)
     return {"queued": queued, "counts": counts()}

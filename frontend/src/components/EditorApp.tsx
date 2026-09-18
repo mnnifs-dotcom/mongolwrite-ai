@@ -6,17 +6,17 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 
 import {
-  addDictionaryWords,
   checkText,
   checkTextWithAI,
   getSettings,
   importDocument,
   improveText,
   saveAiKey,
+  skipSpellingWord,
 } from "@/lib/api";
 import { IssueHighlight, setIssueDecorations } from "@/lib/highlight";
 import { mapRange, plainTextFromDoc } from "@/lib/offsets";
-import { CATEGORY_LABELS, FILTERS, type Correction } from "@/lib/types";
+import { type Correction } from "@/lib/types";
 
 const STYLE = "government_official";
 const DOC_TYPE = "official_letter";
@@ -103,22 +103,13 @@ function canFix(item: Correction): boolean {
   return item.suggested_text !== item.original_text;
 }
 
-function isIdea(item: Correction): boolean {
-  return item.severity === "suggestion" || item.category === "STYLE" || item.category === "CLARITY";
-}
-
 function dismissKey(item: Correction): string {
   return `${item.original_text.toLocaleLowerCase("mn")}|${item.rule_id}`;
 }
 
 function statusLabel(items: Correction[]): string {
-  const errors = items.filter((item) => item.severity === "error").length;
-  const ideas = items.length - errors;
   if (!items.length) return "Алдаагүй";
-  const parts: string[] = [];
-  if (errors) parts.push(`${errors} алдаа`);
-  if (ideas) parts.push(`${ideas} санал`);
-  return parts.join(" · ");
+  return `${items.length} зөв бичгийн алдаа`;
 }
 
 function SuggestionPopover({
@@ -223,7 +214,6 @@ export function EditorApp() {
   const [title, setTitle] = useState("Шинэ баримт");
   const [corrections, setCorrections] = useState<Correction[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [filter, setFilter] = useState<(typeof FILTERS)[number]>("ALL");
   const [status, setStatus] = useState("Бэлэн");
   const [counts, setCounts] = useState({ words: 0, chars: 0 });
   const [error, setError] = useState<string | null>(null);
@@ -455,31 +445,12 @@ export function EditorApp() {
     });
   }, [activeId]);
 
-  useEffect(() => {
-    if (filter === "ALL") return;
-    if (!corrections.some((item) => item.category === filter)) {
-      setFilter("ALL");
-    }
-  }, [corrections, filter]);
-
-  const visible = useMemo(() => {
-    if (filter === "ALL") return corrections;
-    return corrections.filter((item) => item.category === filter);
-  }, [corrections, filter]);
+  const visible = corrections;
 
   const activeItem = useMemo(
     () => corrections.find((item) => item.id === activeId) ?? null,
     [corrections, activeId],
   );
-
-  const filterChips = useMemo(() => {
-    const present = FILTERS.filter((id) => {
-      if (id === "ALL") return false;
-      return corrections.some((item) => item.category === id);
-    });
-    if (present.length < 2) return [];
-    return present;
-  }, [corrections]);
 
   const fixableCount = useMemo(
     () => corrections.filter(canFix).length,
@@ -525,25 +496,14 @@ export function EditorApp() {
 
   function dismiss(id: string) {
     const item = corrections.find((row) => row.id === id);
-    if (item) dismissed.current.add(dismissKey(item));
+    if (item) {
+      dismissed.current.add(dismissKey(item));
+      if (item.category === "SPELLING" && item.original_text.trim()) {
+        void skipSpellingWord(item.original_text.trim(), item.rule_id);
+      }
+    }
     setCorrections((prev) => prev.filter((row) => row.id !== id));
     if (activeId === id) setActiveId(null);
-  }
-
-  async function addToLexicon(item: Correction) {
-    const word = item.original_text.trim();
-    if (!word) return;
-    try {
-      const result = await addDictionaryWords([word]);
-      dismissed.current.add(dismissKey(item));
-      setCorrections((prev) => prev.filter((row) => row.id !== item.id));
-      if (activeId === item.id) setActiveId(null);
-      setStatus(
-        result.added_count ? `«${word}» тольд нэмэгдлээ` : `«${word}» аль хэдийн тольд байсан`,
-      );
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Тольд нэмж чадсангүй");
-    }
   }
 
   async function copyText() {
@@ -763,27 +723,6 @@ export function EditorApp() {
             </form>
           </details>
         )}
-        {filterChips.length ? (
-          <div className="mw-filters">
-            <button
-              type="button"
-              className={filter === "ALL" ? "mw-chip on" : "mw-chip"}
-              onClick={() => setFilter("ALL")}
-            >
-              Бүгд
-            </button>
-            {filterChips.map((id) => (
-              <button
-                key={id}
-                type="button"
-                className={filter === id ? "mw-chip on" : "mw-chip"}
-                onClick={() => setFilter(id)}
-              >
-                {CATEGORY_LABELS[id]}
-              </button>
-            ))}
-          </div>
-        ) : null}
         <ul className="mw-list">
           {checking ? (
             <li className="mw-checking-panel">
@@ -818,13 +757,7 @@ export function EditorApp() {
             visible.map((item) => (
               <li key={item.id} data-card-id={item.id}>
                 <div
-                  className={[
-                    "mw-hit",
-                    activeId === item.id ? "on" : "",
-                    isIdea(item) ? "idea" : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
+                  className={["mw-hit", activeId === item.id ? "on" : ""].filter(Boolean).join(" ")}
                 >
                   <button
                     type="button"
@@ -832,9 +765,7 @@ export function EditorApp() {
                     onClick={() => setActiveId((current) => (current === item.id ? null : item.id))}
                   >
                     <span className="mw-hit-word">{item.original_text}</span>
-                    <span className="mw-hit-cat">
-                      {isIdea(item) ? "Найруулга" : (CATEGORY_LABELS[item.category] ?? item.category)}
-                    </span>
+                    <span className="mw-hit-cat">Зөв бичиг</span>
                   </button>
                   <button
                     type="button"
@@ -845,15 +776,6 @@ export function EditorApp() {
                     ×
                   </button>
                 </div>
-                {item.category === "SPELLING" ? (
-                  <button
-                    type="button"
-                    className="mw-hit-learn"
-                    onClick={() => void addToLexicon(item)}
-                  >
-                    Тольд нэмэх
-                  </button>
-                ) : null}
               </li>
             ))
           )}

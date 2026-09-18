@@ -29,27 +29,9 @@ export type SettingsResponse = {
   ai_enabled: boolean;
 };
 
+/** Editor only shows spelling marks. */
 export const CATEGORY_LABELS: Record<string, string> = {
-  SPELLING: "Үсэг",
-  GRAMMAR: "Дүрэм",
-  PUNCTUATION: "Цэг таслал",
-  WORD_CHOICE: "Үгийн сонголт",
-  STYLE: "Найруулга",
-  FORMALITY: "Албан хэл",
-  CLARITY: "Ойлгомжтой байдал",
-  REDUNDANCY: "Давхардал",
-  TERMINOLOGY: "Нэр томьёо",
-  AI_REWRITE: "AI",
+  SPELLING: "Зөв бичиг",
 };
 
-export const FILTERS = [
-  "ALL",
-  "SPELLING",
-  "GRAMMAR",
-  "WORD_CHOICE",
-  "STYLE",
-  "CLARITY",
-  "PUNCTUATION",
-  "REDUNDANCY",
-  "FORMALITY",
-] as const;
+export const FILTERS = ["ALL", "SPELLING"] as const;

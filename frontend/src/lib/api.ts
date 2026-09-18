@@ -129,6 +129,7 @@ export async function addDictionaryWords(
 ): Promise<{ added: string[]; added_count: number }> {
   const response = await fetch(apiUrl("/api/v1/dictionary/words"), {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ words }),
   });
@@ -137,6 +138,23 @@ export async function addDictionaryWords(
   }
   return response.json() as Promise<{ added: string[]; added_count: number }>;
 }
+
+/** Skip a spelling mark without fixing — queues the word for admin review. */
+export async function skipSpellingWord(word: string, ruleId = ""): Promise<void> {
+  await fetch(apiUrl("/api/v1/dictionary/skip"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ word, rule_id: ruleId }),
+  });
+}
+
+export type PendingSkippedWord = {
+  word: string;
+  folded: string;
+  rule_id: string;
+  count: number;
+  updated_at: string;
+};
 
 export type HunspellCandidate = {
   word: string;
@@ -163,7 +181,12 @@ export type SiteHealth = {
 };
 
 export type SiteOverview = {
-  lexicon: { seed: number; has_hunspell: boolean; admin_added?: number };
+  lexicon: {
+    seed: number;
+    has_hunspell: boolean;
+    hunspell_stems?: number;
+    admin_added?: number;
+  };
   candidates: {
     reliable: number;
     doubt: number;
@@ -172,6 +195,8 @@ export type SiteOverview = {
     doubt_items?: HunspellCandidate[];
   };
   added_words?: AdminAddedWord[];
+  pending_skipped?: PendingSkippedWord[];
+  pending_count?: number;
   health?: SiteHealth;
   admin_username: string;
   check_max_chars: number;
@@ -275,4 +300,28 @@ export async function adminAddedWords(): Promise<{ items: AdminAddedWord[]; coun
   const response = await fetch(apiUrl("/api/v1/admin/added-words"), { credentials: "include" });
   if (!response.ok) throw new Error("Нэмсэн үгс уншигдсангүй");
   return response.json() as Promise<{ items: AdminAddedWord[]; count: number }>;
+}
+
+export async function adminApprovePending(
+  word: string,
+): Promise<{ added: string[]; added_count: number; word: string }> {
+  const response = await fetch(apiUrl("/api/v1/admin/pending/approve"), {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ word }),
+  });
+  if (!response.ok) throw new Error("Үг нэмж чадсангүй");
+  return response.json() as Promise<{ added: string[]; added_count: number; word: string }>;
+}
+
+export async function adminRejectPending(word: string): Promise<{ word: string }> {
+  const response = await fetch(apiUrl("/api/v1/admin/pending/reject"), {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ word }),
+  });
+  if (!response.ok) throw new Error("Үг хасаж чадсангүй");
+  return response.json() as Promise<{ word: string }>;
 }

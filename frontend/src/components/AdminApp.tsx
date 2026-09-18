@@ -5,14 +5,17 @@ import Link from "next/link";
 
 import {
   adminApproveCandidates,
+  adminApprovePending,
   adminHarvest,
   adminLogin,
   adminLogout,
   adminMe,
   adminOverview,
   adminRejectCandidates,
+  adminRejectPending,
   type AdminAddedWord,
   type HunspellCandidate,
+  type PendingSkippedWord,
   type SiteOverview,
 } from "@/lib/api";
 
@@ -52,6 +55,7 @@ export function AdminApp() {
   const [reliable, setReliable] = useState<HunspellCandidate[]>([]);
   const [doubt, setDoubt] = useState<HunspellCandidate[]>([]);
   const [addedWords, setAddedWords] = useState<AdminAddedWord[]>([]);
+  const [pendingSkipped, setPendingSkipped] = useState<PendingSkippedWord[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [harvestText, setHarvestText] = useState("");
   const [status, setStatus] = useState("");
@@ -64,6 +68,7 @@ export function AdminApp() {
     setReliable(next.candidates.reliable_items ?? []);
     setDoubt(next.candidates.doubt_items ?? []);
     setAddedWords(next.added_words ?? []);
+    setPendingSkipped(next.pending_skipped ?? []);
   }, []);
 
   const loadLists = useCallback(async () => {
@@ -108,9 +113,42 @@ export function AdminApp() {
     setReliable([]);
     setDoubt([]);
     setAddedWords([]);
+    setPendingSkipped([]);
     setSelected(new Set());
     setStatus("");
     setError(null);
+  }
+
+  async function onPendingApprove(word: string) {
+    if (acting) return;
+    setActing(`p-ok-${word.toLocaleLowerCase("mn")}`);
+    setError(null);
+    try {
+      const result = await adminApprovePending(word);
+      setStatus(
+        result.added_count ? `«${result.word}» санд орлоо` : `«${result.word}» аль хэдийн санд байсан`,
+      );
+      await loadLists();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Нэмж чадсангүй");
+    } finally {
+      setActing(null);
+    }
+  }
+
+  async function onPendingReject(word: string) {
+    if (acting) return;
+    setActing(`p-no-${word.toLocaleLowerCase("mn")}`);
+    setError(null);
+    try {
+      const result = await adminRejectPending(word);
+      setStatus(`«${result.word}» татгалзлаа`);
+      await loadLists();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Татгалзаж чадсангүй");
+    } finally {
+      setActing(null);
+    }
   }
 
   function toggleWord(word: string, enabled: boolean) {
@@ -273,9 +311,20 @@ export function AdminApp() {
             <h2>Тойм</h2>
             <div className="mw-overview-grid">
               <div className="mw-overview-tile">
-                <span>Үгийн сан</span>
+                <span>Найдвартай үгийн сан</span>
                 <strong>{overview.lexicon.seed.toLocaleString("mn-MN")}</strong>
-                <em>Hunspell {overview.lexicon.has_hunspell ? "бэлэн" : "байхгүй"}</em>
+                <em>
+                  {overview.lexicon.hunspell_stems
+                    ? `Hunspell ${(overview.lexicon.hunspell_stems / 1000).toFixed(0)} мянга`
+                    : overview.lexicon.has_hunspell
+                      ? "Hunspell бэлэн"
+                      : "Hunspell байхгүй"}
+                </em>
+              </div>
+              <div className="mw-overview-tile">
+                <span>Алгассан үгс</span>
+                <strong>{pendingSkipped.length.toLocaleString("mn-MN")}</strong>
+                <em>Засварлагчаас алгассан · шийд</em>
               </div>
               <div className="mw-overview-tile">
                 <span>Hunspell нэр дэвшигч</span>
@@ -292,6 +341,48 @@ export function AdminApp() {
             </div>
           </section>
         ) : null}
+
+        <section className="mw-admin-card" id="pending-skipped">
+          <h2>Алгассан үгс{pendingSkipped.length ? ` · ${pendingSkipped.length}` : ""}</h2>
+          <p className="mw-muted">
+            Засварлагч дээр зөв бичгийн алдааг засахгүйгээр алгассан үгс. Санд оруулах эсвэл
+            татгалзана.
+          </p>
+          {pendingSkipped.length === 0 ? (
+            <p className="mw-muted">Хүлээгдэж буй үг алга.</p>
+          ) : (
+            <ul className="mw-admin-list">
+              {pendingSkipped.map((item) => (
+                <li key={item.folded}>
+                  <div className="mw-candidate-main">
+                    <strong>{item.word}</strong>
+                    <span className="mw-muted">
+                      {item.count} удаа · {formatWhen(item.updated_at)}
+                    </span>
+                  </div>
+                  <div className="mw-admin-row">
+                    <button
+                      type="button"
+                      className="mw-btn-primary"
+                      disabled={acting === `p-ok-${item.folded}`}
+                      onClick={() => void onPendingApprove(item.word)}
+                    >
+                      Санд нэмэх
+                    </button>
+                    <button
+                      type="button"
+                      className="mw-btn"
+                      disabled={acting === `p-no-${item.folded}`}
+                      onClick={() => void onPendingReject(item.word)}
+                    >
+                      Татгалзах
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
 
         <section className="mw-admin-card" id="admin-added">
           <h2>Админаас нэмсэн үгс{addedWords.length ? ` · ${addedWords.length}` : ""}</h2>
