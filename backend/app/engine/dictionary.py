@@ -46,6 +46,25 @@ def load_user_dictionary(path: Path | None = None) -> set[str]:
     return words
 
 
+def list_user_dictionary_lemmas(path: Path | None = None) -> list[str]:
+    """Unique user-dictionary lemmas, newest file lines first."""
+    target = path or user_dictionary_path()
+    if not target.exists():
+        return []
+    seen: set[str] = set()
+    out: list[str] = []
+    for line in reversed(target.read_text(encoding="utf-8").splitlines()):
+        word = line.strip()
+        if not word or word.startswith("#"):
+            continue
+        folded = word.casefold()
+        if folded in seen:
+            continue
+        seen.add(folded)
+        out.append(folded)
+    return out
+
+
 @lru_cache(maxsize=1)
 def load_wordlist(path: Path | None = None) -> frozenset[str]:
     target = path or _default_wordlist_path()

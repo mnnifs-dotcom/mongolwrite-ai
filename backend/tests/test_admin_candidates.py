@@ -58,6 +58,10 @@ def test_missing_word_harvested_and_added_to_lexicon(monkeypatch, tmp_path) -> N
     assert get_engine().dictionary.in_seed(coined)
     assert coined in user_dict.read_text(encoding="utf-8")
 
+    overview = client.get("/api/v1/admin/overview").json()
+    assert "reliable_items" in overview["candidates"] or "doubt_items" in overview["candidates"]
+    assert any(row["folded"] == coined for row in overview.get("added_words") or [])
+
     added = client.get("/api/v1/admin/added-words").json()
     assert added["count"] >= 1
     assert added["items"][0]["folded"] == coined

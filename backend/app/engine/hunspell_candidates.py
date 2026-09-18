@@ -126,9 +126,46 @@ def record_admin_added(words: list[str]) -> list[dict[str, Any]]:
 
 
 def list_admin_added() -> list[dict[str, Any]]:
-    """Return admin-added words newest-first (file order)."""
+    """Admin-added + user-dictionary words, newest first."""
+    from app.engine.dictionary import list_user_dictionary_lemmas
+
     with _lock:
-        return list(_load_admin_added())
+        logged = list(_load_admin_added())
+    by_folded = {str(row.get("folded") or ""): row for row in logged if row.get("folded")}
+    # Prepend file lemmas that are missing from the admin log (older adds).
+    for lemma in list_user_dictionary_lemmas():
+        if lemma in by_folded:
+            continue
+        by_folded[lemma] = {"word": lemma, "folded": lemma, "added_at": ""}
+        logged.append(by_folded[lemma])
+    # Keep logged order (newest first), then any file-only lemmas already appended.
+    seen: set[str] = set()
+    out: list[dict[str, Any]] = []
+    for row in logged:
+        folded = str(row.get("folded") or "")
+        if not folded or folded in seen:
+            continue
+        seen.add(folded)
+        out.append(row)
+    return out
+
+
+def admin_lists_payload() -> dict[str, Any]:
+    """Single payload for the admin UI lists."""
+    reliable = list_candidates("reliable")
+    doubt = list_candidates("doubt")
+    added = list_admin_added()
+    return {
+        "reliable": reliable,
+        "doubt": doubt,
+        "added": added,
+        "counts": {
+            "reliable": len(reliable),
+            "doubt": len(doubt),
+            "added": len(added),
+            "total": len(reliable) + len(doubt),
+        },
+    }
 
 
 def _load_rows() -> dict[str, dict[str, Any]]:

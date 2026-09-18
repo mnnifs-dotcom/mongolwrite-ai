@@ -164,7 +164,14 @@ export type SiteHealth = {
 
 export type SiteOverview = {
   lexicon: { seed: number; has_hunspell: boolean; admin_added?: number };
-  candidates: { reliable: number; doubt: number; total: number };
+  candidates: {
+    reliable: number;
+    doubt: number;
+    total: number;
+    reliable_items?: HunspellCandidate[];
+    doubt_items?: HunspellCandidate[];
+  };
+  added_words?: AdminAddedWord[];
   health?: SiteHealth;
   admin_username: string;
   check_max_chars: number;

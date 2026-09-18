@@ -3,9 +3,7 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
 import {
-  adminAddedWords,
   adminApproveCandidates,
-  adminCandidates,
   adminHarvest,
   adminLogin,
   adminLogout,
@@ -60,18 +58,17 @@ export function AdminApp() {
   const [busy, setBusy] = useState(false);
   const [acting, setActing] = useState<string | null>(null);
 
-  const loadLists = useCallback(async () => {
-    const [nextOverview, nextReliable, nextDoubt, nextAdded] = await Promise.all([
-      adminOverview(),
-      adminCandidates("reliable"),
-      adminCandidates("doubt"),
-      adminAddedWords(),
-    ]);
-    setOverview(nextOverview);
-    setReliable(nextReliable.items);
-    setDoubt(nextDoubt.items);
-    setAddedWords(nextAdded.items);
+  const applyOverview = useCallback((next: SiteOverview) => {
+    setOverview(next);
+    setReliable(next.candidates.reliable_items ?? []);
+    setDoubt(next.candidates.doubt_items ?? []);
+    setAddedWords(next.added_words ?? []);
   }, []);
+
+  const loadLists = useCallback(async () => {
+    const nextOverview = await adminOverview();
+    applyOverview(nextOverview);
+  }, [applyOverview]);
 
   useEffect(() => {
     void (async () => {
@@ -174,8 +171,8 @@ export function AdminApp() {
       const result = await adminHarvest(harvestText);
       setStatus(
         result.queued
-          ? `${result.queued} шинэ/шинэчилсэн нэр дэвшигч`
-          : "Шинэ нэр дэвшигч олдсонгүй.",
+          ? `${result.queued} үг жагсаалтад орлоо/шинэчлэгдлээ`
+          : "Шинэ үг олдсонгүй (бүгд аль хэдийн санд байсан эсвэл татгалзсан).",
       );
       await loadLists();
     } catch (err) {
@@ -201,7 +198,7 @@ export function AdminApp() {
         <div className="mw-admin">
           <form className="mw-admin-card mw-admin-login" onSubmit={(event) => void onLogin(event)}>
             <h1>Админ нэвтрэх</h1>
-            <p className="mw-muted">Hunspell нэр дэвшигч үгсийг эндээс хяана.</p>
+            <p className="mw-muted">Үгийн сан, Hunspell нэр дэвшигч, нэмсэн үгсийг эндээс хяана.</p>
             <label>
               Нэвтрэх нэр
               <input
@@ -231,7 +228,8 @@ export function AdminApp() {
     );
   }
 
-  const selectedReliable = reliable.filter((item) => selected.has(item.folded));
+  const hunspellWords = [...reliable, ...doubt];
+  const selectedHunspell = hunspellWords.filter((item) => selected.has(item.folded));
 
   return (
     <div className="mw-admin-page">
@@ -240,6 +238,9 @@ export function AdminApp() {
         <a className="mw-btn" href="/">
           Засварлагч
         </a>
+        <button type="button" className="mw-btn" onClick={() => void loadLists()}>
+          Шинэчлэх
+        </button>
         <button type="button" className="mw-btn" onClick={() => void onLogout()}>
           Гарах
         </button>
@@ -248,72 +249,59 @@ export function AdminApp() {
         {error ? <p className="mw-banner">{error}</p> : null}
         {status ? <p className="mw-admin-status">{status}</p> : null}
 
-        {overview ? (
+        {overview?.health ? (
           <section className="mw-admin-card">
             <div className="mw-health-head">
               <h2>Сайтын төлөв</h2>
-              {overview.health ? (
-                <span className={`mw-health-pill is-${overview.health.status}`}>
-                  {healthLabel(overview.health.status)}
-                </span>
-              ) : null}
+              <span className={`mw-health-pill is-${overview.health.status}`}>
+                {healthLabel(overview.health.status)}
+              </span>
             </div>
-            {overview.health ? (
-              <>
-                <p className="mw-health-advice">{overview.health.advice}</p>
-                <p className="mw-muted">
-                  Сүүлийн 24 цагт {overview.health.checks_24h} шалгалт · дундаж хурд{" "}
-                  {overview.health.warm_p95_ms_24h || overview.health.p95_ms_24h}мс · ажилласан{" "}
-                  {formatUptime(overview.health.uptime_seconds)}
-                  {overview.health.slow_24h
-                    ? ` · удаан ${overview.health.slow_24h}`
-                    : ""}
-                </p>
-                <button type="button" className="mw-btn" onClick={() => void loadLists()}>
-                  Дахин харах
-                </button>
-              </>
-            ) : null}
+            <p className="mw-health-advice">{overview.health.advice}</p>
+            <p className="mw-muted">
+              Сүүлийн 24 цагт {overview.health.checks_24h} шалгалт · хурд{" "}
+              {overview.health.warm_p95_ms_24h || overview.health.p95_ms_24h}мс · ажилласан{" "}
+              {formatUptime(overview.health.uptime_seconds)}
+            </p>
           </section>
         ) : null}
 
         {overview ? (
           <section className="mw-admin-card">
-            <h2>Ерөнхий мэдээлэл</h2>
+            <h2>Тойм</h2>
             <div className="mw-overview-grid">
               <div className="mw-overview-tile">
-                <span>Үгийн сан (seed)</span>
+                <span>Үгийн сан</span>
                 <strong>{overview.lexicon.seed.toLocaleString("mn-MN")}</strong>
                 <em>Hunspell {overview.lexicon.has_hunspell ? "бэлэн" : "байхгүй"}</em>
               </div>
               <div className="mw-overview-tile">
-                <span>Найдвартай</span>
-                <strong>{overview.candidates.reliable}</strong>
-                <em>Админ зөвшөөрсний дараа санд орно</em>
+                <span>Hunspell нэр дэвшигч</span>
+                <strong>{hunspellWords.length}</strong>
+                <em>
+                  Найдвартай {reliable.length} · эргэлзээтэй {doubt.length}
+                </em>
               </div>
               <div className="mw-overview-tile">
-                <span>Эргэлзээтэй</span>
-                <strong>{overview.candidates.doubt}</strong>
-                <em>Hunspell зөвшөөрсөн ч давтамж бага</em>
-              </div>
-              <div className="mw-overview-tile">
-                <span>Админ нэмсэн</span>
-                <strong>{(overview.lexicon.admin_added ?? addedWords.length).toLocaleString("mn-MN")}</strong>
-                <em>Сүүлд нэмснээс эхлэн харна</em>
+                <span>Админаас нэмсэн</span>
+                <strong>{addedWords.length.toLocaleString("mn-MN")}</strong>
+                <em>Шинэ нь дээр харагдана</em>
               </div>
             </div>
           </section>
         ) : null}
 
-        <section className="mw-admin-card">
-          <h2>Сүүлд нэмсэн үгс{addedWords.length ? ` · ${addedWords.length}` : ""}</h2>
-          <p className="mw-muted">Админаас санд оруулсан үгс. Шинээр нэмсэн нь хамгийн дээр.</p>
+        <section className="mw-admin-card" id="admin-added">
+          <h2>Админаас нэмсэн үгс{addedWords.length ? ` · ${addedWords.length}` : ""}</h2>
+          <p className="mw-muted">
+            Админ санд оруулсан үгсийн жагсаалт. Хамгийн сүүлд нэмсэн нь дээр байна.
+          </p>
           {addedWords.length === 0 ? (
-            <p className="mw-muted">Одоогоор админ нэмсэн үг алга.</p>
+            <p className="mw-muted">Одоогоор нэмсэн үг алга. Доорх жагсаалтаас зөвшөөрч нэмнэ.</p>
           ) : (
             <ul className="mw-admin-list">
               {addedWords.map((item) => (
-                <li key={`${item.folded}-${item.added_at}`}>
+                <li key={`${item.folded}-${item.added_at || "file"}`}>
                   <strong>{item.word}</strong>
                   <span className="mw-muted">{formatWhen(item.added_at)}</span>
                 </li>
@@ -322,122 +310,131 @@ export function AdminApp() {
           )}
         </section>
 
-        <section className="mw-admin-card">
-          <h2>Найдвартай шинэ үгс{reliable.length ? ` · ${reliable.length}` : ""}</h2>
+        <section className="mw-admin-card" id="hunspell-candidates">
+          <h2>
+            Hunspell-ээс зөв гэсэн үгс
+            {hunspellWords.length ? ` · ${hunspellWords.length}` : ""}
+          </h2>
           <p className="mw-muted">
-            Санд байхгүй, Hunspell зөв гэсэн, Википедиа дээр түгээмэл үгс. Багцаар санд нэмнэ.
+            Санд байхгүй боловч Hunspell зөв гэсэн (эсвэл текстэд гарсан шинэ) үгс. Эндээс санд
+            оруулна.
           </p>
-          {reliable.length === 0 ? (
-            <p className="mw-muted">Одоогоор найдвартай нэр дэвшигч алга.</p>
-          ) : (
-            <>
-              <div className="mw-admin-row">
-                <button
-                  type="button"
-                  className="mw-btn"
-                  onClick={() => setSelected(new Set(reliable.map((item) => item.folded)))}
-                >
-                  Бүгдийг сонгох
-                </button>
-                <button
-                  type="button"
-                  className="mw-btn-primary"
-                  disabled={!selectedReliable.length || acting === "approve"}
-                  onClick={() => void approveMany(selectedReliable.map((item) => item.word))}
-                >
-                  {acting === "approve"
-                    ? "Нэмж байна…"
-                    : `Сонгосон ${selectedReliable.length} үгийг санд нэмэх`}
-                </button>
-              </div>
-              <ul className="mw-admin-list">
-                {reliable.map((item) => (
-                  <li key={item.folded}>
-                    <label className="mw-candidate-main">
-                      <input
-                        type="checkbox"
-                        checked={selected.has(item.folded)}
-                        onChange={(event) => toggleWord(item.folded, event.target.checked)}
-                      />
-                      <span>
-                        <strong>{item.word}</strong>
-                        <em className="mw-muted"> · {item.count} удаа · {item.reason}</em>
-                      </span>
-                    </label>
-                    <button
-                      type="button"
-                      className="mw-btn"
-                      disabled={acting === item.word}
-                      onClick={() => void rejectOne(item.word)}
-                    >
-                      Татгалзах
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-        </section>
 
-        <section className="mw-admin-card">
-          <h2>Эргэлзээтэй (Hunspell){doubt.length ? ` · ${doubt.length}` : ""}</h2>
-          <p className="mw-muted">
-            Hunspell зөвшөөрсөн боловч давтамж бага эсвэл ойрхон илүү түгээмэл хувилбар байгаа.
-          </p>
-          {doubt.length === 0 ? (
-            <p className="mw-muted">Эргэлзээтэй нэр дэвшигч алга.</p>
-          ) : (
-            <ul className="mw-admin-list">
-              {doubt.map((item) => (
-                <li key={item.folded}>
-                  <div>
-                    <strong>{item.word}</strong>
-                    <p className="mw-muted">
-                      {item.reason}
-                      {item.suggestion ? ` · санал: «${item.suggestion}»` : ""}
-                      {` · ${item.count} удаа`}
-                    </p>
-                  </div>
-                  <div className="mw-admin-row">
-                    <button
-                      type="button"
-                      className="mw-btn-primary"
-                      disabled={!!acting}
-                      onClick={() => void approveMany([item.word])}
-                    >
-                      Санд нэмэх
-                    </button>
-                    <button
-                      type="button"
-                      className="mw-btn"
-                      disabled={acting === item.word}
-                      onClick={() => void rejectOne(item.word)}
-                    >
-                      Татгалзах
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        <section className="mw-admin-card">
-          <h2>Текстээс цуглуулах</h2>
-          <p className="mw-muted">
-            Шалгалт бүрт автоматаар цугларна. Эндээс нэмэлт текст буулгаад шууд harvest хийж болно.
-          </p>
-          <form onSubmit={(event) => void onHarvest(event)}>
+          <form className="mw-harvest-box" onSubmit={(event) => void onHarvest(event)}>
             <textarea
               value={harvestText}
               onChange={(event) => setHarvestText(event.target.value)}
-              rows={6}
-              placeholder="Монгол текст…"
+              rows={4}
+              placeholder="Текст буулгаад Hunspell нэр дэвшигч цуглуулна…"
             />
             <button type="submit" className="mw-btn-primary" disabled={busy || !harvestText.trim()}>
-              {busy ? "Цуглуулж байна…" : "Нэр дэвшигч цуглуулах"}
+              {busy ? "Цуглуулж байна…" : "Жагсаалт руу цуглуулах"}
             </button>
           </form>
+
+          {hunspellWords.length === 0 ? (
+            <p className="mw-muted">
+              Жагсаалт хоосон. Дээр текст буулгаад цуглуулна, эсвэл засварлагч дээр шалгалт хийнэ —
+              автоматаар цугларна.
+            </p>
+          ) : (
+            <>
+              {reliable.length ? (
+                <div className="mw-list-block">
+                  <div className="mw-list-block-head">
+                    <h3>Найдвартай · {reliable.length}</h3>
+                    <div className="mw-admin-row">
+                      <button
+                        type="button"
+                        className="mw-btn"
+                        onClick={() => setSelected(new Set(reliable.map((item) => item.folded)))}
+                      >
+                        Бүгдийг сонгох
+                      </button>
+                      <button
+                        type="button"
+                        className="mw-btn-primary"
+                        disabled={!selectedHunspell.length || acting === "approve"}
+                        onClick={() =>
+                          void approveMany(selectedHunspell.map((item) => item.word))
+                        }
+                      >
+                        {acting === "approve"
+                          ? "Нэмж байна…"
+                          : `Сонгосон ${selectedHunspell.length}-ыг санд нэмэх`}
+                      </button>
+                    </div>
+                  </div>
+                  <ul className="mw-admin-list">
+                    {reliable.map((item) => (
+                      <li key={item.folded}>
+                        <label className="mw-candidate-main">
+                          <input
+                            type="checkbox"
+                            checked={selected.has(item.folded)}
+                            onChange={(event) => toggleWord(item.folded, event.target.checked)}
+                          />
+                          <span>
+                            <strong>{item.word}</strong>
+                            <em className="mw-muted">
+                              {" "}
+                              · {item.count} удаа · {item.reason}
+                            </em>
+                          </span>
+                        </label>
+                        <button
+                          type="button"
+                          className="mw-btn"
+                          disabled={acting === item.word}
+                          onClick={() => void rejectOne(item.word)}
+                        >
+                          Татгалзах
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+
+              {doubt.length ? (
+                <div className="mw-list-block">
+                  <h3>Эргэлзээтэй · {doubt.length}</h3>
+                  <ul className="mw-admin-list">
+                    {doubt.map((item) => (
+                      <li key={item.folded}>
+                        <div>
+                          <strong>{item.word}</strong>
+                          <p className="mw-muted">
+                            {item.reason}
+                            {item.suggestion ? ` · санал: «${item.suggestion}»` : ""}
+                            {` · ${item.count} удаа`}
+                          </p>
+                        </div>
+                        <div className="mw-admin-row">
+                          <button
+                            type="button"
+                            className="mw-btn-primary"
+                            disabled={!!acting}
+                            onClick={() => void approveMany([item.word])}
+                          >
+                            Санд нэмэх
+                          </button>
+                          <button
+                            type="button"
+                            className="mw-btn"
+                            disabled={acting === item.word}
+                            onClick={() => void rejectOne(item.word)}
+                          >
+                            Татгалзах
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </>
+          )}
         </section>
       </div>
     </div>

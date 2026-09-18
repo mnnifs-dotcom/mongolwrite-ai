@@ -13,6 +13,7 @@ from app.core.auth import (
 )
 from app.core.config import settings
 from app.engine.hunspell_candidates import (
+    admin_lists_payload,
     approve_words,
     counts,
     list_admin_added,
@@ -22,7 +23,6 @@ from app.engine.hunspell_candidates import (
 )
 from app.engine.metrics import snapshot
 from app.engine.runtime import get_engine
-from app.engine.warmup import warm_now
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
 AdminDep = Annotated[None, Depends(require_admin)]
@@ -65,16 +65,22 @@ def me(_: AdminDep) -> dict[str, str]:
 @router.get("/overview")
 def overview(_: AdminDep) -> dict[str, Any]:
     engine = get_engine()
-    cand = counts()
-    added = list_admin_added()
+    lists = admin_lists_payload()
     health = snapshot()
     return {
         "lexicon": {
             "seed": len(engine.dictionary._seed),
             "has_hunspell": engine.dictionary.has_hunspell,
-            "admin_added": len(added),
+            "admin_added": lists["counts"]["added"],
         },
-        "candidates": cand,
+        "candidates": {
+            "reliable": lists["counts"]["reliable"],
+            "doubt": lists["counts"]["doubt"],
+            "total": lists["counts"]["total"],
+            "reliable_items": lists["reliable"],
+            "doubt_items": lists["doubt"],
+        },
+        "added_words": lists["added"],
         "health": health,
         "admin_username": settings.admin_username,
         "check_max_chars": settings.check_max_chars,
