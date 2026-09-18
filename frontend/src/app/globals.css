@@ -614,8 +614,37 @@ body {
   backdrop-filter: blur(8px);
 }
 
-.mw-admin-bar strong {
-  margin-right: auto;
+.mw-health-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.mw-health-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: #e8f6ee;
+  color: #0a5c2c;
+}
+
+.mw-health-pill.is-starting {
+  background: #fff4e5;
+  color: #9a5b00;
+}
+
+.mw-health-pill.is-busy {
+  background: #fff4e5;
+  color: #9a5b00;
+}
+
+.mw-health-advice {
+  margin: 0;
+  line-height: 1.45;
 }
 
 .mw-admin {

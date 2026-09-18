@@ -149,9 +149,23 @@ export type HunspellCandidate = {
   updated_at: string;
 };
 
+export type SiteHealth = {
+  status: "ready" | "starting" | "busy";
+  ready: boolean;
+  advice: string;
+  checks_24h: number;
+  warm_p95_ms_24h: number;
+  p95_ms_24h: number;
+  slow_24h: number;
+  outlier_24h: number;
+  warmup_ms: number;
+  uptime_seconds: number;
+};
+
 export type SiteOverview = {
   lexicon: { seed: number; has_hunspell: boolean; admin_added?: number };
   candidates: { reliable: number; doubt: number; total: number };
+  health?: SiteHealth;
   admin_username: string;
   check_max_chars: number;
 };

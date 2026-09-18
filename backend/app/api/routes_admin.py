@@ -20,7 +20,9 @@ from app.engine.hunspell_candidates import (
     record_from_text,
     reject_words,
 )
+from app.engine.metrics import snapshot
 from app.engine.runtime import get_engine
+from app.engine.warmup import warm_now
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
 AdminDep = Annotated[None, Depends(require_admin)]
@@ -65,6 +67,7 @@ def overview(_: AdminDep) -> dict[str, Any]:
     engine = get_engine()
     cand = counts()
     added = list_admin_added()
+    health = snapshot()
     return {
         "lexicon": {
             "seed": len(engine.dictionary._seed),
@@ -72,9 +75,15 @@ def overview(_: AdminDep) -> dict[str, Any]:
             "admin_added": len(added),
         },
         "candidates": cand,
+        "health": health,
         "admin_username": settings.admin_username,
         "check_max_chars": settings.check_max_chars,
     }
+
+
+@router.get("/health")
+def site_health(_: AdminDep) -> dict[str, Any]:
+    return snapshot()
 
 
 @router.get("/added-words")

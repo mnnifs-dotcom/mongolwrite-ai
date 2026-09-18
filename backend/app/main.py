@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api import api_router
 from app.core.config import settings
-from app.engine.runtime import get_engine
+from app.engine.warmup import keep_warm_loop, warm_now
 
 
 def _frontend_dir() -> Path | None:
@@ -24,9 +24,17 @@ def _frontend_dir() -> Path | None:
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    engine = get_engine()
-    engine.check("бэлэн")
-    yield
+    import asyncio
+
+    # Load Hunspell and run sample checks before traffic — no admin button needed.
+    await asyncio.to_thread(warm_now)
+    stop = asyncio.Event()
+    task = asyncio.create_task(keep_warm_loop(stop))
+    try:
+        yield
+    finally:
+        stop.set()
+        await task
 
 
 app = FastAPI(title="MongolWrite AI", version="0.1.0", lifespan=lifespan)

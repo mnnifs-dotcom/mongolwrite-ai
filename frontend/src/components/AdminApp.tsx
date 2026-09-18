@@ -30,6 +30,20 @@ function formatWhen(value: string): string {
   });
 }
 
+function formatUptime(seconds: number): string {
+  const hours = Math.floor(seconds / 3600);
+  const days = Math.floor(hours / 24);
+  if (days > 0) return `${days} өдөр ${hours % 24} цаг`;
+  if (hours > 0) return `${hours} цаг`;
+  return `${Math.floor(seconds / 60)} мин`;
+}
+
+function healthLabel(status: string): string {
+  if (status === "ready") return "Хэвийн";
+  if (status === "busy") return "Завгүй";
+  return "Ачаалж байна";
+}
+
 export function AdminApp() {
   const [ready, setReady] = useState(false);
   const [authed, setAuthed] = useState(false);
@@ -233,6 +247,35 @@ export function AdminApp() {
       <div className="mw-admin">
         {error ? <p className="mw-banner">{error}</p> : null}
         {status ? <p className="mw-admin-status">{status}</p> : null}
+
+        {overview ? (
+          <section className="mw-admin-card">
+            <div className="mw-health-head">
+              <h2>Сайтын төлөв</h2>
+              {overview.health ? (
+                <span className={`mw-health-pill is-${overview.health.status}`}>
+                  {healthLabel(overview.health.status)}
+                </span>
+              ) : null}
+            </div>
+            {overview.health ? (
+              <>
+                <p className="mw-health-advice">{overview.health.advice}</p>
+                <p className="mw-muted">
+                  Сүүлийн 24 цагт {overview.health.checks_24h} шалгалт · дундаж хурд{" "}
+                  {overview.health.warm_p95_ms_24h || overview.health.p95_ms_24h}мс · ажилласан{" "}
+                  {formatUptime(overview.health.uptime_seconds)}
+                  {overview.health.slow_24h
+                    ? ` · удаан ${overview.health.slow_24h}`
+                    : ""}
+                </p>
+                <button type="button" className="mw-btn" onClick={() => void loadLists()}>
+                  Дахин харах
+                </button>
+              </>
+            ) : null}
+          </section>
+        ) : null}
 
         {overview ? (
           <section className="mw-admin-card">

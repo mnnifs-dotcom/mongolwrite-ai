@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import threading
+import time
 
 from app.engine.hunspell_candidates import harvest_safe
+from app.engine.metrics import record
 from app.engine.models import Correction
 from app.engine.pipeline import LanguageEngine
 
@@ -36,7 +38,9 @@ def _harvest_async(text: str) -> None:
 
 def run_engine_check(text: str, style: str) -> list[Correction]:
     engine = get_engine()
+    t0 = time.perf_counter()
     with _check_lock:
         result = engine.check(text, style=style)
+    record((time.perf_counter() - t0) * 1000)
     _harvest_async(text)
     return result
