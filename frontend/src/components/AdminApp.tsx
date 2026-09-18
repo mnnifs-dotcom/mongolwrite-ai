@@ -39,7 +39,7 @@ function formatUptime(seconds: number): string {
 function healthLabel(status: string): string {
   if (status === "ready") return "Хэвийн";
   if (status === "busy") return "Завгүй";
-  return "Ачаалж байна";
+  return "Асаж байна";
 }
 
 export function AdminApp() {
@@ -263,6 +263,7 @@ export function AdminApp() {
               {overview.health.warm_p95_ms_24h || overview.health.p95_ms_24h}мс · ажилласан{" "}
               {formatUptime(overview.health.uptime_seconds)}
             </p>
+            <p className="mw-muted">Анх асахад удаашрал гарвал систем өөрөө засана. Админ товч хэрэггүй.</p>
           </section>
         ) : null}
 
