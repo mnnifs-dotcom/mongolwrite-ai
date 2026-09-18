@@ -199,7 +199,9 @@ export function AdminApp() {
         <div className="mw-admin">
           <form className="mw-admin-card mw-admin-login" onSubmit={(event) => void onLogin(event)}>
             <h1>Админ нэвтрэх</h1>
-            <p className="mw-muted">Үгийн сан, Hunspell нэр дэвшигч, нэмсэн үгсийг эндээс хяана.</p>
+            <p className="mw-muted">
+              Найдвартай үгийн сан, Hunspell нэр дэвшигч, админ нэмсэн үгсийг эндээс хяана.
+            </p>
             <label>
               Нэвтрэх нэр
               <input
@@ -235,7 +237,12 @@ export function AdminApp() {
   return (
     <div className="mw-admin-page">
       <header className="mw-admin-bar">
-        <strong>MongolWrite · Админ</strong>
+        <strong className="mw-brand">
+          MongolWrite · Админ
+          <span className="mw-brand-bichig" lang="mn-Mong">
+            ᠮᠣᠩᠭᠤᠯ ᠪᠢᠴᠢᠭ
+          </span>
+        </strong>
         <Link className="mw-btn" href="/">
           Засварлагч
         </Link>
@@ -273,9 +280,16 @@ export function AdminApp() {
             <h2>Тойм</h2>
             <div className="mw-overview-grid">
               <div className="mw-overview-tile">
-                <span>Үгийн сан</span>
+                <span>Найдвартай үгийн сан</span>
                 <strong>{overview.lexicon.seed.toLocaleString("mn-MN")}</strong>
-                <em>Hunspell {overview.lexicon.has_hunspell ? "бэлэн" : "байхгүй"}</em>
+                <em>
+                  о/ө · у/ү саналын сан
+                  {overview.lexicon.hunspell_stems
+                    ? ` · Hunspell ${(overview.lexicon.hunspell_stems / 1000).toFixed(0)} мянган үндэс`
+                    : overview.lexicon.has_hunspell
+                      ? " · Hunspell бэлэн"
+                      : " · Hunspell байхгүй"}
+                </em>
               </div>
               <div className="mw-overview-tile">
                 <span>Hunspell нэр дэвшигч</span>

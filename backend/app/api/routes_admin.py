@@ -69,8 +69,9 @@ def overview(_: AdminDep) -> dict[str, Any]:
     health = snapshot()
     return {
         "lexicon": {
-            "seed": len(engine.dictionary._seed),
+            "seed": engine.dictionary.curated_lemma_count,
             "has_hunspell": engine.dictionary.has_hunspell,
+            "hunspell_stems": engine.dictionary.hunspell_stem_count,
             "admin_added": lists["counts"]["added"],
         },
         "candidates": {
