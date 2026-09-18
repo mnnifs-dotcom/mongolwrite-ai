@@ -29,7 +29,17 @@ def hunspell_base_path() -> Path:
 
 
 def user_dictionary_path() -> Path:
-    return _repo_root() / "data" / "user_dictionary.txt"
+    """Admin-approved lemmas. Prefer the Fly-mounted persist dir when present."""
+    persist = _repo_root() / "data" / "persist" / "user_dictionary.txt"
+    legacy = _repo_root() / "data" / "user_dictionary.txt"
+    if persist.exists() or persist.parent.is_dir():
+        if not persist.exists() and legacy.exists():
+            try:
+                persist.write_text(legacy.read_text(encoding="utf-8"), encoding="utf-8")
+            except OSError:
+                return legacy
+        return persist
+    return legacy
 
 
 def load_user_dictionary(path: Path | None = None) -> set[str]:

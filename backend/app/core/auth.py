@@ -56,7 +56,13 @@ def set_session_cookie(response: Response) -> None:
 
 
 def clear_session_cookie(response: Response) -> None:
-    response.delete_cookie(key=_COOKIE, path="/")
+    response.delete_cookie(
+        key=_COOKIE,
+        path="/",
+        httponly=True,
+        samesite="lax",
+        secure=settings.app_env == "production",
+    )
 
 
 def require_admin(session: Annotated[str | None, Cookie(alias=_COOKIE)] = None) -> None:
