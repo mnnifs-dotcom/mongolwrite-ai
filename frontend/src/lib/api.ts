@@ -137,3 +137,105 @@ export async function addDictionaryWords(
   }
   return response.json() as Promise<{ added: string[]; added_count: number }>;
 }
+
+export type HunspellCandidate = {
+  word: string;
+  folded: string;
+  tier: "reliable" | "doubt";
+  reason: string;
+  suggestion: string;
+  count: number;
+  seen_at: string;
+  updated_at: string;
+};
+
+export type SiteOverview = {
+  lexicon: { seed: number; has_hunspell: boolean };
+  candidates: { reliable: number; doubt: number; total: number };
+  admin_username: string;
+  check_max_chars: number;
+};
+
+export async function adminLogin(username: string, password: string): Promise<void> {
+  const response = await fetch(apiUrl("/api/v1/admin/login"), {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password }),
+  });
+  if (!response.ok) {
+    const detail =
+      response.status === 503
+        ? "Админ нууц үг тохируулаагүй"
+        : "Нэвтрэх нэр эсвэл нууц үг буруу";
+    throw new Error(detail);
+  }
+}
+
+export async function adminLogout(): Promise<void> {
+  await fetch(apiUrl("/api/v1/admin/logout"), { method: "POST", credentials: "include" });
+}
+
+export async function adminMe(): Promise<boolean> {
+  const response = await fetch(apiUrl("/api/v1/admin/me"), { credentials: "include" });
+  return response.ok;
+}
+
+export async function adminOverview(): Promise<SiteOverview> {
+  const response = await fetch(apiUrl("/api/v1/admin/overview"), { credentials: "include" });
+  if (!response.ok) throw new Error("Ерөнхий мэдээлэл уншигдсангүй");
+  return response.json() as Promise<SiteOverview>;
+}
+
+export async function adminCandidates(
+  tier?: "reliable" | "doubt",
+): Promise<{ items: HunspellCandidate[]; count: number }> {
+  const query = tier ? `?tier=${tier}` : "";
+  const response = await fetch(apiUrl(`/api/v1/admin/candidates${query}`), {
+    credentials: "include",
+  });
+  if (!response.ok) throw new Error("Нэр дэвшигч үгс уншигдсангүй");
+  return response.json() as Promise<{ items: HunspellCandidate[]; count: number }>;
+}
+
+export async function adminApproveCandidates(
+  words: string[],
+): Promise<{ added: string[]; added_count: number }> {
+  const response = await fetch(apiUrl("/api/v1/admin/candidates/approve"), {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ words }),
+  });
+  if (!response.ok) throw new Error("Үгсийг санд нэмж чадсангүй");
+  return response.json() as Promise<{ added: string[]; added_count: number }>;
+}
+
+export async function adminRejectCandidates(
+  words: string[],
+): Promise<{ removed: string[]; removed_count: number }> {
+  const response = await fetch(apiUrl("/api/v1/admin/candidates/reject"), {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ words }),
+  });
+  if (!response.ok) throw new Error("Үгсийг хасаж чадсангүй");
+  return response.json() as Promise<{ removed: string[]; removed_count: number }>;
+}
+
+export async function adminHarvest(
+  text: string,
+): Promise<{ queued: number; counts: { reliable: number; doubt: number; total: number } }> {
+  const response = await fetch(apiUrl("/api/v1/admin/candidates/harvest"), {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  });
+  if (!response.ok) throw new Error("Цуглуулж чадсангүй");
+  return response.json() as Promise<{
+    queued: number;
+    counts: { reliable: number; doubt: number; total: number };
+  }>;
+}

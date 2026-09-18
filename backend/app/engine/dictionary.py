@@ -140,6 +140,12 @@ class DictionaryProvider:
     def has_hunspell(self) -> bool:
         return self._hunspell is not None
 
+    def hunspell_knows(self, word: str) -> bool:
+        if self._hunspell is None:
+            return False
+        folded = word.casefold()
+        return bool(self._hunspell.lookup(folded) or self._hunspell.lookup(word))
+
     def in_seed(self, word: str) -> bool:
         folded = word.casefold()
         return word in self._seed or folded in self._seed

@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from app.api.routes_admin import router as admin_router
 from app.api.routes_ai import router as ai_router
 from app.api.routes_check import router as check_router
 from app.api.routes_dictionary import router as dictionary_router
@@ -12,3 +13,4 @@ api_router.include_router(check_router)
 api_router.include_router(ai_router)
 api_router.include_router(dictionary_router)
 api_router.include_router(import_router)
+api_router.include_router(admin_router)
