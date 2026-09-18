@@ -1,0 +1,4 @@
+{
+  "name": "mongolwrite-ai",
+  "install": "npm ci --prefix frontend\npython3 -m pip install --user -e 'backend[dev]'\npython3 scripts/fetch_mn_dictionary.py"
+}

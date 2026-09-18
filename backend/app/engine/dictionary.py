@@ -29,7 +29,17 @@ def hunspell_base_path() -> Path:
 
 
 def user_dictionary_path() -> Path:
-    return _repo_root() / "data" / "user_dictionary.txt"
+    """Admin-approved lemmas. Prefer the Fly-mounted persist dir when present."""
+    persist = _repo_root() / "data" / "persist" / "user_dictionary.txt"
+    legacy = _repo_root() / "data" / "user_dictionary.txt"
+    if persist.exists() or persist.parent.is_dir():
+        if not persist.exists() and legacy.exists():
+            try:
+                persist.write_text(legacy.read_text(encoding="utf-8"), encoding="utf-8")
+            except OSError:
+                return legacy
+        return persist
+    return legacy
 
 
 def load_user_dictionary(path: Path | None = None) -> set[str]:
@@ -44,6 +54,25 @@ def load_user_dictionary(path: Path | None = None) -> set[str]:
         words.add(word)
         words.add(word.casefold())
     return words
+
+
+def list_user_dictionary_lemmas(path: Path | None = None) -> list[str]:
+    """Unique user-dictionary lemmas, newest file lines first."""
+    target = path or user_dictionary_path()
+    if not target.exists():
+        return []
+    seen: set[str] = set()
+    out: list[str] = []
+    for line in reversed(target.read_text(encoding="utf-8").splitlines()):
+        word = line.strip()
+        if not word or word.startswith("#"):
+            continue
+        folded = word.casefold()
+        if folded in seen:
+            continue
+        seen.add(folded)
+        out.append(folded)
+    return out
 
 
 @lru_cache(maxsize=1)
@@ -122,11 +151,15 @@ class DictionaryProvider:
             if len(word) < 2:
                 continue
             folded = word.casefold()
-            if folded in self._words:
+            # Curated check: seed only. Hunspell-known forms are often absent from _words
+            # but must still enter the user dictionary when an admin approves them.
+            if folded in self._seed:
                 continue
             batch = {word, folded} | expand_case_forms({folded})
             self._seed.update({word, folded})
             self._words.update(batch)
+            self._lookup_cache.pop(folded, None)
+            self._lookup_cache.pop(word, None)
             self._freq[folded] = self._freq.get(folded, 0) + _SEED_FREQ_BONUS
             added.append(folded)
         if added:
@@ -136,9 +169,40 @@ class DictionaryProvider:
             _append_user_words(added)
         return added
 
+    def ensure_curated(self, words: Iterable[str]) -> list[str]:
+        """Guarantee words are in the curated seed + user file (idempotent)."""
+        ensured: list[str] = []
+        for raw in words:
+            word = raw.strip()
+            if len(word) < 2:
+                continue
+            folded = word.casefold()
+            batch = {word, folded} | expand_case_forms({folded})
+            was_new = folded not in self._seed
+            self._seed.update({word, folded})
+            self._words.update(batch)
+            self._lookup_cache.pop(folded, None)
+            self._lookup_cache[folded] = True
+            if was_new:
+                self._freq[folded] = self._freq.get(folded, 0) + _SEED_FREQ_BONUS
+                ensured.append(folded)
+        if ensured:
+            self._index_near()
+            self._index_freq_near()
+        if self._persist_user:
+            # Always persist approved surface forms so restarts keep them.
+            _append_user_words([item.strip().casefold() for item in words if item.strip()])
+        return ensured
+
     @property
     def has_hunspell(self) -> bool:
         return self._hunspell is not None
+
+    def hunspell_knows(self, word: str) -> bool:
+        if self._hunspell is None:
+            return False
+        folded = word.casefold()
+        return bool(self._hunspell.lookup(folded) or self._hunspell.lookup(word))
 
     def in_seed(self, word: str) -> bool:
         folded = word.casefold()

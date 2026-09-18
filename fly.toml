@@ -15,6 +15,10 @@ primary_region = "nrt"
   min_machines_running = 1
   processes = ["app"]
 
+[[mounts]]
+  source = "mongolwrite_data"
+  destination = "/app/data/persist"
+
 [[vm]]
   memory = "1gb"
   cpu_kind = "shared"
