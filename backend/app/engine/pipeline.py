@@ -7,6 +7,7 @@ from app.engine.dictionary import DictionaryProvider
 from app.engine.grammar import check_grammar
 from app.engine.homoglyphs import check_homoglyphs
 from app.engine.models import Correction
+from app.engine.punctuation import check_punctuation
 from app.engine.ranker import rank_corrections
 from app.engine.repeats import check_repeated_words
 from app.engine.spelling import check_spelling
@@ -33,6 +34,7 @@ class LanguageEngine:
             lambda: check_homoglyphs(tokens, self.dictionary),
             lambda: check_confusables(tokens, self.dictionary),
             lambda: check_spelling(tokens, self.dictionary),
+            lambda: check_punctuation(text),
             lambda: check_grammar(tokens, text, self.dictionary),
             lambda: check_word_choice(tokens, text),
             lambda: check_official_style(tokens, text, style),

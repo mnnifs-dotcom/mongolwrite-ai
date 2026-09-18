@@ -198,6 +198,23 @@ class DictionaryProvider:
     def has_hunspell(self) -> bool:
         return self._hunspell is not None
 
+    @property
+    def curated_lemma_count(self) -> int:
+        """Unique curated lemmas (admin «Үгийн сан»), case-insensitive."""
+        return len({item.casefold() for item in self._seed})
+
+    @property
+    def hunspell_stem_count(self) -> int:
+        """Declared stem count from mn_MN.dic header (0 if missing)."""
+        path = hunspell_base_path().with_suffix(".dic")
+        if not path.exists():
+            return 0
+        try:
+            first = path.read_text(encoding="utf-8", errors="ignore").splitlines()[0].strip()
+            return int(first) if first.isdigit() else 0
+        except (OSError, IndexError, ValueError):
+            return 0
+
     def hunspell_knows(self, word: str) -> bool:
         if self._hunspell is None:
             return False

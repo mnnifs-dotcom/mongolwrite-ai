@@ -163,7 +163,12 @@ export type SiteHealth = {
 };
 
 export type SiteOverview = {
-  lexicon: { seed: number; has_hunspell: boolean; admin_added?: number };
+  lexicon: {
+    seed: number;
+    has_hunspell: boolean;
+    hunspell_stems?: number;
+    admin_added?: number;
+  };
   candidates: {
     reliable: number;
     doubt: number;
