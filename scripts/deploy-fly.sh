@@ -22,7 +22,7 @@ FLY=(flyctl)
 command -v flyctl >/dev/null 2>&1 || FLY=(fly)
 
 "${FLY[@]}" auth whoami
-"${FLY[@]}" deploy -a mongolwrite-ai --ha=false
+"${FLY[@]}" deploy -a mongolwrite-ai --ha=false --yes
 
 if [[ -n "${ADMIN_PASSWORD:-}" ]]; then
   "${FLY[@]}" secrets set \
