@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 
 import {
   adminApproveCandidates,
@@ -235,9 +236,9 @@ export function AdminApp() {
     <div className="mw-admin-page">
       <header className="mw-admin-bar">
         <strong>MongolWrite · Админ</strong>
-        <a className="mw-btn" href="/">
+        <Link className="mw-btn" href="/">
           Засварлагч
-        </a>
+        </Link>
         <button type="button" className="mw-btn" onClick={() => void loadLists()}>
           Шинэчлэх
         </button>
