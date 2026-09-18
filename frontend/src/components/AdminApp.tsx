@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
 import {
+  adminAddedWords,
   adminApproveCandidates,
   adminCandidates,
   adminHarvest,
@@ -11,9 +12,23 @@ import {
   adminMe,
   adminOverview,
   adminRejectCandidates,
+  type AdminAddedWord,
   type HunspellCandidate,
   type SiteOverview,
 } from "@/lib/api";
+
+function formatWhen(value: string): string {
+  if (!value) return "—";
+  const stamp = Date.parse(value);
+  if (Number.isNaN(stamp)) return value;
+  return new Date(stamp).toLocaleString("mn-MN", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 export function AdminApp() {
   const [ready, setReady] = useState(false);
@@ -23,6 +38,7 @@ export function AdminApp() {
   const [overview, setOverview] = useState<SiteOverview | null>(null);
   const [reliable, setReliable] = useState<HunspellCandidate[]>([]);
   const [doubt, setDoubt] = useState<HunspellCandidate[]>([]);
+  const [addedWords, setAddedWords] = useState<AdminAddedWord[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [harvestText, setHarvestText] = useState("");
   const [status, setStatus] = useState("");
@@ -31,14 +47,16 @@ export function AdminApp() {
   const [acting, setActing] = useState<string | null>(null);
 
   const loadLists = useCallback(async () => {
-    const [nextOverview, nextReliable, nextDoubt] = await Promise.all([
+    const [nextOverview, nextReliable, nextDoubt, nextAdded] = await Promise.all([
       adminOverview(),
       adminCandidates("reliable"),
       adminCandidates("doubt"),
+      adminAddedWords(),
     ]);
     setOverview(nextOverview);
     setReliable(nextReliable.items);
     setDoubt(nextDoubt.items);
+    setAddedWords(nextAdded.items);
   }, []);
 
   useEffect(() => {
@@ -77,6 +95,7 @@ export function AdminApp() {
     setOverview(null);
     setReliable([]);
     setDoubt([]);
+    setAddedWords([]);
     setSelected(new Set());
     setStatus("");
     setError(null);
@@ -100,7 +119,9 @@ export function AdminApp() {
       setStatus(
         result.added_count
           ? `${result.added_count} үг санд орлоо`
-          : "Сонгосон үгс аль хэдийн санд байсан.",
+          : result.recorded_count
+            ? `${result.recorded_count} үг санд баталгаажууллаа`
+            : "Сонгосон үгс аль хэдийн санд байсан.",
       );
       setSelected(new Set());
       await loadLists();
@@ -232,9 +253,31 @@ export function AdminApp() {
                 <strong>{overview.candidates.doubt}</strong>
                 <em>Hunspell зөвшөөрсөн ч давтамж бага</em>
               </div>
+              <div className="mw-overview-tile">
+                <span>Админ нэмсэн</span>
+                <strong>{(overview.lexicon.admin_added ?? addedWords.length).toLocaleString("mn-MN")}</strong>
+                <em>Сүүлд нэмснээс эхлэн харна</em>
+              </div>
             </div>
           </section>
         ) : null}
+
+        <section className="mw-admin-card">
+          <h2>Сүүлд нэмсэн үгс{addedWords.length ? ` · ${addedWords.length}` : ""}</h2>
+          <p className="mw-muted">Админаас санд оруулсан үгс. Шинээр нэмсэн нь хамгийн дээр.</p>
+          {addedWords.length === 0 ? (
+            <p className="mw-muted">Одоогоор админ нэмсэн үг алга.</p>
+          ) : (
+            <ul className="mw-admin-list">
+              {addedWords.map((item) => (
+                <li key={`${item.folded}-${item.added_at}`}>
+                  <strong>{item.word}</strong>
+                  <span className="mw-muted">{formatWhen(item.added_at)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
 
         <section className="mw-admin-card">
           <h2>Найдвартай шинэ үгс{reliable.length ? ` · ${reliable.length}` : ""}</h2>

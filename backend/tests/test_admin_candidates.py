@@ -22,6 +22,55 @@ def test_admin_me_requires_login() -> None:
     assert TestClient(app).get("/api/v1/admin/me").status_code == 401
 
 
+def test_missing_word_harvested_and_added_to_lexicon(monkeypatch, tmp_path) -> None:
+    persist = tmp_path / "persist"
+    persist.mkdir()
+    user_dict = tmp_path / "user_dictionary.txt"
+    user_dict.write_text("", encoding="utf-8")
+    monkeypatch.setattr("app.engine.dictionary.user_dictionary_path", lambda: user_dict)
+    monkeypatch.setattr("app.engine.hunspell_candidates.persist_dir", lambda: persist)
+
+    import app.engine.runtime as runtime
+
+    runtime._engine = None
+
+    client = TestClient(app)
+    _login(client, monkeypatch, persist)
+
+    # Invented word — not in curated lexicon; should still be harvested as doubt.
+    coined = "хязгаарлагдмалтэстүг"
+    harvest = client.post(
+        "/api/v1/admin/candidates/harvest",
+        json={"text": f"Энэ {coined} үгийг шалгана."},
+    )
+    assert harvest.status_code == 200
+    items = client.get("/api/v1/admin/candidates").json()["items"]
+    folded = {row["folded"] for row in items}
+    assert coined in folded
+
+    approved = client.post("/api/v1/admin/candidates/approve", json={"words": [coined]})
+    assert approved.status_code == 200
+    body = approved.json()
+    assert body["added_count"] >= 1 or body.get("recorded_count", 0) >= 1
+
+    from app.engine.runtime import get_engine
+
+    assert get_engine().dictionary.in_seed(coined)
+    assert coined in user_dict.read_text(encoding="utf-8")
+
+    added = client.get("/api/v1/admin/added-words").json()
+    assert added["count"] >= 1
+    assert added["items"][0]["folded"] == coined
+
+    # Second approval of another word appears first (newest first).
+    second = "хоёрдахьтэстүг"
+    client.post("/api/v1/admin/candidates/harvest", json={"text": second})
+    client.post("/api/v1/admin/candidates/approve", json={"words": [second]})
+    ordered = client.get("/api/v1/admin/added-words").json()["items"]
+    assert ordered[0]["folded"] == second
+    assert ordered[1]["folded"] == coined
+
+
 def test_hunspell_candidates_harvest_classify_approve(monkeypatch, tmp_path) -> None:
     persist = tmp_path / "persist"
     persist.mkdir()

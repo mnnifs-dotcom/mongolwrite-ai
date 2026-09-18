@@ -15,6 +15,7 @@ from app.core.config import settings
 from app.engine.hunspell_candidates import (
     approve_words,
     counts,
+    list_admin_added,
     list_candidates,
     record_from_text,
     reject_words,
@@ -63,15 +64,23 @@ def me(_: AdminDep) -> dict[str, str]:
 def overview(_: AdminDep) -> dict[str, Any]:
     engine = get_engine()
     cand = counts()
+    added = list_admin_added()
     return {
         "lexicon": {
             "seed": len(engine.dictionary._seed),
             "has_hunspell": engine.dictionary.has_hunspell,
+            "admin_added": len(added),
         },
         "candidates": cand,
         "admin_username": settings.admin_username,
         "check_max_chars": settings.check_max_chars,
     }
+
+
+@router.get("/added-words")
+def added_words(_: AdminDep) -> dict[str, Any]:
+    items = list_admin_added()
+    return {"items": items, "count": len(items)}
 
 
 @router.get("/candidates")

@@ -6,6 +6,7 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 
 import {
+  addDictionaryWords,
   checkText,
   checkTextWithAI,
   getSettings,
@@ -529,6 +530,22 @@ export function EditorApp() {
     if (activeId === id) setActiveId(null);
   }
 
+  async function addToLexicon(item: Correction) {
+    const word = item.original_text.trim();
+    if (!word) return;
+    try {
+      const result = await addDictionaryWords([word]);
+      dismissed.current.add(dismissKey(item));
+      setCorrections((prev) => prev.filter((row) => row.id !== item.id));
+      if (activeId === item.id) setActiveId(null);
+      setStatus(
+        result.added_count ? `«${word}» тольд нэмэгдлээ` : `«${word}» аль хэдийн тольд байсан`,
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Тольд нэмж чадсангүй");
+    }
+  }
+
   async function copyText() {
     if (!editor) return;
     await navigator.clipboard.writeText(plainTextFromDoc(editor.state.doc));
@@ -828,6 +845,15 @@ export function EditorApp() {
                     ×
                   </button>
                 </div>
+                {item.category === "SPELLING" ? (
+                  <button
+                    type="button"
+                    className="mw-hit-learn"
+                    onClick={() => void addToLexicon(item)}
+                  >
+                    Тольд нэмэх
+                  </button>
+                ) : null}
               </li>
             ))
           )}

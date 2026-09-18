@@ -509,6 +509,27 @@ body {
   color: var(--ink);
 }
 
+.mw-hit-learn {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  border: 1px solid var(--line);
+  background: #f3faf6;
+  color: var(--accent);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+
+.mw-hit-learn:hover {
+  border-color: var(--accent);
+  background: #e7f6ec;
+}
+
 .mw-pop {
   position: fixed;
   z-index: 40;
@@ -721,7 +742,7 @@ body {
 
 .mw-overview-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 

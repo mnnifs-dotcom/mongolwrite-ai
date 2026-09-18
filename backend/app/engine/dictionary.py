@@ -122,11 +122,15 @@ class DictionaryProvider:
             if len(word) < 2:
                 continue
             folded = word.casefold()
-            if folded in self._words:
+            # Curated check: seed only. Hunspell-known forms are often absent from _words
+            # but must still enter the user dictionary when an admin approves them.
+            if folded in self._seed:
                 continue
             batch = {word, folded} | expand_case_forms({folded})
             self._seed.update({word, folded})
             self._words.update(batch)
+            self._lookup_cache.pop(folded, None)
+            self._lookup_cache.pop(word, None)
             self._freq[folded] = self._freq.get(folded, 0) + _SEED_FREQ_BONUS
             added.append(folded)
         if added:
@@ -135,6 +139,31 @@ class DictionaryProvider:
         if added and self._persist_user:
             _append_user_words(added)
         return added
+
+    def ensure_curated(self, words: Iterable[str]) -> list[str]:
+        """Guarantee words are in the curated seed + user file (idempotent)."""
+        ensured: list[str] = []
+        for raw in words:
+            word = raw.strip()
+            if len(word) < 2:
+                continue
+            folded = word.casefold()
+            batch = {word, folded} | expand_case_forms({folded})
+            was_new = folded not in self._seed
+            self._seed.update({word, folded})
+            self._words.update(batch)
+            self._lookup_cache.pop(folded, None)
+            self._lookup_cache[folded] = True
+            if was_new:
+                self._freq[folded] = self._freq.get(folded, 0) + _SEED_FREQ_BONUS
+                ensured.append(folded)
+        if ensured:
+            self._index_near()
+            self._index_freq_near()
+        if self._persist_user:
+            # Always persist approved surface forms so restarts keep them.
+            _append_user_words([item.strip().casefold() for item in words if item.strip()])
+        return ensured
 
     @property
     def has_hunspell(self) -> bool:

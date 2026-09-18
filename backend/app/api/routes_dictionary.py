@@ -30,5 +30,9 @@ def learn(body: LearnRequest) -> LearnResponse:
 
 @router.post("/words", response_model=LearnResponse)
 def add_words(body: WordsRequest) -> LearnResponse:
-    added = get_engine().dictionary.add_words(body.words)
+    dictionary = get_engine().dictionary
+    added = dictionary.add_words(body.words)
+    if not added:
+        # Still ensure Hunspell-known / expansion forms land in the user file.
+        added = dictionary.ensure_curated(body.words)
     return LearnResponse(added=added, added_count=len(added))

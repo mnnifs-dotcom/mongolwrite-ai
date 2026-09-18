@@ -36,6 +36,10 @@ def rejected_path() -> Path:
     return persist_dir() / "hunspell_rejected.json"
 
 
+def admin_added_path() -> Path:
+    return persist_dir() / "admin_added.json"
+
+
 def _now() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
 
@@ -65,6 +69,66 @@ def _load_rejected() -> set[str]:
 
 def _save_rejected(words: set[str]) -> None:
     _save_json(rejected_path(), {"words": sorted(words)})
+
+
+def _load_admin_added() -> list[dict[str, Any]]:
+    raw = _load_json(admin_added_path())
+    rows = raw.get("words", []) if isinstance(raw, dict) else (raw if isinstance(raw, list) else [])
+    out: list[dict[str, Any]] = []
+    if not isinstance(rows, list):
+        return out
+    for row in rows:
+        if isinstance(row, str):
+            word = row.strip()
+            if len(word) < 2:
+                continue
+            out.append({"word": word, "folded": word.casefold(), "added_at": ""})
+            continue
+        if not isinstance(row, dict):
+            continue
+        word = str(row.get("word") or "").strip()
+        folded = str(row.get("folded") or word).casefold()
+        if len(folded) < 2:
+            continue
+        out.append(
+            {
+                "word": word or folded,
+                "folded": folded,
+                "added_at": str(row.get("added_at") or ""),
+            }
+        )
+    return out
+
+
+def _save_admin_added(rows: list[dict[str, Any]]) -> None:
+    _save_json(admin_added_path(), {"words": rows[: _MAX_CANDIDATES]})
+
+
+def record_admin_added(words: list[str]) -> list[dict[str, Any]]:
+    """Prepend newly admin-approved words (newest first)."""
+    stamped = _now()
+    with _lock:
+        rows = _load_admin_added()
+        existing = {str(row.get("folded") or "") for row in rows}
+        prepend: list[dict[str, Any]] = []
+        for raw in words:
+            word = raw.strip()
+            folded = word.casefold()
+            if len(folded) < 2:
+                continue
+            if folded in existing:
+                rows = [row for row in rows if row.get("folded") != folded]
+            prepend.append({"word": word, "folded": folded, "added_at": stamped})
+            existing.add(folded)
+        merged = prepend + rows
+        _save_admin_added(merged)
+        return prepend
+
+
+def list_admin_added() -> list[dict[str, Any]]:
+    """Return admin-added words newest-first (file order)."""
+    with _lock:
+        return list(_load_admin_added())
 
 
 def _load_rows() -> dict[str, dict[str, Any]]:
@@ -111,8 +175,8 @@ def hunspell_knows(dictionary: DictionaryProvider, word: str) -> bool:
 
 
 def in_curated_lexicon(dictionary: DictionaryProvider, word: str) -> bool:
-    """True when the word is already in the seed/user curated list."""
-    return dictionary.in_seed(word) or dictionary.in_wordlist(word)
+    """True when the word is already in the curated seed/user list (not Hunspell-only)."""
+    return dictionary.in_seed(word)
 
 
 def classify_candidate(dictionary: DictionaryProvider, word: str) -> dict[str, Any] | None:
@@ -126,17 +190,16 @@ def classify_candidate(dictionary: DictionaryProvider, word: str) -> dict[str, A
         return None
     if _is_implausible(cleaned):
         return None
-    if not hunspell_knows(dictionary, cleaned):
-        return None
     if in_curated_lexicon(dictionary, cleaned):
         return None
 
+    hun_ok = hunspell_knows(dictionary, cleaned)
     wiki = dictionary.wiki_frequency(cleaned)
     better = ""
     better_wiki = 0
     for variant in _variants(cleaned, limit=16):
         vwiki = dictionary.wiki_frequency(variant)
-        known = dictionary.in_wordlist(variant) or dictionary.in_seed(variant)
+        known = dictionary.in_seed(variant) or dictionary.in_wordlist(variant)
         if (known or vwiki >= _FREQ_TRUST) and vwiki > wiki + 20:
             if vwiki > better_wiki:
                 better = variant
@@ -147,10 +210,10 @@ def classify_candidate(dictionary: DictionaryProvider, word: str) -> dict[str, A
             "word": cleaned,
             "folded": folded,
             "tier": "doubt",
-            "reason": f"«{better}» илүү түгээмэл. Hunspell зөв гэсэн ч эргэлзээтэй.",
+            "reason": f"«{better}» илүү түгээмэл. Зөв үү, буруу юу?",
             "suggestion": better,
         }
-    if wiki >= _FREQ_TRUST:
+    if hun_ok and wiki >= _FREQ_TRUST:
         return {
             "word": cleaned,
             "folded": folded,
@@ -158,16 +221,25 @@ def classify_candidate(dictionary: DictionaryProvider, word: str) -> dict[str, A
             "reason": "Hunspell зөвшөөрсөн · Википедиа дээр түгээмэл.",
             "suggestion": "",
         }
+    if hun_ok:
+        return {
+            "word": cleaned,
+            "folded": folded,
+            "tier": "doubt",
+            "reason": "Hunspell зөвшөөрсөн боловч давтамж бага. Админ шалгана.",
+            "suggestion": "",
+        }
     return {
         "word": cleaned,
         "folded": folded,
         "tier": "doubt",
-        "reason": "Hunspell зөвшөөрсөн боловч давтамж бага. Админ шалгана.",
+        "reason": "Санд байхгүй үг. Админ шалгаад оруулна.",
         "suggestion": "",
     }
 
 
-def extract_hunspell_only(engine: LanguageEngine, text: str) -> list[str]:
+def extract_missing_words(engine: LanguageEngine, text: str) -> list[str]:
+    """Cyrillic tokens missing from the curated lexicon (Hunspell-only or unknown)."""
     dictionary = engine.dictionary
     found: list[str] = []
     seen: set[str] = set()
@@ -183,10 +255,13 @@ def extract_hunspell_only(engine: LanguageEngine, text: str) -> list[str]:
         seen.add(folded)
         if in_curated_lexicon(dictionary, folded):
             continue
-        if not hunspell_knows(dictionary, token.text):
-            continue
         found.append(token.text)
     return found
+
+
+def extract_hunspell_only(engine: LanguageEngine, text: str) -> list[str]:
+    """Backward-compatible alias — now returns all curated-missing words."""
+    return extract_missing_words(engine, text)
 
 
 def _flush_pending() -> int:
@@ -233,10 +308,10 @@ def _flush_pending() -> int:
 
 
 def record_from_text(engine: LanguageEngine, text: str) -> int:
-    """Harvest Hunspell-only words from text into candidate lists. Returns queued count."""
-    if not text.strip() or not engine.dictionary.has_hunspell:
+    """Harvest curated-missing words from text into candidate lists. Returns queued count."""
+    if not text.strip():
         return 0
-    words = extract_hunspell_only(engine, text)
+    words = extract_missing_words(engine, text)
     if not words:
         return 0
     dictionary = engine.dictionary
@@ -283,7 +358,7 @@ def counts() -> dict[str, int]:
 def approve_words(engine: LanguageEngine, words: list[str]) -> dict[str, Any]:
     folded_wanted = {item.strip().casefold() for item in words if item.strip()}
     if not folded_wanted:
-        return {"added": [], "added_count": 0}
+        return {"added": [], "added_count": 0, "recorded": []}
     with _lock:
         rows = _load_rows()
         to_add: list[str] = []
@@ -293,9 +368,22 @@ def approve_words(engine: LanguageEngine, words: list[str]) -> dict[str, Any]:
                 to_add.append(str(row.get("word") or folded))
             else:
                 to_add.append(folded)
-        added = engine.dictionary.add_words(to_add)
+        # Persist candidates removal first so a crash mid-add does not re-show them forever.
         _save_rows(rows)
-    return {"added": added, "added_count": len(added)}
+
+    # Add outside the candidates lock — dictionary has its own locking needs.
+    added = engine.dictionary.add_words(to_add)
+    # Force curated seed even when the form was already known via expansions/Hunspell cache.
+    ensured = engine.dictionary.ensure_curated(to_add)
+    recorded_words = list(dict.fromkeys([*added, *ensured, *[w.casefold() for w in to_add]]))
+    recorded = record_admin_added(to_add)
+    return {
+        "added": added or ensured,
+        "added_count": len(added) if added else len(ensured),
+        "recorded": recorded,
+        "recorded_count": len(recorded),
+        "words": recorded_words,
+    }
 
 
 def reject_words(words: list[str]) -> dict[str, Any]:

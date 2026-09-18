@@ -150,10 +150,16 @@ export type HunspellCandidate = {
 };
 
 export type SiteOverview = {
-  lexicon: { seed: number; has_hunspell: boolean };
+  lexicon: { seed: number; has_hunspell: boolean; admin_added?: number };
   candidates: { reliable: number; doubt: number; total: number };
   admin_username: string;
   check_max_chars: number;
+};
+
+export type AdminAddedWord = {
+  word: string;
+  folded: string;
+  added_at: string;
 };
 
 export async function adminLogin(username: string, password: string): Promise<void> {
@@ -200,7 +206,7 @@ export async function adminCandidates(
 
 export async function adminApproveCandidates(
   words: string[],
-): Promise<{ added: string[]; added_count: number }> {
+): Promise<{ added: string[]; added_count: number; recorded_count?: number }> {
   const response = await fetch(apiUrl("/api/v1/admin/candidates/approve"), {
     method: "POST",
     credentials: "include",
@@ -208,7 +214,11 @@ export async function adminApproveCandidates(
     body: JSON.stringify({ words }),
   });
   if (!response.ok) throw new Error("Үгсийг санд нэмж чадсангүй");
-  return response.json() as Promise<{ added: string[]; added_count: number }>;
+  return response.json() as Promise<{
+    added: string[];
+    added_count: number;
+    recorded_count?: number;
+  }>;
 }
 
 export async function adminRejectCandidates(
@@ -238,4 +248,10 @@ export async function adminHarvest(
     queued: number;
     counts: { reliable: number; doubt: number; total: number };
   }>;
+}
+
+export async function adminAddedWords(): Promise<{ items: AdminAddedWord[]; count: number }> {
+  const response = await fetch(apiUrl("/api/v1/admin/added-words"), { credentials: "include" });
+  if (!response.ok) throw new Error("Нэмсэн үгс уншигдсангүй");
+  return response.json() as Promise<{ items: AdminAddedWord[]; count: number }>;
 }
