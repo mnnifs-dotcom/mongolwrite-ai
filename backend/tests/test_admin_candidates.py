@@ -175,3 +175,36 @@ def test_check_triggers_harvest_without_failing(monkeypatch, tmp_path) -> None:
     )
     assert response.status_code == 200
     assert "corrections" in response.json()
+
+
+def test_clear_orthography_errors_not_harvested(monkeypatch, tmp_path) -> None:
+    persist = tmp_path / "persist"
+    persist.mkdir()
+    user_dict = tmp_path / "user_dictionary.txt"
+    user_dict.write_text("", encoding="utf-8")
+    monkeypatch.setattr("app.engine.dictionary.user_dictionary_path", lambda: user_dict)
+    monkeypatch.setattr("app.engine.hunspell_candidates.persist_dir", lambda: persist)
+
+    import app.engine.runtime as runtime
+
+    runtime._engine = None
+
+    client = TestClient(app)
+    _login(client, monkeypatch, persist)
+
+    # Clear rule misses — must NOT enter Hunspell admin queue.
+    clear_errors = "ажиллажбайна үзэжбайна ягаад байхгуй өдрээс"
+    client.post("/api/v1/admin/candidates/harvest", json={"text": clear_errors})
+    folded = {
+        row["folded"] for row in client.get("/api/v1/admin/candidates").json()["items"]
+    }
+    for word in ("ажиллажбайна", "үзэжбайна", "ягаад", "байхгуй"):
+        assert word not in folded
+
+    # Invented gap word should still be queued for admin judgment.
+    coined = "эргэлзээтэйтэстүг"
+    client.post("/api/v1/admin/candidates/harvest", json={"text": coined})
+    folded = {
+        row["folded"] for row in client.get("/api/v1/admin/candidates").json()["items"]
+    }
+    assert coined in folded

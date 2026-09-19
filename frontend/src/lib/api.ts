@@ -261,6 +261,28 @@ export type AdminAddedWord = {
   added_at: string;
 };
 
+export type AdminUser = {
+  id: string;
+  email: string;
+  name: string;
+  picture: string;
+  plan: string;
+  plan_name: string;
+  plan_expires_at: string | null;
+  is_paid: boolean;
+  status: string;
+  created_at: string;
+  last_login_at: string;
+};
+
+export type AdminUsersPage = {
+  items: AdminUser[];
+  total: number;
+  offset: number;
+  limit: number;
+  counts: { total: number; free: number; paid: number; pro: number };
+};
+
 export async function adminLogin(username: string, password: string): Promise<void> {
   const response = await fetch(apiUrl("/api/v1/admin/login"), {
     method: "POST",
@@ -487,4 +509,44 @@ export async function adminRejectPending(word: string): Promise<{ word: string }
   });
   if (!response.ok) throw new Error("Үг хасаж чадсангүй");
   return response.json() as Promise<{ word: string }>;
+}
+
+export async function adminUsers(opts?: {
+  q?: string;
+  plan?: string;
+  offset?: number;
+  limit?: number;
+}): Promise<AdminUsersPage> {
+  const params = new URLSearchParams();
+  if (opts?.q) params.set("q", opts.q);
+  if (opts?.plan) params.set("plan", opts.plan);
+  if (opts?.offset != null) params.set("offset", String(opts.offset));
+  if (opts?.limit != null) params.set("limit", String(opts.limit));
+  const query = params.toString();
+  const response = await fetch(apiUrl(`/api/v1/admin/users${query ? `?${query}` : ""}`), {
+    credentials: "include",
+  });
+  if (!response.ok) throw new Error("Хэрэглэгчид уншигдсангүй");
+  return response.json() as Promise<AdminUsersPage>;
+}
+
+export async function adminSetUserPlan(
+  userId: string,
+  plan: "free" | "pro",
+  planExpiresAt?: string | null,
+): Promise<{ ok: boolean; user: AdminUser }> {
+  const response = await fetch(apiUrl(`/api/v1/admin/users/${encodeURIComponent(userId)}/plan`), {
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      plan,
+      plan_expires_at: planExpiresAt ?? null,
+    }),
+  });
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(detail || "Төлөвлөгөө шинэчлэгдсэнгүй");
+  }
+  return response.json() as Promise<{ ok: boolean; user: AdminUser }>;
 }
