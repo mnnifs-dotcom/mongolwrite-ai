@@ -127,11 +127,105 @@ body {
 
 .mw-top {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   align-items: center;
   margin-bottom: 16px;
   flex: 0 0 auto;
   flex-wrap: wrap;
+}
+
+.mw-top-spacer {
+  flex: 1 1 auto;
+  min-width: 8px;
+}
+
+.mw-auth {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mw-auth-login {
+  font-weight: 600;
+}
+
+.mw-auth-user {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  border-radius: 999px;
+  padding: 4px 10px 4px 4px;
+  cursor: pointer;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  max-width: 200px;
+}
+
+.mw-auth-avatar,
+.mw-auth-initial {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.mw-auth-avatar {
+  object-fit: cover;
+}
+
+.mw-auth-initial {
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--accent) 18%, #fff);
+  color: var(--accent-deep);
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.mw-auth-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mw-auth-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  min-width: 200px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 12px 32px rgba(13, 27, 42, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mw-auth-plan {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-deep);
+}
+
+.mw-auth-email {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+  word-break: break-all;
+}
+
+.mw-auth-error {
+  font-size: 12px;
+  color: var(--error);
+  max-width: 160px;
 }
 
 .mw-title {
