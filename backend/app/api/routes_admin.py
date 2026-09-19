@@ -18,6 +18,7 @@ from app.engine.hunspell_candidates import (
     admin_lists_payload,
     approve_words,
     counts,
+    forget_admin_added,
     list_admin_added,
     list_candidates,
     queue_doubt_words,
@@ -155,8 +156,13 @@ def ingest(body: IngestRequest, _: AdminDep) -> dict[str, Any]:
 
 
 @router.get("/added-words")
-def added_words(_: AdminDep) -> dict[str, Any]:
-    items = list_admin_added()
+def added_words(
+    _: AdminDep,
+    since: str = "",
+    until: str = "",
+    q: str = "",
+) -> dict[str, Any]:
+    items = list_admin_added(since=since, until=until, q=q)
     return {"items": items, "count": len(items)}
 
 
@@ -221,6 +227,8 @@ def lexicon_remove(body: LexiconRemoveRequest, _: AdminDep) -> dict[str, Any]:
         raise HTTPException(status_code=400, detail="Үг сонгоогүй")
     dictionary = get_engine().dictionary
     removed = dictionary.remove_words(body.words)
+    if removed:
+        forget_admin_added(removed)
     queued: list[str] = []
     if body.queue_as_doubt and removed:
         queued = queue_doubt_words(removed)["queued"]
