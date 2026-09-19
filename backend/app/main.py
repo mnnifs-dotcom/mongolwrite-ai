@@ -117,4 +117,12 @@ else:
         def ugiin_aldaga_shalgah_page() -> FileResponse:
             return FileResponse(_seo_html)
 
+    _aldaga_html = _frontend / "aldaga-shalgah.html"
+    if _aldaga_html.is_file():
+
+        @app.get("/aldaga-shalgah")
+        @app.get("/aldaga-shalgah/")
+        def aldaga_shalgah_page() -> FileResponse:
+            return FileResponse(_aldaga_html)
+
     app.mount("/", StaticFiles(directory=_frontend, html=True), name="frontend")
