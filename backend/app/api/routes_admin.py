@@ -18,6 +18,7 @@ from app.engine.hunspell_candidates import (
     counts,
     list_admin_added,
     list_candidates,
+    queue_doubt_words,
     record_from_text,
     reject_words,
 )
@@ -50,6 +51,11 @@ class HarvestRequest(BaseModel):
 
 class IngestRequest(BaseModel):
     text: str = Field(default="", max_length=500_000)
+
+
+class LexiconRemoveRequest(BaseModel):
+    words: list[str] = Field(default_factory=list, max_length=500)
+    queue_as_doubt: bool = True
 
 
 @router.post("/login")
@@ -188,3 +194,34 @@ def lexicon_legal_import(_: AdminDep) -> dict[str, Any]:
     """Import legalinfo trusted lemmas into curated lexicon; queue doubt for review."""
     result = apply_legal_lexicon(get_engine())
     return {**result, "counts": counts(), "preview": legal_import_preview()}
+
+
+@router.get("/lexicon/words")
+def lexicon_words(
+    _: AdminDep,
+    q: str = "",
+    letter: str = "",
+    offset: int = 0,
+    limit: int = 100,
+) -> dict[str, Any]:
+    dictionary = get_engine().dictionary
+    return dictionary.list_lexicon(query=q, letter=letter, offset=offset, limit=limit)
+
+
+@router.post("/lexicon/remove")
+def lexicon_remove(body: LexiconRemoveRequest, _: AdminDep) -> dict[str, Any]:
+    if not body.words:
+        raise HTTPException(status_code=400, detail="Үг сонгоогүй")
+    dictionary = get_engine().dictionary
+    removed = dictionary.remove_words(body.words)
+    queued: list[str] = []
+    if body.queue_as_doubt and removed:
+        queued = queue_doubt_words(removed)["queued"]
+    return {
+        "removed": removed,
+        "removed_count": len(removed),
+        "queued_as_doubt": queued,
+        "queued_count": len(queued),
+        "lexicon_total": dictionary.curated_lemma_count,
+        "counts": counts(),
+    }

@@ -1048,6 +1048,149 @@ body {
   border-bottom: 1px solid var(--line);
   background: color-mix(in srgb, var(--panel) 82%, transparent);
   backdrop-filter: blur(10px);
+  flex: 0 0 auto;
+}
+
+.mw-admin-shell {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  min-height: calc(100vh - 64px);
+  align-items: stretch;
+}
+
+.mw-admin-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 12px;
+  border-right: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+  background: color-mix(in srgb, var(--panel) 88%, #fff);
+}
+
+.mw-admin-nav-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  border-radius: 10px;
+  padding: 10px 12px;
+  text-align: left;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.mw-admin-nav-item em {
+  font-style: normal;
+  font-size: 11px;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--accent) 10%, #fff);
+  border-radius: 999px;
+  padding: 2px 7px;
+}
+
+.mw-admin-nav-item:hover {
+  background: color-mix(in srgb, var(--accent) 10%, #fff);
+  color: var(--accent-deep);
+}
+
+.mw-admin-nav-item.is-active {
+  background: color-mix(in srgb, var(--accent) 16%, #fff);
+  color: var(--accent-deep);
+  font-weight: 600;
+}
+
+.mw-admin-nav-item.is-active em {
+  background: color-mix(in srgb, var(--accent) 22%, #fff);
+  color: var(--accent-deep);
+}
+
+.mw-admin-pane {
+  max-width: none;
+  width: 100%;
+  padding: 18px 22px 28px;
+  min-width: 0;
+}
+
+.mw-lex-search {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.mw-lex-search input {
+  flex: 1 1 220px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font: inherit;
+  background: #fff;
+}
+
+.mw-lex-search input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--sky-mist);
+}
+
+.mw-lex-letters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.mw-lex-letter {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 36px;
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.mw-lex-letter em {
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.mw-lex-letter:hover,
+.mw-lex-letter.is-active {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  background: color-mix(in srgb, var(--accent) 12%, #fff);
+  color: var(--accent-deep);
+}
+
+.mw-lex-actions,
+.mw-lex-pager {
+  margin: 8px 0 12px;
+}
+
+.mw-lex-scroll {
+  max-height: min(58vh, 560px);
+}
+
+.mw-lex-list li {
+  padding: 6px 4px;
 }
 
 .mw-admin-bar .mw-brand {
@@ -1482,7 +1625,28 @@ body {
     flex-wrap: wrap;
   }
 
+  .mw-admin-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .mw-admin-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    padding: 10px 12px;
+  }
+
+  .mw-admin-nav-item {
+    width: auto;
+    flex: 1 1 auto;
+  }
+
   .mw-admin-scroll {
     max-height: 220px;
+  }
+
+  .mw-lex-scroll {
+    max-height: 40vh;
   }
 }

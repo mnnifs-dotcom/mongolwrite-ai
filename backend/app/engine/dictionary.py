@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Callable, Iterable
 from functools import lru_cache
 from pathlib import Path
@@ -33,6 +34,59 @@ def persist_dir() -> Path:
     path = _repo_root() / "data" / "persist"
     path.mkdir(parents=True, exist_ok=True)
     return path
+
+
+def removed_lexicon_path() -> Path:
+    return persist_dir() / "lexicon_removed.json"
+
+
+def load_removed_lexicon(path: Path | None = None) -> set[str]:
+    target = path or removed_lexicon_path()
+    if not target.exists():
+        return set()
+    try:
+        raw = json.loads(target.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return set()
+    words = raw.get("words") if isinstance(raw, dict) else raw
+    if not isinstance(words, list):
+        return set()
+    out: set[str] = set()
+    for item in words:
+        word = str(item).strip().casefold()
+        if len(word) >= 2:
+            out.add(word)
+    return out
+
+
+def save_removed_lexicon(words: set[str], path: Path | None = None) -> None:
+    target = path or removed_lexicon_path()
+    target.parent.mkdir(parents=True, exist_ok=True)
+    payload = {"words": sorted(words)}
+    target.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def rewrite_user_dictionary(keep: set[str], path: Path | None = None) -> None:
+    """Rewrite user dictionary keeping only lemmas in ``keep`` (casefolded)."""
+    target = path or user_dictionary_path()
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if not target.exists():
+        return
+    kept_lines: list[str] = []
+    seen: set[str] = set()
+    for line in target.read_text(encoding="utf-8").splitlines():
+        word = line.strip()
+        if not word or word.startswith("#"):
+            continue
+        folded = word.casefold()
+        if folded not in keep or folded in seen:
+            continue
+        seen.add(folded)
+        kept_lines.append(folded)
+    target.write_text(("\n".join(kept_lines) + ("\n" if kept_lines else "")), encoding="utf-8")
+
+
+MN_LETTERS = tuple("абвгдеёжзийклмноөпрстуүфхцчшщъыьэюя")
 
 
 def user_dictionary_path() -> Path:
@@ -125,9 +179,13 @@ class DictionaryProvider:
         if words is None:
             base = load_wordlist() | load_user_dictionary()
             self._persist_user = True
+            self._removed = load_removed_lexicon()
         else:
             base = set(words)
             self._persist_user = False
+            self._removed = set()
+        # Drop admin-removed lemmas from the curated seed.
+        base = {item for item in base if item.casefold() not in self._removed}
         self._seed: set[str] = {item.casefold() for item in base} | set(base)
         self._words: set[str] = set(base | expand_case_forms(base))
         self._near: dict[tuple[str, int], list[str]] = {}
@@ -158,6 +216,9 @@ class DictionaryProvider:
             if len(word) < 2:
                 continue
             folded = word.casefold()
+            # Restoring a previously removed lemma clears the tombstone.
+            if folded in self._removed:
+                self._removed.discard(folded)
             # Curated check: seed only. Hunspell-known forms are often absent from _words
             # but must still enter the user dictionary when an admin approves them.
             if folded in self._seed:
@@ -172,8 +233,9 @@ class DictionaryProvider:
         if added:
             self._index_near()
             self._index_freq_near()
-        if added and self._persist_user:
-            _append_user_words(added)
+            if self._persist_user:
+                save_removed_lexicon(self._removed)
+                _append_user_words(added)
         return added
 
     def ensure_curated(self, words: Iterable[str]) -> list[str]:
@@ -184,6 +246,8 @@ class DictionaryProvider:
             if len(word) < 2:
                 continue
             folded = word.casefold()
+            if folded in self._removed:
+                self._removed.discard(folded)
             batch = {word, folded} | expand_case_forms({folded})
             was_new = folded not in self._seed
             self._seed.update({word, folded})
@@ -197,9 +261,83 @@ class DictionaryProvider:
             self._index_near()
             self._index_freq_near()
         if self._persist_user:
+            save_removed_lexicon(self._removed)
             # Always persist approved surface forms so restarts keep them.
             _append_user_words([item.strip().casefold() for item in words if item.strip()])
         return ensured
+
+    def list_lexicon(
+        self,
+        *,
+        query: str = "",
+        letter: str = "",
+        offset: int = 0,
+        limit: int = 100,
+    ) -> dict[str, Any]:
+        """Paginated curated lemmas with optional search / starting-letter filter."""
+        q = query.strip().casefold()
+        letter_key = letter.strip().casefold()[:1]
+        lemmas = sorted({item.casefold() for item in self._seed if item.casefold() not in self._removed})
+        if letter_key:
+            lemmas = [word for word in lemmas if word[:1] == letter_key]
+        if q:
+            lemmas = [word for word in lemmas if q in word]
+        total = len(lemmas)
+        start = max(0, int(offset))
+        size = max(1, min(500, int(limit)))
+        page = lemmas[start : start + size]
+        letter_counts: dict[str, int] = {ch: 0 for ch in MN_LETTERS}
+        other = 0
+        for word in ({item.casefold() for item in self._seed} - self._removed):
+            first = word[:1]
+            if first in letter_counts:
+                letter_counts[first] += 1
+            else:
+                other += 1
+        return {
+            "words": page,
+            "total": total,
+            "offset": start,
+            "limit": size,
+            "letters": [
+                {"letter": ch.upper(), "folded": ch, "count": letter_counts[ch]}
+                for ch in MN_LETTERS
+                if letter_counts[ch] > 0
+            ]
+            + ([{"letter": "#", "folded": "#", "count": other}] if other else []),
+            "query": query.strip(),
+            "letter": letter.strip(),
+        }
+
+    def remove_words(self, words: Iterable[str]) -> list[str]:
+        """Remove curated lemmas (tombstone + user-dict rewrite)."""
+        removed: list[str] = []
+        for raw in words:
+            word = raw.strip()
+            if len(word) < 2:
+                continue
+            folded = word.casefold()
+            was_curated = folded in self._seed or word in self._seed
+            self._removed.add(folded)
+            self._seed.discard(folded)
+            self._seed.discard(word)
+            drop = {folded, word} | expand_case_forms({folded})
+            self._words.difference_update(drop)
+            self._lookup_cache[folded] = False
+            self._lookup_cache.pop(word, None)
+            self._freq.pop(folded, None)
+            if was_curated or folded not in removed:
+                if folded not in removed:
+                    removed.append(folded)
+        if not removed:
+            return []
+        if self._persist_user:
+            save_removed_lexicon(self._removed)
+            keep = {item.casefold() for item in self._seed} - self._removed
+            rewrite_user_dictionary(keep)
+        self._index_near()
+        self._index_freq_near()
+        return removed
 
     @property
     def has_hunspell(self) -> bool:
@@ -207,7 +345,7 @@ class DictionaryProvider:
 
     @property
     def curated_lemma_count(self) -> int:
-        return len({item.casefold() for item in self._seed})
+        return len({item.casefold() for item in self._seed} - self._removed)
 
     @property
     def hunspell_stem_count(self) -> int:
@@ -232,13 +370,20 @@ class DictionaryProvider:
 
     def in_seed(self, word: str) -> bool:
         folded = word.casefold()
+        if folded in self._removed:
+            return False
         return word in self._seed or folded in self._seed
 
     def in_wordlist(self, word: str) -> bool:
-        return word in self._words or word.casefold() in self._words
+        folded = word.casefold()
+        if folded in self._removed:
+            return False
+        return word in self._words or folded in self._words
 
     def contains(self, word: str) -> bool:
         folded = word.casefold()
+        if folded in self._removed:
+            return False
         if word in self._words or folded in self._words:
             return True
         cached = self._lookup_cache.get(folded)
@@ -249,6 +394,9 @@ class DictionaryProvider:
             ok = bool(self._hunspell.lookup(word) or self._hunspell.lookup(folded))
         self._lookup_cache[folded] = ok
         return ok
+
+    def is_removed(self, word: str) -> bool:
+        return word.casefold() in self._removed
 
     def is_frequent_inflection(self, word: str) -> bool:
         """Frequent stem plus a school case/plural tail (вэбсайт → вэбсайтад)."""

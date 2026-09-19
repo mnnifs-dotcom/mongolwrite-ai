@@ -384,6 +384,65 @@ export async function adminLegalImport(): Promise<{
   }>;
 }
 
+export type LexiconLetter = {
+  letter: string;
+  folded: string;
+  count: number;
+};
+
+export type LexiconPage = {
+  words: string[];
+  total: number;
+  offset: number;
+  limit: number;
+  letters: LexiconLetter[];
+  query: string;
+  letter: string;
+};
+
+export async function adminLexiconWords(params: {
+  q?: string;
+  letter?: string;
+  offset?: number;
+  limit?: number;
+}): Promise<LexiconPage> {
+  const search = new URLSearchParams();
+  if (params.q) search.set("q", params.q);
+  if (params.letter) search.set("letter", params.letter);
+  if (params.offset != null) search.set("offset", String(params.offset));
+  if (params.limit != null) search.set("limit", String(params.limit));
+  const query = search.toString();
+  const response = await fetch(apiUrl(`/api/v1/admin/lexicon/words${query ? `?${query}` : ""}`), {
+    credentials: "include",
+  });
+  if (!response.ok) throw new Error("Үгийн сан уншигдсангүй");
+  return response.json() as Promise<LexiconPage>;
+}
+
+export async function adminLexiconRemove(
+  words: string[],
+  queueAsDoubt = true,
+): Promise<{
+  removed: string[];
+  removed_count: number;
+  queued_count: number;
+  lexicon_total: number;
+}> {
+  const response = await fetch(apiUrl("/api/v1/admin/lexicon/remove"), {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ words, queue_as_doubt: queueAsDoubt }),
+  });
+  if (!response.ok) throw new Error("Үгийг сангаас хасаж чадсангүй");
+  return response.json() as Promise<{
+    removed: string[];
+    removed_count: number;
+    queued_count: number;
+    lexicon_total: number;
+  }>;
+}
+
 export async function adminHarvest(
   text: string,
 ): Promise<{ queued: number; counts: { reliable: number; doubt: number; total: number } }> {
