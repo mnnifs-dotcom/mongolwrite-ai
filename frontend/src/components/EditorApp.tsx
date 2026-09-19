@@ -646,10 +646,11 @@ export function EditorApp() {
   function convertToBichig() {
     if (!editor) return;
     const text = plainTextFromDoc(editor.state.doc);
+    if (!text.trim()) return;
     setBichigBusy(true);
     setError(null);
     try {
-      // Full-text convert after writing — not live while typing.
+      // Convert whatever is currently in the editor — on command only.
       setBichigText(cyrillicToBichig(text));
       setShowBichig(true);
     } catch (err) {
@@ -657,14 +658,6 @@ export function EditorApp() {
     } finally {
       setBichigBusy(false);
     }
-  }
-
-  function toggleBichigPanel() {
-    if (showBichig) {
-      setShowBichig(false);
-      return;
-    }
-    convertToBichig();
   }
 
   return (
@@ -724,13 +717,12 @@ export function EditorApp() {
             />
             <button
               type="button"
-              className={showBichig ? "mw-btn mw-btn-toggle is-on" : "mw-btn mw-btn-toggle"}
-              onClick={toggleBichigPanel}
-              aria-pressed={showBichig}
+              className="mw-btn mw-btn-convert"
+              onClick={convertToBichig}
               disabled={bichigBusy || empty}
               aria-busy={bichigBusy}
             >
-              {bichigBusy ? "Хөрвүүлж…" : "Монгол бичиг"}
+              {bichigBusy ? "Хөрвүүлж…" : "Монгол бичиг хөрвүүлэх"}
             </button>
             <button
               type="button"
@@ -804,16 +796,18 @@ export function EditorApp() {
           {showBichig ? (
             <aside className="mw-bichig-panel" aria-label="Монгол бичиг хөрвүүлэлт">
               <div className="mw-bichig-head">
-                <div className="mw-bichig-title">Монгол бичиг</div>
-                <div className="mw-bichig-actions">
+                <div className="mw-bichig-title-row">
+                  <div className="mw-bichig-title">Монгол бичиг</div>
                   <button
                     type="button"
-                    className="mw-btn"
-                    onClick={convertToBichig}
-                    disabled={bichigBusy || empty}
+                    className="mw-bichig-close"
+                    aria-label="Хаах"
+                    onClick={() => setShowBichig(false)}
                   >
-                    {bichigBusy ? "…" : "Хөрвүүлэх"}
+                    ×
                   </button>
+                </div>
+                <div className="mw-bichig-actions">
                   <button
                     type="button"
                     className="mw-btn"

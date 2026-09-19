@@ -1,6 +1,23 @@
 @import url("https://fonts.googleapis.com/css2?family=Noto+Sans+Mongolian&display=swap");
 @import "tailwindcss";
 
+/* Bolorsoft faces used by KIMO — Ali Gali ᢈ/ᢉ and classical shaping */
+@font-face {
+  font-family: "Classical Mongolian Dashitseden";
+  src: url("/fonts/cmdashitseden.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MongolianScript";
+  src: url("/fonts/MongolianScript.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --bg: #e6eef6;
   --panel: #f5f9fc;
@@ -13,7 +30,8 @@
   --error: #c62828;
   --warning: #b86b12;
   --suggest: #1a7ab8;
-  --font-mongol: "Noto Sans Mongolian", "Mongolian Baiti", sans-serif;
+  --font-mongol: "Classical Mongolian Dashitseden", "MongolianScript", "Noto Sans Mongolian",
+    "Mongolian Baiti", sans-serif;
   --ready: #1a7a6a;
   --ready-bg: #e4f4f1;
   --ready-line: #9fd4c8;
@@ -130,7 +148,7 @@ body {
 }
 
 .mw-brand-bichig {
-  font-family: var(--font-mongol), "Noto Sans Mongolian", sans-serif;
+  font-family: var(--font-mongol);
   font-size: 13px;
   font-weight: 500;
   color: var(--gold);
@@ -652,7 +670,7 @@ body {
 
 .mw-bichig-actions {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
 }
 
@@ -677,6 +695,13 @@ body {
   opacity: 0.45;
 }
 
+.mw-bichig-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .mw-bichig-title {
   margin: 0;
   font-size: 11px;
@@ -687,6 +712,22 @@ body {
   color: color-mix(in srgb, var(--gold) 78%, #fff);
 }
 
+.mw-bichig-close {
+  border: 0;
+  background: transparent;
+  color: color-mix(in srgb, var(--gold) 70%, #fff);
+  font-size: 18px;
+  line-height: 1;
+  padding: 2px 6px;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.mw-bichig-close:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
 .mw-bichig-head .mw-muted {
   color: color-mix(in srgb, var(--gold) 65%, #fff);
   font-size: 12px;
@@ -695,10 +736,10 @@ body {
 .mw-bichig-body {
   writing-mode: vertical-lr;
   text-orientation: mixed;
-  font-family: var(--font-mongol), "Noto Sans Mongolian", sans-serif;
-  font-size: 22px;
-  line-height: 2;
-  letter-spacing: 0.02em;
+  font-family: var(--font-mongol);
+  font-size: 24px;
+  line-height: 2.05;
+  letter-spacing: 0.01em;
   color: color-mix(in srgb, var(--gold) 52%, #fff);
   overflow: auto;
   flex: 1 1 auto;
@@ -706,6 +747,30 @@ body {
   max-height: none;
   padding: 10px 6px;
   outline: none;
+  font-feature-settings: "ccmp" 1, "calt" 1;
+  -webkit-font-feature-settings: "ccmp" 1, "calt" 1;
+  text-rendering: optimizeLegibility;
+}
+
+.mw-top-actions .mw-btn-convert {
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 12%, #fff) 0%, #fff 100%);
+  color: var(--accent-deep);
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 11px;
+  white-space: nowrap;
+  box-shadow: 0 1px 0 rgba(13, 27, 42, 0.04);
+}
+
+.mw-top-actions .mw-btn-convert:hover:not(:disabled) {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 18%, #fff) 0%, #fff 100%);
+  border-color: var(--accent);
+  color: var(--accent-deep);
+}
+
+.mw-top-actions .mw-btn-convert:disabled {
+  opacity: 0.45;
 }
 
 .mw-bichig-empty {

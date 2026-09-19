@@ -16,7 +16,13 @@ router = APIRouter(prefix="/api/v1/export", tags=["export"])
 
 _MAX_CHARS = 200_000
 # Primary OpenType Mongolian fonts; Word picks the first installed face.
-_BICHIG_FONTS = ("Mongolian Baiti", "Noto Sans Mongolian", "Menksoft Qagan")
+_BICHIG_FONTS = (
+    "Classical Mongolian Dashitseden",
+    "MongolianScript",
+    "Mongolian Baiti",
+    "Noto Sans Mongolian",
+    "Menksoft Qagan",
+)
 # Traditional Mongolian: top→bottom within a column, columns left→right.
 # Matches CSS writing-mode: vertical-lr. Do NOT use tbRl (CJK right→left columns).
 _BICHIG_TEXT_DIRECTION = "tbLrV"
