@@ -4,7 +4,9 @@ import Link from "next/link";
 const SITE = "https://mongolwrite-ai.fly.dev";
 
 export const metadata: Metadata = {
-  title: "Үгийн алдаа шалгах | Монгол зөв бичих — MongolWrite",
+  title: {
+    absolute: "Үгийн алдаа шалгах | Монгол зөв бичих — MongolWrite",
+  },
   description:
     "Монгол үгийн алдаа шалгах, бичгийн алдаа засах онлайн хэрэгсэл. Кирилл текстээ шалгаад засварлаж, монгол бичиг рүү хөрвүүлээд Word-оор татаж авна.",
   keywords: [
