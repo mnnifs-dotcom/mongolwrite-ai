@@ -223,12 +223,14 @@ export function EditorApp() {
   const [empty, setEmpty] = useState(true);
   const [shown, setShown] = useState(false);
   const [checking, setChecking] = useState(false);
+  const [successFlash, setSuccessFlash] = useState(false);
   const [showBichig, setShowBichig] = useState(false);
   const [draft, setDraft] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const checkSeq = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
   const lastLen = useRef(0);
@@ -282,6 +284,11 @@ export function EditorApp() {
     shownRef.current = false;
     setShown(false);
     setChecking(false);
+    setSuccessFlash(false);
+    if (successTimer.current) {
+      clearTimeout(successTimer.current);
+      successTimer.current = null;
+    }
     setCorrections([]);
     setActiveId(null);
   }, []);
@@ -370,6 +377,37 @@ export function EditorApp() {
       setChecking(false);
     }
   }, [applyResult, checking, editor, runCheck, runThink]);
+
+  useEffect(() => {
+    if (checking) {
+      setSuccessFlash(false);
+      if (successTimer.current) {
+        clearTimeout(successTimer.current);
+        successTimer.current = null;
+      }
+      return;
+    }
+    if (!shown || empty || corrections.length > 0) {
+      setSuccessFlash(false);
+      if (successTimer.current) {
+        clearTimeout(successTimer.current);
+        successTimer.current = null;
+      }
+      return;
+    }
+    setSuccessFlash(true);
+    if (successTimer.current) clearTimeout(successTimer.current);
+    successTimer.current = setTimeout(() => {
+      setSuccessFlash(false);
+      successTimer.current = null;
+    }, 5000);
+    return () => {
+      if (successTimer.current) {
+        clearTimeout(successTimer.current);
+        successTimer.current = null;
+      }
+    };
+  }, [checking, shown, empty, corrections.length]);
 
   useEffect(() => {
     if (!editor) return;
@@ -716,7 +754,7 @@ export function EditorApp() {
                 <span className="mw-spinner lg" aria-hidden />
               </div>
             ) : null}
-            {!checking && shown && !empty && corrections.length === 0 ? (
+            {successFlash ? (
               <div className="mw-success-overlay" role="status" aria-live="polite">
                 <div className="mw-success-card">
                   <span className="mw-success-check" aria-hidden>
