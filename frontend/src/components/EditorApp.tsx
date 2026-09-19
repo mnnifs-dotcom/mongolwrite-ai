@@ -594,12 +594,7 @@ export function EditorApp() {
     <div className={showBichig ? "mw-shell is-bichig-open" : "mw-shell"}>
       <main className="mw-main">
         <header className="mw-top">
-          <div className="mw-brand">
-            MongolWrite
-            <span className="mw-brand-bichig" lang="mn-Mong">
-              ᠮᠣᠩᠭᠤᠯ ᠪᠢᠴᠢᠭ
-            </span>
-          </div>
+          <div className="mw-brand">MongolWrite</div>
           <input
             className="mw-title"
             value={title}
@@ -684,11 +679,6 @@ export function EditorApp() {
           </button>
         </header>
         {error ? <p className="mw-banner">{error}</p> : null}
-        {shown && !checking && !error && !corrections.length && counts.words ? (
-          <p className="mw-banner mw-banner-ok" role="status">
-            Алдаа олдсонгүй. Энэ бичвэр цэвэрхэн байна.
-          </p>
-        ) : null}
         <div className="mw-stage">
           <div className={empty ? "mw-editor is-empty" : "mw-editor"} aria-busy={checking}>
             <div className="mw-editor-scroll">
@@ -709,20 +699,13 @@ export function EditorApp() {
             {checking ? (
               <div className="mw-checking-overlay" role="status" aria-live="polite">
                 <span className="mw-spinner lg" aria-hidden />
-                <div>
-                  <strong>Алдаа шалгаж байна</strong>
-                  <p>Бичвэрийг уншиж, зөв бичихийг шалгаж байна. Түр хүлээнэ үү.</p>
-                </div>
               </div>
             ) : null}
           </div>
           {showBichig ? (
             <aside className="mw-bichig-panel" aria-label="Монгол бичиг хөрвүүлэлт">
               <div className="mw-bichig-head">
-                <div>
-                  <div className="mw-bichig-title">Монгол бичиг</div>
-                  <p className="mw-muted">Кириллээс хөрвүүлсэн</p>
-                </div>
+                <div className="mw-bichig-title">Монгол бичиг</div>
                 <button
                   type="button"
                   className="mw-btn"
@@ -737,7 +720,7 @@ export function EditorApp() {
                   {bichigText}
                 </div>
               ) : (
-                <div className="mw-bichig-empty">Зүүн талд бичвэл энд монгол бичгээр харагдана.</div>
+                <div className="mw-bichig-empty" aria-hidden />
               )}
             </aside>
           ) : null}
@@ -760,33 +743,8 @@ export function EditorApp() {
           {checking ? (
             <li className="mw-checking-panel">
               <span className="mw-spinner lg" aria-hidden />
-              <div>
-                <strong>Бичвэрийг уншиж байна</strong>
-                <p>Алдаа болон найруулгын саналыг хайж байна. Энэ нь гацсан хэрэг биш.</p>
-              </div>
             </li>
-          ) : visible.length === 0 ? (
-            <li
-              className={
-                shown && !corrections.length && counts.words ? "mw-ok" : "mw-empty"
-              }
-            >
-              {corrections.length
-                ? "Энэ төрөлд санал алга."
-                : shown
-                  ? counts.words
-                    ? (
-                        <>
-                          <strong>Алдаа олдсонгүй</strong>
-                          <p>Энэ бичвэрт зөв бичих болон найруулгын алдаа илрээгүй.</p>
-                        </>
-                      )
-                    : "Бичиж эхлээрэй. Дараа нь «Алдаа шалгах»-ыг дарна."
-                  : counts.words
-                    ? "Бичээд «Алдаа шалгах» товчийг дарна уу."
-                    : "Бичиж эхлээрэй. Дараа нь «Алдаа шалгах»-ыг дарна."}
-            </li>
-          ) : (
+          ) : visible.length === 0 ? null : (
             visible.map((item) => (
               <li key={item.id} data-card-id={item.id}>
                 <div
