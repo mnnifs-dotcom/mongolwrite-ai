@@ -170,28 +170,48 @@ function convertDigits(token: string): string {
 }
 
 /**
- * Gege often ranks a multi-suffix parse above a whole-word guess (e.g. төгөлдөр →
- * töγel-dü-ber). Prefer the unsuffixed reading when the top hit has 2+ separate
- * case suffixes and a whole-word candidate exists.
+ * Pick script for one analyzed word token. Gege often ranks a multi-suffix parse
+ * above a whole-word guess (e.g. төгөлдөр → töγel-dü-ber). Prefer the unsuffixed
+ * reading when the top hit has 2+ separate case suffixes and a whole-word
+ * candidate exists.
+ */
+function pickCandidateScript(
+  cands: ReadonlyArray<{ script: string; segmentation?: { suffixes?: ReadonlyArray<{ separate: boolean }> } }>,
+): string | null {
+  if (!cands.length) return null;
+  const top = cands[0];
+  const sepCount = top.segmentation?.suffixes?.filter((s) => s.separate).length ?? 0;
+  if (sepCount >= 2) {
+    const whole = cands.find((c) => (c.segmentation?.suffixes?.length ?? 0) === 0);
+    if (whole?.script) return whole.script;
+  }
+  return top.script;
+}
+
+/**
+ * Analyze the full token so clitic splits (монголруу → монгол + руу) stay intact,
+ * then apply whole-word preference per fragment.
  */
 function pickGegeScript(word: string): string {
   try {
     const tokens = analyze(word, CONVERT_OPTS);
-    const cands =
-      tokens.find((t) => t.token.kind === "word" && t.token.text === word)?.candidates ??
-      tokens.find((t) => t.token.kind === "word")?.candidates ??
-      [];
-    if (!cands.length) {
-      return convert(word, CONVERT_OPTS);
+    if (!tokens.length) return convert(word, CONVERT_OPTS);
+
+    let out = "";
+    let sawWord = false;
+    for (const t of tokens) {
+      if (t.token.kind === "word") {
+        sawWord = true;
+        const picked = pickCandidateScript(t.candidates ?? []);
+        out += picked ?? convert(t.token.text, CONVERT_OPTS);
+      } else if (t.token.kind === "space") {
+        out += t.token.text;
+      } else {
+        // digits / punct / other — keep gege's convert rendering for the piece
+        out += convert(t.token.text, CONVERT_OPTS);
+      }
     }
-    const top = cands[0];
-    const sepCount =
-      top.segmentation?.suffixes?.filter((s) => s.separate).length ?? 0;
-    if (sepCount >= 2) {
-      const whole = cands.find((c) => (c.segmentation?.suffixes?.length ?? 0) === 0);
-      if (whole?.script) return whole.script;
-    }
-    return top.script;
+    return sawWord ? out : convert(word, CONVERT_OPTS);
   } catch {
     return convert(word, CONVERT_OPTS);
   }
