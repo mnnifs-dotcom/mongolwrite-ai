@@ -14,6 +14,7 @@ import {
   saveAiKey,
   skipSpellingWord,
 } from "@/lib/api";
+import { cyrillicToBichig } from "@/lib/bichig";
 import { IssueHighlight, setIssueDecorations } from "@/lib/highlight";
 import { mapRange, plainTextFromDoc } from "@/lib/offsets";
 import { type Correction } from "@/lib/types";
@@ -222,6 +223,8 @@ export function EditorApp() {
   const [empty, setEmpty] = useState(true);
   const [shown, setShown] = useState(false);
   const [checking, setChecking] = useState(false);
+  const [showBichig, setShowBichig] = useState(false);
+  const [draft, setDraft] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDetailsElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -379,6 +382,7 @@ export function EditorApp() {
       checkSeq.current += 1;
       const text = plainTextFromDoc(editor.state.doc);
       setEmpty(!text.trim());
+      setDraft(text);
       setCounts({
         words: text.trim() ? text.trim().split(/\s+/).length : 0,
         chars: text.length,
@@ -446,6 +450,7 @@ export function EditorApp() {
   }, [activeId]);
 
   const visible = corrections;
+  const bichigText = useMemo(() => (showBichig ? cyrillicToBichig(draft) : ""), [showBichig, draft]);
 
   const activeItem = useMemo(
     () => corrections.find((item) => item.id === activeId) ?? null,
@@ -581,17 +586,29 @@ export function EditorApp() {
     editor?.commands.setContent("<p></p>");
     setTitle("Шинэ баримт");
     setCorrections([]);
+    setDraft("");
     setStatus("Бэлэн");
     setError(null);
     closeMenu();
     editor?.commands.focus();
   }
 
+  async function copyBichig() {
+    if (!bichigText.trim()) return;
+    await navigator.clipboard.writeText(bichigText);
+    setStatus("Монгол бичиг хууллаа");
+  }
+
   return (
-    <div className="mw-shell">
+    <div className={showBichig ? "mw-shell is-bichig-open" : "mw-shell"}>
       <main className="mw-main">
         <header className="mw-top">
-          <div className="mw-brand">MongolWrite</div>
+          <div className="mw-brand">
+            MongolWrite
+            <span className="mw-brand-bichig" lang="mn-Mong">
+              ᠮᠣᠩᠭᠤᠯ ᠪᠢᠴᠢᠭ
+            </span>
+          </div>
           <input
             className="mw-title"
             value={title}
@@ -644,6 +661,14 @@ export function EditorApp() {
           />
           <button
             type="button"
+            className={showBichig ? "mw-btn-primary" : "mw-btn"}
+            onClick={() => setShowBichig((open) => !open)}
+            aria-pressed={showBichig}
+          >
+            Монгол бичиг
+          </button>
+          <button
+            type="button"
             className={checking ? "mw-btn-primary is-busy" : "mw-btn-primary"}
             onClick={() => void showErrors()}
             disabled={empty || checking}
@@ -673,16 +698,43 @@ export function EditorApp() {
             Алдаа олдсонгүй. Энэ бичвэр цэвэрхэн байна.
           </p>
         ) : null}
-        <div className={empty ? "mw-editor is-empty" : "mw-editor"} aria-busy={checking}>
-          <EditorContent editor={editor} />
-          {checking ? (
-            <div className="mw-checking-overlay" role="status" aria-live="polite">
-              <span className="mw-spinner lg" aria-hidden />
-              <div>
-                <strong>Алдаа шалгаж байна</strong>
-                <p>Бичвэрийг уншиж, зөв бичих болон найруулгыг шалгаж байна. Түр хүлээнэ үү.</p>
+        <div className="mw-stage">
+          <div className={empty ? "mw-editor is-empty" : "mw-editor"} aria-busy={checking}>
+            <EditorContent editor={editor} />
+            {checking ? (
+              <div className="mw-checking-overlay" role="status" aria-live="polite">
+                <span className="mw-spinner lg" aria-hidden />
+                <div>
+                  <strong>Алдаа шалгаж байна</strong>
+                  <p>Бичвэрийг уншиж, зөв бичихийг шалгаж байна. Түр хүлээнэ үү.</p>
+                </div>
               </div>
-            </div>
+            ) : null}
+          </div>
+          {showBichig ? (
+            <aside className="mw-bichig-panel" aria-label="Монгол бичиг хөрвүүлэлт">
+              <div className="mw-bichig-head">
+                <div>
+                  <div className="mw-bichig-title">Монгол бичиг</div>
+                  <p className="mw-muted">Кириллээс хөрвүүлсэн</p>
+                </div>
+                <button
+                  type="button"
+                  className="mw-btn"
+                  onClick={() => void copyBichig()}
+                  disabled={!bichigText.trim()}
+                >
+                  Хуулах
+                </button>
+              </div>
+              {bichigText.trim() ? (
+                <div className="mw-bichig-body" lang="mn-Mong">
+                  {bichigText}
+                </div>
+              ) : (
+                <div className="mw-bichig-empty">Зүүн талд бичвэл энд монгол бичгээр харагдана.</div>
+              )}
+            </aside>
           ) : null}
         </div>
       </main>
