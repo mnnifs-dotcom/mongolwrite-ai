@@ -440,6 +440,54 @@ def reject_words(words: list[str]) -> dict[str, Any]:
     return {"removed": removed, "removed_count": len(removed)}
 
 
+def queue_doubt_words(
+    words: list[str],
+    *,
+    reason: str = "Админ сангаас хассан · алдаатай гэж тэмдэглэсэн",
+) -> dict[str, Any]:
+    """Put lemmas into the admin doubt queue (and clear any prior rejection)."""
+    cleaned = [item.strip() for item in words if item.strip()]
+    if not cleaned:
+        return {"queued": [], "queued_count": 0}
+    stamped = _now()
+    queued: list[str] = []
+    with _lock:
+        rows = _load_rows()
+        rejected = _load_rejected()
+        for word in cleaned:
+            folded = word.casefold()
+            rejected.discard(folded)
+            prev = rows.get(folded)
+            if prev:
+                prev["tier"] = "doubt"
+                prev["reason"] = reason
+                prev["updated_at"] = stamped
+                prev["count"] = max(1, int(prev.get("count") or 1))
+            else:
+                rows[folded] = {
+                    "word": word,
+                    "folded": folded,
+                    "tier": "doubt",
+                    "reason": reason,
+                    "suggestion": "",
+                    "count": 1,
+                    "seen_at": stamped,
+                    "updated_at": stamped,
+                }
+            queued.append(folded)
+        # Cap growth
+        if len(rows) > _MAX_CANDIDATES:
+            ordered = sorted(
+                rows.values(),
+                key=lambda row: str(row.get("updated_at") or ""),
+                reverse=True,
+            )[:_MAX_CANDIDATES]
+            rows = {str(row["folded"]): row for row in ordered}
+        _save_rows(rows)
+        _save_rejected(rejected)
+    return {"queued": queued, "queued_count": len(queued)}
+
+
 def harvest_safe(engine: LanguageEngine, text: str) -> None:
     """Best-effort harvest for check path — never raises."""
     try:
