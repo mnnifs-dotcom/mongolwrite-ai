@@ -4,20 +4,21 @@ import { EditorApp } from "@/components/EditorApp";
 
 export const metadata: Metadata = {
   title: {
-    absolute: "Үгийн алдаа шалгах | MongolWrite — монгол зөв бичих",
+    absolute: "Алдаа шалгах | MongolWrite — монгол үгийн алдаа шалгагч",
   },
   description:
-    "Монгол үгийн алдаа шалгах онлайн. Текстээ буулгаад алдаатай үгсийг олж засаарай. Монгол бичиг хөрвүүлэх, Word татах.",
+    "Алдаа шалгах онлайн. Монгол текстээ буулгаад үгийн алдааг олж засаарай. Монгол бичиг хөрвүүлэх, Word татах.",
   alternates: { canonical: "/" },
 };
 
 export default function Home() {
   return (
     <>
-      <h1 className="mw-seo-sr-only">Үгийн алдаа шалгах — монгол зөв бичих онлайн | MongolWrite</h1>
+      <h1 className="mw-seo-sr-only">Алдаа шалгах — монгол үгийн алдаа шалгагч онлайн | MongolWrite</h1>
       <EditorApp />
       <nav className="mw-seo-sr-only" aria-label="SEO холбоос">
-        <Link href="/ugiin-aldaga-shalgah">Үгийн алдаа шалгах тухай</Link>
+        <Link href="/aldaga-shalgah">Алдаа шалгах тухай</Link>
+        <Link href="/ugiin-aldaga-shalgah">Үгийн алдаа шалгах</Link>
       </nav>
     </>
   );

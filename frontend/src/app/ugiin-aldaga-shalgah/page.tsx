@@ -5,11 +5,12 @@ const SITE = "https://mongolwrite.com";
 
 export const metadata: Metadata = {
   title: {
-    absolute: "Үгийн алдаа шалгах | Монгол зөв бичих — MongolWrite",
+    absolute: "Үгийн алдаа шалгах | Алдаа шалгах — MongolWrite",
   },
   description:
-    "Монгол үгийн алдаа шалгах, бичгийн алдаа засах онлайн хэрэгсэл. Кирилл текстээ шалгаад засварлаж, монгол бичиг рүү хөрвүүлээд Word-оор татаж авна.",
+    "Үгийн алдаа шалгах, алдаа шалгах онлайн. Монгол текстээ шалгаад засварлаж, монгол бичиг рүү хөрвүүлээд Word татана.",
   keywords: [
+    "алдаа шалгах",
     "үгийн алдаа шалгах",
     "үгийн алдаа шалгагч",
     "монгол үгийн алдаа шалгах",
@@ -21,7 +22,7 @@ export const metadata: Metadata = {
   ],
   alternates: { canonical: "/ugiin-aldaga-shalgah" },
   openGraph: {
-    title: "Үгийн алдаа шалгах | MongolWrite",
+    title: "Үгийн алдаа шалгах | Алдаа шалгах — MongolWrite",
     description:
       "Монгол үгийн алдаагаа онлайнаар шалгаж засаарай. Монгол бичиг хөрвүүлэх, Word татах.",
     url: `${SITE}/ugiin-aldaga-shalgah`,
@@ -46,11 +47,11 @@ export default function UgiinAldagaShalgahPage() {
       </header>
 
       <article className="mw-seo-article">
-        <h1>Үгийн алдаа шалгах — монгол зөв бичих онлайн</h1>
+        <h1>Үгийн алдаа шалгах — алдаа шалгах онлайн</h1>
         <p className="mw-seo-lead">
-          MongolWrite нь монгол хэлний <strong>үгийн алдаа шалгагч</strong> юм. Кирилл
-          текстээ буулгаад алдаатай үгсийг олж засаарай. Мөн монгол бичиг рүү хөрвүүлж,
-          Word файлаар татаж авна.
+          MongolWrite нь монгол хэлний <strong>алдаа шалгах</strong>,{" "}
+          <strong>үгийн алдаа шалгагч</strong> юм. Кирилл текстээ буулгаад алдаатай
+          үгсийг олж засаарай. Мөн монгол бичиг рүү хөрвүүлж, Word файлаар татаж авна.
         </p>
 
         <p>

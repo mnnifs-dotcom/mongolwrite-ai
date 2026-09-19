@@ -22,9 +22,9 @@ export const viewport: Viewport = {
   themeColor: "#1f6fad",
 };
 
-const titleDefault = "Үгийн алдаа шалгах | MongolWrite — монгол зөв бичих";
+const titleDefault = "Алдаа шалгах | MongolWrite — монгол үгийн алдаа шалгагч";
 const descriptionDefault =
-  "Монгол үгийн алдаа шалгах, бичгийн алдаа засах онлайн. Кирилл текстээ шалгаад засварлаж, монгол бичиг рүү хөрвүүлээд Word-оор татаж авна.";
+  "Алдаа шалгах онлайн — монгол үг, бичгийн алдаагаа шууд шалгаж засаарай. Монгол бичиг хөрвүүлэх, Word татах.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE),
@@ -35,9 +35,10 @@ export const metadata: Metadata = {
   description: descriptionDefault,
   applicationName: "MongolWrite",
   keywords: [
+    "алдаа шалгах",
     "үгийн алдаа шалгах",
     "үгийн алдаа шалгагч",
-    "монгол үгийн алдаа шалгах",
+    "монгол алдаа шалгах",
     "бичгийн алдаа шалгах",
     "монгол хэлний алдаа шалгагч",
     "монгол зөв бичих",

@@ -700,8 +700,8 @@ export function EditorApp() {
                   <button type="button" role="menuitem" onClick={loadSample}>
                     Жишээ
                   </button>
-                  <a href="/ugiin-aldaga-shalgah" role="menuitem" onClick={closeMenu}>
-                    Үгийн алдаа шалгах
+                  <a href="/aldaga-shalgah" role="menuitem" onClick={closeMenu}>
+                    Алдаа шалгах
                   </a>
                 </div>
               ) : null}
