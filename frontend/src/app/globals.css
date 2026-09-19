@@ -740,7 +740,85 @@ body {
 }
 
 .mw-editor.is-empty .mw-prose > p:first-child::before {
-  content: none;
+  content: "Энд бичнэ үү";
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: var(--muted);
+  opacity: 0.72;
+  font-weight: 400;
+  font-size: 18px;
+  line-height: 1.8;
+}
+
+@keyframes mw-success-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.mw-success-overlay {
+  position: absolute;
+  inset: 0 0 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 2;
+  padding: 24px;
+  animation: mw-fade-in 0.35s ease both;
+}
+
+.mw-success-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  padding: 28px 32px 24px;
+  border-radius: 20px;
+  background: linear-gradient(165deg, #f3fbf9 0%, #e4f4f1 55%, #d8efe9 100%);
+  border: 1px solid var(--ready-line);
+  box-shadow:
+    0 18px 40px rgba(26, 122, 106, 0.12),
+    0 2px 0 rgba(255, 255, 255, 0.7) inset;
+  color: #0f4f46;
+  animation: mw-success-pop 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  max-width: 280px;
+}
+
+.mw-success-check {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 4px;
+  border-radius: 50%;
+  color: var(--ready);
+  background: color-mix(in srgb, #fff 70%, var(--ready-bg));
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--ready) 10%, transparent);
+}
+
+.mw-success-card strong {
+  display: block;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #0f4f46;
+  margin: 0;
+}
+
+.mw-success-card p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: color-mix(in srgb, var(--ready) 75%, var(--muted));
+  font-weight: 400;
 }
 
 .mw-mark {
