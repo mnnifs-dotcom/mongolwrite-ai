@@ -1111,11 +1111,13 @@ body {
   color: var(--accent-deep);
 }
 
-.mw-admin-pane {
+.mw-admin-pane.mw-admin {
   max-width: none;
   width: 100%;
+  margin: 0;
   padding: 18px 22px 28px;
   min-width: 0;
+  min-height: calc(100vh - 64px);
 }
 
 .mw-lex-search {
