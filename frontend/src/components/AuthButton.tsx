@@ -2,28 +2,28 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { authLogout, authMe, loginWithGoogle, type AuthUser } from "@/lib/api";
+import {
+  authLogout,
+  authMe,
+  loginWithGoogleAccessToken,
+  type AuthUser,
+} from "@/lib/api";
+
+type TokenClient = {
+  requestAccessToken: (override?: { prompt?: string }) => void;
+};
 
 declare global {
   interface Window {
     google?: {
       accounts: {
-        id: {
-          initialize: (config: {
+        oauth2: {
+          initTokenClient: (config: {
             client_id: string;
-            callback: (response: { credential: string }) => void;
-            auto_select?: boolean;
-            cancel_on_tap_outside?: boolean;
-          }) => void;
-          prompt: (momentListener?: (notification: {
-            isNotDisplayed: () => boolean;
-            isSkippedMoment: () => boolean;
-            getNotDisplayedReason?: () => string;
-          }) => void) => void;
-          renderButton: (
-            parent: HTMLElement,
-            options: Record<string, string | number | boolean>,
-          ) => void;
+            scope: string;
+            callback: (response: { access_token?: string; error?: string }) => void;
+            error_callback?: (error: { type?: string; message?: string }) => void;
+          }) => TokenClient;
         };
       };
     };
@@ -32,7 +32,7 @@ declare global {
 
 function loadGis(): Promise<void> {
   if (typeof window === "undefined") return Promise.resolve();
-  if (window.google?.accounts?.id) return Promise.resolve();
+  if (window.google?.accounts?.oauth2) return Promise.resolve();
   return new Promise((resolve, reject) => {
     const existing = document.querySelector('script[data-mw-gis="1"]');
     if (existing) {
@@ -59,6 +59,7 @@ export function AuthButton() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const tokenClientRef = useRef<TokenClient | null>(null);
 
   const refresh = useCallback(async () => {
     const me = await authMe();
@@ -80,45 +81,61 @@ export function AuthButton() {
     return () => document.removeEventListener("mousedown", onDoc);
   }, [menuOpen]);
 
-  async function onCredential(credential: string) {
-    setBusy(true);
-    setError(null);
-    try {
-      const result = await loginWithGoogle(credential);
-      setUser(result.user);
-      setMenuOpen(false);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Нэвтэрч чадсангүй");
-    } finally {
-      setBusy(false);
-    }
-  }
+  useEffect(() => {
+    if (!clientId || user) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        await loadGis();
+        if (cancelled || !window.google?.accounts?.oauth2) return;
+        tokenClientRef.current = window.google.accounts.oauth2.initTokenClient({
+          client_id: clientId,
+          scope: "openid email profile",
+          callback: (response) => {
+            if (response.error || !response.access_token) {
+              setBusy(false);
+              if (response.error && response.error !== "popup_closed_by_user") {
+                setError("Нэвтэрч чадсангүй");
+              }
+              return;
+            }
+            void (async () => {
+              try {
+                const result = await loginWithGoogleAccessToken(response.access_token!);
+                setUser(result.user);
+                setError(null);
+                setMenuOpen(false);
+              } catch (err) {
+                setError(err instanceof Error ? err.message : "Нэвтэрч чадсангүй");
+              } finally {
+                setBusy(false);
+              }
+            })();
+          },
+          error_callback: () => {
+            setBusy(false);
+          },
+        });
+      } catch {
+        if (!cancelled) setError("Google бэлэн биш");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [clientId, user]);
 
-  async function startGoogleLogin() {
+  function startGoogleLogin() {
     if (!clientId || busy) return;
     setBusy(true);
     setError(null);
-    try {
-      await loadGis();
-      if (!window.google?.accounts?.id) throw new Error("Google бэлэн биш");
-      window.google.accounts.id.initialize({
-        client_id: clientId,
-        callback: (response) => {
-          void onCredential(response.credential);
-        },
-        auto_select: false,
-        cancel_on_tap_outside: true,
-      });
-      window.google.accounts.id.prompt((notification) => {
-        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-          setBusy(false);
-          setError("Google цонх нээгдсэнгүй. Popup/cookie зөвшөөрнө үү.");
-        }
-      });
-    } catch (err) {
+    const client = tokenClientRef.current;
+    if (!client) {
       setBusy(false);
-      setError(err instanceof Error ? err.message : "Нэвтэрч чадсангүй");
+      setError("Google бэлэн биш");
+      return;
     }
+    client.requestAccessToken({ prompt: "select_account" });
   }
 
   async function onLogout() {
@@ -170,7 +187,7 @@ export function AuthButton() {
       <button
         type="button"
         className="mw-btn mw-auth-login"
-        onClick={() => void startGoogleLogin()}
+        onClick={startGoogleLogin}
         disabled={busy}
       >
         {busy ? "…" : "Нэвтрэх"}
