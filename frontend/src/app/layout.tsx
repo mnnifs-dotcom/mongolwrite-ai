@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Noto_Sans, Noto_Serif } from "next/font/google";
 import "./globals.css";
 
@@ -16,7 +16,12 @@ const display = Noto_Serif({
   display: "swap",
 });
 
+export const viewport: Viewport = {
+  themeColor: "#1f6fad",
+};
+
 export const metadata: Metadata = {
+  metadataBase: new URL("https://mongolwrite-ai.fly.dev"),
   title: "MongolWrite AI",
   description: "Монгол зөв бичих · Монгол бичиг хөрвүүлэх",
   applicationName: "MongolWrite",
@@ -44,7 +49,6 @@ export const metadata: Metadata = {
     images: ["/logo-512.png"],
   },
   manifest: "/site.webmanifest",
-  themeColor: "#1f6fad",
 };
 
 export default function RootLayout({
