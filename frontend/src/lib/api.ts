@@ -318,6 +318,47 @@ export async function adminRejectCandidates(
   return response.json() as Promise<{ removed: string[]; removed_count: number }>;
 }
 
+export type LegalImportPreview = {
+  present: boolean;
+  trusted_count: number;
+  doubt_count: number;
+  trusted_sample: string[];
+  doubt_sample: string[];
+  meta?: {
+    source?: string;
+    rules?: Record<string, unknown>;
+    trusted_count?: number;
+    doubt_count?: number;
+  };
+};
+
+export async function adminLegalPreview(): Promise<LegalImportPreview> {
+  const response = await fetch(apiUrl("/api/v1/admin/lexicon/legal-preview"), {
+    credentials: "include",
+  });
+  if (!response.ok) throw new Error("Legalinfo тойм уншигдсангүй");
+  return response.json() as Promise<LegalImportPreview>;
+}
+
+export async function adminLegalImport(): Promise<{
+  added_to_lexicon: number;
+  queued_for_admin: number;
+  trusted_file: number;
+  doubt_file: number;
+}> {
+  const response = await fetch(apiUrl("/api/v1/admin/lexicon/legal-import"), {
+    method: "POST",
+    credentials: "include",
+  });
+  if (!response.ok) throw new Error("Legalinfo импорт амжилтгүй");
+  return response.json() as Promise<{
+    added_to_lexicon: number;
+    queued_for_admin: number;
+    trusted_file: number;
+    doubt_file: number;
+  }>;
+}
+
 export async function adminHarvest(
   text: string,
 ): Promise<{ queued: number; counts: { reliable: number; doubt: number; total: number } }> {

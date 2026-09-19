@@ -7,6 +7,8 @@ import {
   adminApproveCandidates,
   adminApprovePending,
   adminHarvest,
+  adminLegalImport,
+  adminLegalPreview,
   adminLogin,
   adminLogout,
   adminMe,
@@ -15,6 +17,7 @@ import {
   adminRejectPending,
   type AdminAddedWord,
   type HunspellCandidate,
+  type LegalImportPreview,
   type PendingSkippedWord,
   type SiteOverview,
 } from "@/lib/api";
@@ -62,6 +65,7 @@ export function AdminApp() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [acting, setActing] = useState<string | null>(null);
+  const [legalPreview, setLegalPreview] = useState<LegalImportPreview | null>(null);
 
   const applyOverview = useCallback((next: SiteOverview) => {
     setOverview(next);
@@ -74,6 +78,11 @@ export function AdminApp() {
   const loadLists = useCallback(async () => {
     const nextOverview = await adminOverview();
     applyOverview(nextOverview);
+    try {
+      setLegalPreview(await adminLegalPreview());
+    } catch {
+      setLegalPreview(null);
+    }
   }, [applyOverview]);
 
   useEffect(() => {
@@ -257,6 +266,23 @@ export function AdminApp() {
     }
   }
 
+  async function onLegalImport() {
+    if (acting) return;
+    setActing("legal");
+    setError(null);
+    try {
+      const result = await adminLegalImport();
+      setStatus(
+        `Legalinfo: санд ${result.added_to_lexicon} · админд ${result.queued_for_admin}`,
+      );
+      await loadLists();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Импорт амжилтгүй");
+    } finally {
+      setActing(null);
+    }
+  }
+
   if (!ready) {
     return (
       <div className="mw-admin-page">
@@ -369,6 +395,25 @@ export function AdminApp() {
                 <span>Нэмсэн</span>
                 <strong>{addedWords.length.toLocaleString("mn-MN")}</strong>
               </div>
+            </div>
+          </section>
+        ) : null}
+
+        {legalPreview?.present ? (
+          <section className="mw-admin-card" id="legalinfo-import">
+            <h2>legalinfo.mn үгс</h2>
+            <p className="mw-muted">
+              Найдвартай {legalPreview.trusted_count} · эргэлзээтэй {legalPreview.doubt_count}
+            </p>
+            <div className="mw-admin-row">
+              <button
+                type="button"
+                className="mw-btn-primary"
+                disabled={acting === "legal"}
+                onClick={() => void onLegalImport()}
+              >
+                {acting === "legal" ? "Импортлож байна…" : "Импортлох"}
+              </button>
             </div>
           </section>
         ) : null}
