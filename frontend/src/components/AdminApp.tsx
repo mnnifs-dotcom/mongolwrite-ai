@@ -273,7 +273,12 @@ export function AdminApp() {
   return (
     <div className="mw-admin-page">
       <header className="mw-admin-bar">
-        <strong>MongolWrite · Админ</strong>
+        <strong className="mw-brand">
+          MongolWrite · Админ
+          <span className="mw-brand-bichig" lang="mn-Mong">
+            ᠮᠣᠩᠭᠤᠯ ᠪᠢᠴᠢᠭ
+          </span>
+        </strong>
         <Link className="mw-btn" href="/">
           Засварлагч
         </Link>
@@ -351,36 +356,38 @@ export function AdminApp() {
           {pendingSkipped.length === 0 ? (
             <p className="mw-muted">Хүлээгдэж буй үг алга.</p>
           ) : (
-            <ul className="mw-admin-list">
-              {pendingSkipped.map((item) => (
-                <li key={item.folded}>
-                  <div className="mw-candidate-main">
-                    <strong>{item.word}</strong>
-                    <span className="mw-muted">
-                      {item.count} удаа · {formatWhen(item.updated_at)}
-                    </span>
-                  </div>
-                  <div className="mw-admin-row">
-                    <button
-                      type="button"
-                      className="mw-btn-primary"
-                      disabled={acting === `p-ok-${item.folded}`}
-                      onClick={() => void onPendingApprove(item.word)}
-                    >
-                      Санд нэмэх
-                    </button>
-                    <button
-                      type="button"
-                      className="mw-btn"
-                      disabled={acting === `p-no-${item.folded}`}
-                      onClick={() => void onPendingReject(item.word)}
-                    >
-                      Татгалзах
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            <div className="mw-admin-scroll">
+              <ul className="mw-admin-list">
+                {pendingSkipped.map((item) => (
+                  <li key={item.folded}>
+                    <div className="mw-candidate-main">
+                      <strong>{item.word}</strong>
+                      <span className="mw-muted">
+                        {item.count} удаа · {formatWhen(item.updated_at)}
+                      </span>
+                    </div>
+                    <div className="mw-admin-row">
+                      <button
+                        type="button"
+                        className="mw-btn-primary"
+                        disabled={acting === `p-ok-${item.folded}`}
+                        onClick={() => void onPendingApprove(item.word)}
+                      >
+                        Санд нэмэх
+                      </button>
+                      <button
+                        type="button"
+                        className="mw-btn"
+                        disabled={acting === `p-no-${item.folded}`}
+                        onClick={() => void onPendingReject(item.word)}
+                      >
+                        Татгалзах
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
         </section>
 
@@ -392,14 +399,16 @@ export function AdminApp() {
           {addedWords.length === 0 ? (
             <p className="mw-muted">Одоогоор нэмсэн үг алга. Доорх жагсаалтаас зөвшөөрч нэмнэ.</p>
           ) : (
-            <ul className="mw-admin-list">
-              {addedWords.map((item) => (
-                <li key={`${item.folded}-${item.added_at || "file"}`}>
-                  <strong>{item.word}</strong>
-                  <span className="mw-muted">{formatWhen(item.added_at)}</span>
-                </li>
-              ))}
-            </ul>
+            <div className="mw-admin-scroll">
+              <ul className="mw-admin-list">
+                {addedWords.map((item) => (
+                  <li key={`${item.folded}-${item.added_at || "file"}`}>
+                    <strong>{item.word}</strong>
+                    <span className="mw-muted">{formatWhen(item.added_at)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
         </section>
 
@@ -417,7 +426,7 @@ export function AdminApp() {
             <textarea
               value={harvestText}
               onChange={(event) => setHarvestText(event.target.value)}
-              rows={4}
+              rows={5}
               placeholder="Текст буулгаад Hunspell нэр дэвшигч цуглуулна…"
             />
             <button type="submit" className="mw-btn-primary" disabled={busy || !harvestText.trim()}>
@@ -458,60 +467,19 @@ export function AdminApp() {
                       </button>
                     </div>
                   </div>
-                  <ul className="mw-admin-list">
-                    {reliable.map((item) => (
-                      <li key={item.folded}>
-                        <label className="mw-candidate-main">
-                          <input
-                            type="checkbox"
-                            checked={selected.has(item.folded)}
-                            onChange={(event) => toggleWord(item.folded, event.target.checked)}
-                          />
-                          <span>
-                            <strong>{item.word}</strong>
-                            <em className="mw-muted">
-                              {" "}
-                              · {item.count} удаа · {item.reason}
-                            </em>
-                          </span>
-                        </label>
-                        <button
-                          type="button"
-                          className="mw-btn"
-                          disabled={acting === item.word}
-                          onClick={() => void rejectOne(item.word)}
-                        >
-                          Татгалзах
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-
-              {doubt.length ? (
-                <div className="mw-list-block">
-                  <h3>Эргэлзээтэй · {doubt.length}</h3>
-                  <ul className="mw-admin-list">
-                    {doubt.map((item) => (
-                      <li key={item.folded}>
-                        <div>
-                          <strong>{item.word}</strong>
-                          <p className="mw-muted">
-                            {item.reason}
-                            {item.suggestion ? ` · санал: «${item.suggestion}»` : ""}
-                            {` · ${item.count} удаа`}
-                          </p>
-                        </div>
-                        <div className="mw-admin-row">
-                          <button
-                            type="button"
-                            className="mw-btn-primary"
-                            disabled={!!acting}
-                            onClick={() => void approveMany([item.word])}
-                          >
-                            Санд нэмэх
-                          </button>
+                  <div className="mw-admin-scroll">
+                    <ul className="mw-admin-list">
+                      {reliable.map((item) => (
+                        <li key={item.folded}>
+                          <label className="mw-candidate-main">
+                            <input
+                              type="checkbox"
+                              checked={selected.has(item.folded)}
+                              onChange={(event) => toggleWord(item.folded, event.target.checked)}
+                            />
+                            <strong title={item.reason}>{item.word}</strong>
+                            <span className="mw-muted">{item.count}×</span>
+                          </label>
                           <button
                             type="button"
                             className="mw-btn"
@@ -520,10 +488,48 @@ export function AdminApp() {
                           >
                             Татгалзах
                           </button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              ) : null}
+
+              {doubt.length ? (
+                <div className="mw-list-block">
+                  <h3>Эргэлзээтэй · {doubt.length}</h3>
+                  <div className="mw-admin-scroll">
+                    <ul className="mw-admin-list">
+                      {doubt.map((item) => (
+                        <li key={item.folded}>
+                          <div className="mw-candidate-main">
+                            <strong title={item.reason}>{item.word}</strong>
+                            <span className="mw-muted">
+                              {item.suggestion ? `→ ${item.suggestion}` : ""} {item.count}×
+                            </span>
+                          </div>
+                          <div className="mw-admin-row">
+                            <button
+                              type="button"
+                              className="mw-btn-primary"
+                              disabled={!!acting}
+                              onClick={() => void approveMany([item.word])}
+                            >
+                              Санд нэмэх
+                            </button>
+                            <button
+                              type="button"
+                              className="mw-btn"
+                              disabled={acting === item.word}
+                              onClick={() => void rejectOne(item.word)}
+                            >
+                              Татгалзах
+                            </button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
               ) : null}
             </>
