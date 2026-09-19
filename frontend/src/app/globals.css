@@ -1189,6 +1189,130 @@ body {
   color: var(--accent-deep);
 }
 
+.mw-hunspell-hint {
+  margin: 0 0 12px;
+  font-size: 13px;
+}
+
+.mw-users-toolbar {
+  margin-bottom: 14px;
+}
+
+.mw-users-toolbar select {
+  min-width: 140px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: #fff;
+  color: var(--ink);
+}
+
+.mw-users-scroll {
+  max-height: min(58vh, 640px);
+}
+
+.mw-users-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.mw-users-table th,
+.mw-users-table td {
+  text-align: left;
+  padding: 10px 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  vertical-align: middle;
+}
+
+.mw-users-table th {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.mw-user-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mw-user-cell strong,
+.mw-user-cell .mw-muted {
+  display: block;
+}
+
+.mw-user-cell .mw-muted {
+  font-size: 12px;
+}
+
+.mw-user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: 0 0 auto;
+  background: color-mix(in srgb, var(--accent) 12%, #fff);
+}
+
+.mw-user-avatar.is-empty {
+  display: inline-block;
+}
+
+.mw-user-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.mw-user-pill.is-paid {
+  background: var(--ready-bg);
+  color: var(--ready);
+  border: 1px solid var(--ready-line);
+}
+
+.mw-user-pill.is-free {
+  background: color-mix(in srgb, var(--accent) 8%, #fff);
+  color: var(--accent-deep);
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--line));
+}
+
+.mw-user-edit {
+  margin-top: 16px;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--panel) 70%, #fff);
+  display: grid;
+  gap: 10px;
+  max-width: 420px;
+}
+
+.mw-user-edit h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.mw-user-edit label {
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.mw-user-edit select,
+.mw-user-edit input[type="date"] {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 14px;
+  color: var(--ink);
+  background: #fff;
+}
+
 .mw-admin-pane.mw-admin {
   max-width: none;
   width: 100%;

@@ -55,3 +55,45 @@ def test_google_login_access_token(monkeypatch, tmp_path) -> None:
     assert body["ok"] is True
     assert body["user"]["email"] == "user@example.com"
     assert "mw_user" in response.cookies
+
+
+def test_admin_users_list_and_plan(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr("app.core.users.persist_dir", lambda: tmp_path)
+    monkeypatch.setattr("app.core.config.settings.admin_username", "admin")
+    monkeypatch.setattr("app.core.config.settings.admin_password", "test-pass")
+    monkeypatch.setattr("app.core.config.settings.secret_key", "test-secret")
+
+    from app.core.users import set_user_plan, upsert_google_user
+
+    upsert_google_user(sub="u1", email="free@example.com", name="Free User")
+    upsert_google_user(sub="u2", email="pro@example.com", name="Pro User")
+    set_user_plan("u2", "pro", plan_expires_at="2099-12-31")
+
+    client = TestClient(app)
+    assert client.get("/api/v1/admin/users").status_code == 401
+    login = client.post(
+        "/api/v1/admin/login",
+        json={"username": "admin", "password": "test-pass"},
+    )
+    assert login.status_code == 200
+
+    listed = client.get("/api/v1/admin/users").json()
+    assert listed["counts"]["total"] == 2
+    assert listed["counts"]["paid"] == 1
+    assert listed["counts"]["free"] == 1
+    emails = {row["email"] for row in listed["items"]}
+    assert emails == {"free@example.com", "pro@example.com"}
+
+    paid = client.get("/api/v1/admin/users?plan=paid").json()
+    assert paid["total"] == 1
+    assert paid["items"][0]["email"] == "pro@example.com"
+    assert paid["items"][0]["is_paid"] is True
+    assert paid["items"][0]["plan_expires_at"]
+
+    patched = client.patch(
+        "/api/v1/admin/users/u1/plan",
+        json={"plan": "pro", "plan_expires_at": "2099-01-15"},
+    )
+    assert patched.status_code == 200
+    assert patched.json()["user"]["is_paid"] is True
+    assert patched.json()["user"]["status"] == "Төлбөртэй"

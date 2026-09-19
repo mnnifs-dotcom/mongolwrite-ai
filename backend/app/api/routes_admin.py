@@ -12,6 +12,8 @@ from app.core.auth import (
     set_session_cookie,
 )
 from app.core.config import settings
+from app.core.plans import get_plan, list_plans
+from app.core.users import list_users, set_user_plan
 from app.engine.hunspell_candidates import (
     admin_lists_payload,
     approve_words,
@@ -56,6 +58,11 @@ class IngestRequest(BaseModel):
 class LexiconRemoveRequest(BaseModel):
     words: list[str] = Field(default_factory=list, max_length=500)
     queue_as_doubt: bool = True
+
+
+class UserPlanUpdate(BaseModel):
+    plan: Literal["free", "pro"] = "free"
+    plan_expires_at: str | None = Field(default=None, max_length=40)
 
 
 @router.post("/login")
@@ -225,3 +232,35 @@ def lexicon_remove(body: LexiconRemoveRequest, _: AdminDep) -> dict[str, Any]:
         "lexicon_total": dictionary.curated_lemma_count,
         "counts": counts(),
     }
+
+
+@router.get("/users")
+def admin_users(
+    _: AdminDep,
+    q: str = "",
+    plan: str = "",
+    offset: int = 0,
+    limit: int = 100,
+) -> dict[str, Any]:
+    return list_users(q=q, plan=plan, offset=offset, limit=limit)
+
+
+@router.get("/users/plans")
+def admin_user_plans(_: AdminDep) -> dict[str, Any]:
+    return {"plans": list_plans()}
+
+
+@router.patch("/users/{user_id}/plan")
+def admin_user_set_plan(user_id: str, body: UserPlanUpdate, _: AdminDep) -> dict[str, Any]:
+    if not user_id.strip():
+        raise HTTPException(status_code=400, detail="Хэрэглэгч олдсонгүй")
+    plan = get_plan(body.plan)
+    try:
+        row = set_user_plan(user_id, plan["id"], plan_expires_at=body.plan_expires_at)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if not row:
+        raise HTTPException(status_code=404, detail="Хэрэглэгч олдсонгүй")
+    from app.core.users import admin_user
+
+    return {"ok": True, "user": admin_user(row)}

@@ -17,7 +17,11 @@ import {
   adminOverview,
   adminRejectCandidates,
   adminRejectPending,
+  adminSetUserPlan,
+  adminUsers,
   type AdminAddedWord,
+  type AdminUser,
+  type AdminUsersPage,
   type HunspellCandidate,
   type LegalImportPreview,
   type LexiconLetter,
@@ -32,10 +36,12 @@ type AdminSection =
   | "hunspell"
   | "pending"
   | "added"
+  | "users"
   | "legal"
   | "health";
 
 const PAGE_SIZE = 80;
+const USERS_PAGE = 50;
 
 function formatWhen(value: string): string {
   if (!value) return "—";
@@ -90,6 +96,21 @@ export function AdminApp() {
   const [lexLetters, setLexLetters] = useState<LexiconLetter[]>([]);
   const [lexSelected, setLexSelected] = useState<Set<string>>(new Set());
   const [lexLoading, setLexLoading] = useState(false);
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [usersTotal, setUsersTotal] = useState(0);
+  const [usersOffset, setUsersOffset] = useState(0);
+  const [usersCounts, setUsersCounts] = useState<AdminUsersPage["counts"]>({
+    total: 0,
+    free: 0,
+    paid: 0,
+    pro: 0,
+  });
+  const [usersQuery, setUsersQuery] = useState("");
+  const [usersPlan, setUsersPlan] = useState("");
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
+  const [editPlan, setEditPlan] = useState<"free" | "pro">("free");
+  const [editExpiry, setEditExpiry] = useState("");
 
   const applyOverview = useCallback((next: SiteOverview) => {
     setOverview(next);
@@ -122,6 +143,29 @@ export function AdminApp() {
     }
   }, [lexQuery, lexLetter, lexOffset]);
 
+  const loadUsers = useCallback(async (opts?: { q?: string; plan?: string; offset?: number }) => {
+    const q = opts?.q ?? usersQuery;
+    const plan = opts?.plan ?? usersPlan;
+    const offset = opts?.offset ?? usersOffset;
+    setUsersLoading(true);
+    try {
+      const page = await adminUsers({
+        q: q.trim() || undefined,
+        plan: plan || undefined,
+        offset,
+        limit: USERS_PAGE,
+      });
+      setUsers(page.items);
+      setUsersTotal(page.total);
+      setUsersOffset(page.offset);
+      setUsersCounts(page.counts);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Хэрэглэгчид уншигдсангүй");
+    } finally {
+      setUsersLoading(false);
+    }
+  }, [usersQuery, usersPlan, usersOffset]);
+
   const loadLists = useCallback(async () => {
     const nextOverview = await adminOverview();
     applyOverview(nextOverview);
@@ -140,6 +184,7 @@ export function AdminApp() {
         if (ok) {
           await loadLists();
           await loadLexicon({ offset: 0 });
+          await loadUsers({ offset: 0 });
         }
       } catch {
         setAuthed(false);
@@ -161,6 +206,7 @@ export function AdminApp() {
       setPassword("");
       await loadLists();
       await loadLexicon({ offset: 0 });
+      await loadUsers({ offset: 0 });
       setSection("lexicon");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Нэвтэрч чадсангүй");
@@ -177,9 +223,33 @@ export function AdminApp() {
     setDoubt([]);
     setAddedWords([]);
     setPendingSkipped([]);
+    setUsers([]);
+    setUsersTotal(0);
     setSelected(new Set());
     setStatus("");
     setError(null);
+  }
+
+  async function onSaveUserPlan() {
+    if (!editingUser || acting) return;
+    setActing(`user-${editingUser.id}`);
+    setError(null);
+    try {
+      const result = await adminSetUserPlan(
+        editingUser.id,
+        editPlan,
+        editPlan === "free" ? null : editExpiry || null,
+      );
+      setStatus(
+        `«${result.user.email || result.user.name || result.user.id}» · ${result.user.status}`,
+      );
+      setEditingUser(null);
+      await loadUsers();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Төлөвлөгөө шинэчлэгдсэнгүй");
+    } finally {
+      setActing(null);
+    }
   }
 
   async function onPendingApprove(word: string) {
@@ -449,6 +519,7 @@ export function AdminApp() {
     { id: "hunspell", label: "Hunspell үгс", count: hunspellWords.length },
     { id: "pending", label: "Алгассан", count: pendingSkipped.length },
     { id: "added", label: "Нэмсэн", count: addedWords.length },
+    { id: "users", label: "Хэрэглэгчид", count: usersCounts.total },
     {
       id: "legal",
       label: "legalinfo.mn",
@@ -472,6 +543,7 @@ export function AdminApp() {
           onClick={() => {
             void loadLists();
             void loadLexicon();
+            void loadUsers();
           }}
         >
           Шинэчлэх
@@ -769,6 +841,195 @@ export function AdminApp() {
             </section>
           ) : null}
 
+          {section === "users" ? (
+            <section className="mw-admin-card" id="admin-users">
+              <h2>Хэрэглэгчид{usersCounts.total ? ` · ${usersCounts.total}` : ""}</h2>
+              <p className="mw-muted">
+                Үнэгүй {usersCounts.free.toLocaleString("mn-MN")} · Төлбөртэй{" "}
+                {usersCounts.paid.toLocaleString("mn-MN")} · Pro{" "}
+                {usersCounts.pro.toLocaleString("mn-MN")}
+              </p>
+              <form
+                className="mw-lex-search mw-users-toolbar"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  setUsersOffset(0);
+                  void loadUsers({ q: usersQuery, plan: usersPlan, offset: 0 });
+                }}
+              >
+                <input
+                  type="search"
+                  value={usersQuery}
+                  onChange={(event) => setUsersQuery(event.target.value)}
+                  placeholder="И-мэйл / нэр хайх…"
+                />
+                <select
+                  value={usersPlan}
+                  onChange={(event) => {
+                    const next = event.target.value;
+                    setUsersPlan(next);
+                    setUsersOffset(0);
+                    void loadUsers({ plan: next, offset: 0 });
+                  }}
+                  aria-label="Төлөвлөгөө шүүх"
+                >
+                  <option value="">Бүгд</option>
+                  <option value="free">Үнэгүй</option>
+                  <option value="paid">Төлбөртэй</option>
+                  <option value="pro">Pro</option>
+                </select>
+                <button type="submit" className="mw-btn" disabled={usersLoading}>
+                  Хайх
+                </button>
+              </form>
+
+              {usersLoading && !users.length ? (
+                <p className="mw-muted">Уншиж байна…</p>
+              ) : users.length === 0 ? (
+                <p className="mw-muted">Хэрэглэгч олдсонгүй</p>
+              ) : (
+                <>
+                  <div className="mw-admin-scroll mw-users-scroll">
+                    <table className="mw-users-table">
+                      <thead>
+                        <tr>
+                          <th>Хэрэглэгч</th>
+                          <th>Төлөв</th>
+                          <th>Дуусах</th>
+                          <th>Сүүлд нэвтэрсэн</th>
+                          <th />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {users.map((user) => (
+                          <tr key={user.id}>
+                            <td>
+                              <div className="mw-user-cell">
+                                {user.picture ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img src={user.picture} alt="" className="mw-user-avatar" />
+                                ) : (
+                                  <span className="mw-user-avatar is-empty" aria-hidden />
+                                )}
+                                <div>
+                                  <strong>{user.name || "—"}</strong>
+                                  <span className="mw-muted">{user.email || user.id}</span>
+                                </div>
+                              </div>
+                            </td>
+                            <td>
+                              <span
+                                className={
+                                  user.is_paid ? "mw-user-pill is-paid" : "mw-user-pill is-free"
+                                }
+                              >
+                                {user.status}
+                              </span>
+                            </td>
+                            <td>
+                              {user.plan_expires_at
+                                ? formatWhen(user.plan_expires_at)
+                                : user.plan === "pro"
+                                  ? "Хугацаагүй"
+                                  : "—"}
+                            </td>
+                            <td>{formatWhen(user.last_login_at)}</td>
+                            <td>
+                              <button
+                                type="button"
+                                className="mw-btn"
+                                onClick={() => {
+                                  setEditingUser(user);
+                                  setEditPlan(user.plan === "pro" ? "pro" : "free");
+                                  setEditExpiry(
+                                    user.plan_expires_at
+                                      ? user.plan_expires_at.slice(0, 10)
+                                      : "",
+                                  );
+                                }}
+                              >
+                                Засах
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="mw-lex-pager">
+                    <button
+                      type="button"
+                      className="mw-btn"
+                      disabled={usersOffset <= 0 || usersLoading}
+                      onClick={() => {
+                        const next = Math.max(0, usersOffset - USERS_PAGE);
+                        setUsersOffset(next);
+                        void loadUsers({ offset: next });
+                      }}
+                    >
+                      Өмнөх
+                    </button>
+                    <span className="mw-muted">
+                      {usersOffset + 1}–
+                      {Math.min(usersOffset + users.length, usersTotal)} / {usersTotal}
+                    </span>
+                    <button
+                      type="button"
+                      className="mw-btn"
+                      disabled={usersOffset + users.length >= usersTotal || usersLoading}
+                      onClick={() => {
+                        const next = usersOffset + USERS_PAGE;
+                        setUsersOffset(next);
+                        void loadUsers({ offset: next });
+                      }}
+                    >
+                      Дараах
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {editingUser ? (
+                <div className="mw-user-edit" role="dialog" aria-label="Төлөвлөгөө засах">
+                  <h3>{editingUser.email || editingUser.name || editingUser.id}</h3>
+                  <label>
+                    Төлөвлөгөө
+                    <select
+                      value={editPlan}
+                      onChange={(event) => setEditPlan(event.target.value as "free" | "pro")}
+                    >
+                      <option value="free">Үнэгүй</option>
+                      <option value="pro">Pro (төлбөртэй)</option>
+                    </select>
+                  </label>
+                  {editPlan === "pro" ? (
+                    <label>
+                      Дуусах огноо
+                      <input
+                        type="date"
+                        value={editExpiry}
+                        onChange={(event) => setEditExpiry(event.target.value)}
+                      />
+                    </label>
+                  ) : null}
+                  <div className="mw-admin-row">
+                    <button
+                      type="button"
+                      className="mw-btn-primary"
+                      disabled={acting === `user-${editingUser.id}`}
+                      onClick={() => void onSaveUserPlan()}
+                    >
+                      Хадгалах
+                    </button>
+                    <button type="button" className="mw-btn" onClick={() => setEditingUser(null)}>
+                      Болих
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </section>
+          ) : null}
+
           {section === "hunspell" ? (
             <section className="mw-admin-card" id="hunspell-candidates">
               <h2>
@@ -781,15 +1042,19 @@ export function AdminApp() {
                   value={harvestText}
                   onChange={(event) => setHarvestText(event.target.value)}
                   rows={5}
-                  placeholder="Текст…"
+                  placeholder="Энд бичнэ үү"
                 />
                 <button type="submit" className="mw-btn-primary" disabled={busy || !harvestText.trim()}>
                   {busy ? "Цуглуулж байна…" : "Цуглуулах"}
                 </button>
               </form>
+              <p className="mw-muted mw-hunspell-hint">
+                Зөвхөн эргэлзээтэй үгс. Дүрмийн тодорхой алдаа (зай дутуу, нөхцөл гэх мэт) энд
+                орногүй.
+              </p>
 
               {hunspellWords.length === 0 ? (
-                <p className="mw-muted">Хоосон</p>
+                <p className="mw-muted">Эргэлзээтэй үг алга</p>
               ) : (
                 <>
                   <div className="mw-select-box">
