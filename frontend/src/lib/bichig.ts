@@ -1,4 +1,5 @@
 import { analyze, convert } from "@gege-mn/gege-converter";
+import type { Candidate } from "@gege-mn/gege-converter";
 
 const MVS = "\u180E";
 const NNBSP = "\u202F";
@@ -11,6 +12,9 @@ const CONVERT_OPTS = { digits: "mongolian" as const, punctuation: "mongolian" as
 /**
  * High-trust Bolorsoft/KIMO readings for words gege mis-ranks or mis-shapes.
  * Uses Ali Gali ᢈ/ᢉ where KIMO does — correct with Dashitseden/MongolianScript.
+ *
+ * Also locks forms where multi-suffix parses are genuinely correct (хамтдаа)
+ * but the general stem-final scorer would prefer a worse whole-word guess.
  */
 const WORD_OVERRIDES: Record<string, string> = {
   монгол: "ᠮᠣᠩᠭᠣᠯ",
@@ -56,12 +60,15 @@ const WORD_OVERRIDES: Record<string, string> = {
   авч: "ᠠᠪᠴᠤ",
   уу: "ᠤᠤ",
   үү: "ᠦᠦ",
-  // Classical teγülder — gege mis-ranks as töγel-dü-ber (tofu + wrong stem)
+  // Classical teγülder (gege guess tögüldür is tofu-free but less classical)
   төгөлдөр: "ᠲᠡᢉᠦᠯᠳᠡᠷ",
+  // Genuine multi-suffix forms the stem-final scorer would otherwise flatten
   хамтдаа: `ᠬᠠᠮᠲᠤ${NNBSP}ᠳ${FVS1}ᠤ${NNBSP}ᠪᠠᠨ`,
+  олондтоо: `ᠣᠯᠠᠨ${NNBSP}ᠳ${FVS1}ᠤ${NNBSP}ᠲ${FVS1}ᠤ${NNBSP}ᠪᠠᠨ`,
+  өөртөө: `ᠥᠪᠡᠷ${NNBSP}ᠲ${FVS1}ᠦ${NNBSP}ᠪᠡᠨ`,
 };
 
-/** Cyrillic case/particle endings → traditional suffixes (front / back). */
+/** Cyrillic case/particle endings → traditional suffixes (front / back). Longer first. */
 const DECLENSIONS: Array<{
   re: RegExp;
   front: string;
@@ -119,6 +126,7 @@ function toPracticalBichig(script: string): string {
   // ай/ой/уй… diphthongs: vowel + ᠢ → vowel + ᠶᠢ (сайн, байна)
   out = out.replace(/([ᠠᠡᠣᠤᠥᠦ])ᠢ/g, "$1ᠶᠢ");
 
+  // Longer matches first (ᠤᠨ before bare ᠤ).
   const suffixForms: Array<[string, string]> = [
     ["ᠤᠨ", `ᠤ${FVS1}ᠨ`],
     ["ᠦᠨ", `ᠦ${FVS1}ᠨ`],
@@ -135,6 +143,9 @@ function toPracticalBichig(script: string): string {
     ["ᠢᠶᠠᠷ", "ᠢᠶᠠᠷ"],
     ["ᠪᠠᠨ", "ᠪᠠᠨ"],
     ["ᠪᠡᠨ", "ᠪᠡᠨ"],
+    // Short genitive/possessive: хүчний, ажилтны
+    ["ᠤ", `ᠤ${FVS1}`],
+    ["ᠦ", `ᠦ${FVS1}`],
   ];
   for (const [from, to] of suffixForms) {
     out = out.replaceAll(`${MVS}${from}`, `${NNBSP}${to}`);
@@ -170,27 +181,77 @@ function convertDigits(token: string): string {
 }
 
 /**
- * Pick script for one analyzed word token. Gege often ranks a multi-suffix parse
- * above a whole-word guess (e.g. төгөлдөр → töγel-dü-ber). Prefer the unsuffixed
- * reading when the top hit has 2+ separate case suffixes and a whole-word
- * candidate exists.
+ * Re-rank gege candidates. Gege often treats stem-final letters of names/stems
+ * as case endings:
+ *   баярмаа → bayarm-iyan   (аа as reflexive)
+ *   гандболд → γandbul-du   (д as dative)
+ *   оюунчимэг → oyunčime-yi (г as accusative)
+ *   төгөлдөр → töγel-dü-ber (д+өр over-segmentation)
+ *
+ * Legitimate case forms (номын, онд, дундаа) keep their score.
  */
-function pickCandidateScript(
-  cands: ReadonlyArray<{ script: string; segmentation?: { suffixes?: ReadonlyArray<{ separate: boolean }> } }>,
-): string | null {
-  if (!cands.length) return null;
-  const top = cands[0];
-  const sepCount = top.segmentation?.suffixes?.filter((s) => s.separate).length ?? 0;
-  if (sepCount >= 2) {
-    const whole = cands.find((c) => (c.segmentation?.suffixes?.length ?? 0) === 0);
-    if (whole?.script) return whole.script;
+function scoreCandidate(c: Candidate): number {
+  let s = c.confidence ?? 0;
+  const suffixes = c.segmentation?.suffixes ?? [];
+  const sep = suffixes.filter((x) => x.separate);
+  const prov = c.provenance;
+
+  if (suffixes.length === 1) {
+    const suf = suffixes[0];
+    if (prov === "guess") {
+      if (suf.cyrillic === "г" && suf.category === "accusative") s -= 0.4;
+      if (suf.cyrillic === "д" && suf.category === "dative-locative") s -= 0.4;
+      if (suf.cyrillic === "т" && suf.category === "dative-locative") s -= 0.3;
+      if (/^[аэоө]{2}$/u.test(suf.cyrillic) && suf.category === "reflexive") s -= 0.35;
+    }
+    // Lexicon "гэр-ийн" style reflexive on long-vowel words — prefer γer-e
+    if (
+      (prov === "lexicon" || prov === "harvested") &&
+      suf.category === "reflexive" &&
+      /iyan$|iyen$/u.test(c.classical)
+    ) {
+      s -= 0.2;
+    }
   }
-  return top.script;
+
+  if (sep.length >= 2) {
+    const firstShort = (sep[0].cyrillic?.length ?? 0) <= 1;
+    const secondShort = (sep[1].cyrillic?.length ?? 0) <= 2;
+    // төгөлдөр-style: single-letter piece + short second piece
+    if (firstShort && secondShort) s -= 0.5;
+    else if (firstShort) s -= 0.35;
+  }
+
+  return s;
+}
+
+function pickCandidateScript(cands: readonly Candidate[]): string | null {
+  if (!cands.length) return null;
+  let best = cands[0];
+  let bestScore = scoreCandidate(best);
+  for (let i = 1; i < cands.length; i++) {
+    const score = scoreCandidate(cands[i]);
+    if (score > bestScore) {
+      best = cands[i];
+      bestScore = score;
+    }
+  }
+  return best.script;
+}
+
+function topSeparateCount(word: string): number {
+  try {
+    const tokens = analyze(word, CONVERT_OPTS);
+    const wt = tokens.find((t) => t.token.kind === "word");
+    return wt?.candidates?.[0]?.segmentation?.suffixes?.filter((s) => s.separate).length ?? 0;
+  } catch {
+    return 0;
+  }
 }
 
 /**
  * Analyze the full token so clitic splits (монголруу → монгол + руу) stay intact,
- * then apply whole-word preference per fragment.
+ * then apply stem-final-aware ranking per fragment.
  */
 function pickGegeScript(word: string): string {
   try {
@@ -207,7 +268,6 @@ function pickGegeScript(word: string): string {
       } else if (t.token.kind === "space") {
         out += t.token.text;
       } else {
-        // digits / punct / other — keep gege's convert rendering for the piece
         out += convert(t.token.text, CONVERT_OPTS);
       }
     }
@@ -217,24 +277,41 @@ function pickGegeScript(word: string): string {
   }
 }
 
+function finalizeScript(script: string): string {
+  return toAliGaliFront(toPracticalBichig(script));
+}
+
 function convertWord(word: string): string {
   const key = word.toLocaleLowerCase("mn");
   const override = WORD_OVERRIDES[key];
   if (override) return override;
 
-  // Declined forms of overridden stems: төгөлдөрийн → stem + genitive
+  // Declined forms: strip case ending, convert stem, re-attach practical suffix.
+  // Critical when the full form over-segments (төгөлдөрийн → töγel-dü-ber-ün).
   for (const decl of DECLENSIONS) {
     const m = key.match(decl.re);
     if (!m) continue;
     const stem = key.slice(0, -m[0].length);
-    if (!stem || !WORD_OVERRIDES[stem]) continue;
-    const stemScript = WORD_OVERRIDES[stem];
-    const suffix = isFrontStem(stemScript) ? decl.front : decl.back;
-    return stemScript + suffix;
+    if (!stem || stem.length < 2) continue;
+
+    if (WORD_OVERRIDES[stem]) {
+      const stemScript = WORD_OVERRIDES[stem];
+      const suffix = isFrontStem(stemScript) ? decl.front : decl.back;
+      return stemScript + suffix;
+    }
+
+    // Only rebuild from stem when the full word looks over-segmented
+    if (topSeparateCount(key) >= 2) {
+      const stemScript = finalizeScript(pickGegeScript(stem));
+      if (stemScript && !/[а-яёөүА-ЯЁӨҮ]/u.test(stemScript)) {
+        const suffix = isFrontStem(stemScript) ? decl.front : decl.back;
+        return stemScript + suffix;
+      }
+    }
   }
 
   try {
-    return toAliGaliFront(toPracticalBichig(pickGegeScript(word)));
+    return finalizeScript(pickGegeScript(word));
   } catch {
     return word;
   }
@@ -248,7 +325,7 @@ function convertToken(token: string): string {
   const match = token.match(/^(\P{L}*)(\p{L}[\p{L}\p{M}\-']*)(\P{L}*)$/u);
   if (!match) {
     try {
-      return toAliGaliFront(toPracticalBichig(pickGegeScript(token)));
+      return finalizeScript(pickGegeScript(token));
     } catch {
       return token;
     }
