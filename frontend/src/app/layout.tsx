@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Noto_Sans, Noto_Serif } from "next/font/google";
 import "./globals.css";
 
-const SITE = "https://mongolwrite-ai.fly.dev";
+const SITE = "https://mongolwrite.com";
 
 const sans = Noto_Sans({
   subsets: ["cyrillic", "latin"],
