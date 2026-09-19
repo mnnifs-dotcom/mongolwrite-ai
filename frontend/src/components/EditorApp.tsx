@@ -721,7 +721,6 @@ export function EditorApp() {
                     </svg>
                   </span>
                   <strong>Алдаагүй байна</strong>
-                  <p>Текст зөв бичигдсэн байна.</p>
                 </div>
               </div>
             ) : null}
@@ -772,7 +771,6 @@ export function EditorApp() {
             shown && !empty ? (
               <li className="mw-ok">
                 <strong>Алдаагүй байна</strong>
-                <p>Зөв бичгийн алдаа олдсонгүй.</p>
               </li>
             ) : null
           ) : (

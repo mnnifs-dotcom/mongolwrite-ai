@@ -1194,6 +1194,18 @@ body {
   font-size: 13px;
 }
 
+.mw-legal-hint,
+.mw-legal-sample {
+  margin: 8px 0 12px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.mw-legal-hint strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
 .mw-users-toolbar {
   margin-bottom: 14px;
 }
