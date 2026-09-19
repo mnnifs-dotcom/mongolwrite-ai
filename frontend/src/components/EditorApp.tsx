@@ -721,7 +721,6 @@ export function EditorApp() {
                     </svg>
                   </span>
                   <strong>Алдаагүй байна</strong>
-                  <p>Текст зөв бичигдсэн байна.</p>
                 </div>
               </div>
             ) : null}
