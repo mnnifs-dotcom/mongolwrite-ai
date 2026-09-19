@@ -505,8 +505,20 @@ export async function adminHarvest(
   }>;
 }
 
-export async function adminAddedWords(): Promise<{ items: AdminAddedWord[]; count: number }> {
-  const response = await fetch(apiUrl("/api/v1/admin/added-words"), { credentials: "include" });
+export async function adminAddedWords(opts?: {
+  since?: string;
+  until?: string;
+  q?: string;
+}): Promise<{ items: AdminAddedWord[]; count: number }> {
+  const params = new URLSearchParams();
+  if (opts?.since) params.set("since", opts.since);
+  if (opts?.until) params.set("until", opts.until);
+  if (opts?.q) params.set("q", opts.q);
+  const query = params.toString();
+  const response = await fetch(
+    apiUrl(`/api/v1/admin/added-words${query ? `?${query}` : ""}`),
+    { credentials: "include" },
+  );
   if (!response.ok) throw new Error("Нэмсэн үгс уншигдсангүй");
   return response.json() as Promise<{ items: AdminAddedWord[]; count: number }>;
 }

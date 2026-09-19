@@ -1435,6 +1435,26 @@ body {
   margin-bottom: 12px;
 }
 
+.mw-added-toolbar .mw-added-date {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.mw-added-toolbar .mw-added-date input[type="date"] {
+  flex: 0 0 auto;
+  min-width: 148px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 9px 12px;
+  font: inherit;
+  background: #fff;
+  color: var(--ink);
+}
+
 .mw-lex-search input {
   flex: 1 1 220px;
   border: 1px solid var(--line);

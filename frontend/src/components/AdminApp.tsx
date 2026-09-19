@@ -4,6 +4,7 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 
 import {
+  adminAddedWords,
   adminApproveCandidates,
   adminApprovePending,
   adminHarvest,
@@ -79,6 +80,13 @@ export function AdminApp() {
   const [reliable, setReliable] = useState<HunspellCandidate[]>([]);
   const [doubt, setDoubt] = useState<HunspellCandidate[]>([]);
   const [addedWords, setAddedWords] = useState<AdminAddedWord[]>([]);
+  const [addedFiltered, setAddedFiltered] = useState<AdminAddedWord[]>([]);
+  const [addedSince, setAddedSince] = useState("");
+  const [addedUntil, setAddedUntil] = useState("");
+  const [addedQuery, setAddedQuery] = useState("");
+  const [addedSelected, setAddedSelected] = useState<Set<string>>(new Set());
+  const [addedLoading, setAddedLoading] = useState(false);
+  const [addedCopied, setAddedCopied] = useState(false);
   const [pendingSkipped, setPendingSkipped] = useState<PendingSkippedWord[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [harvestText, setHarvestText] = useState("");
@@ -116,9 +124,38 @@ export function AdminApp() {
     setOverview(next);
     setReliable(next.candidates.reliable_items ?? []);
     setDoubt(next.candidates.doubt_items ?? []);
-    setAddedWords(next.added_words ?? []);
+    const added = next.added_words ?? [];
+    setAddedWords(added);
     setPendingSkipped(next.pending_skipped ?? []);
   }, []);
+
+  const loadAddedWords = useCallback(
+    async (opts?: { since?: string; until?: string; q?: string }) => {
+      const since = opts?.since ?? addedSince;
+      const until = opts?.until ?? addedUntil;
+      const q = opts?.q ?? addedQuery;
+      setAddedLoading(true);
+      setError(null);
+      try {
+        const page = await adminAddedWords({
+          since: since || undefined,
+          until: until || undefined,
+          q: q.trim() || undefined,
+        });
+        setAddedFiltered(page.items);
+        setAddedSelected(new Set());
+        // Keep nav badge in sync when filters clear — otherwise leave overview total.
+        if (!since && !until && !q.trim()) {
+          setAddedWords(page.items);
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Нэмсэн үгс уншигдсангүй");
+      } finally {
+        setAddedLoading(false);
+      }
+    },
+    [addedSince, addedUntil, addedQuery],
+  );
 
   const loadLexicon = useCallback(async (opts?: { q?: string; letter?: string; offset?: number }) => {
     const q = opts?.q ?? lexQuery;
@@ -195,6 +232,13 @@ export function AdminApp() {
     // Initial load only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!authed || section !== "added") return;
+    void loadAddedWords();
+    // Reload when opening the section; filter fields apply via form submit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authed, section]);
 
   async function onLogin(event: FormEvent) {
     event.preventDefault();
@@ -457,6 +501,92 @@ export function AdminApp() {
         );
         setLexSelected(new Set());
         await loadLists();
+        await loadLexicon({ offset: lexOffset });
+        if (section === "added") await loadAddedWords();
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Хасаж чадсангүй");
+    } finally {
+      setActing(null);
+    }
+  }
+
+  function toggleAddedWord(folded: string, enabled: boolean) {
+    setAddedSelected((current) => {
+      const next = new Set(current);
+      if (enabled) next.add(folded);
+      else next.delete(folded);
+      return next;
+    });
+  }
+
+  function addedSelectedText(): string {
+    return addedFiltered
+      .filter((item) => addedSelected.has(item.folded))
+      .map((item) => item.word)
+      .join("\n");
+  }
+
+  function applyAddedSelectedText(text: string) {
+    const tokens = text
+      .split(/[\s,;]+/)
+      .map((part) => part.trim())
+      .filter(Boolean);
+    if (!tokens.length) {
+      setAddedSelected(new Set());
+      return;
+    }
+    const byFold = new Map(addedFiltered.map((item) => [item.folded, item] as const));
+    const byWord = new Map(
+      addedFiltered.map((item) => [item.word.toLocaleLowerCase("mn"), item] as const),
+    );
+    const next = new Set<string>();
+    for (const token of tokens) {
+      const folded = token.toLocaleLowerCase("mn");
+      const match = byFold.get(folded) ?? byWord.get(folded);
+      if (match) next.add(match.folded);
+    }
+    setAddedSelected(next);
+  }
+
+  async function copyAddedSelected() {
+    const text = addedSelectedText();
+    if (!text.trim()) return;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const area = document.createElement("textarea");
+      area.value = text;
+      area.setAttribute("readonly", "");
+      area.style.position = "fixed";
+      area.style.left = "-9999px";
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand("copy");
+      area.remove();
+    }
+    setAddedCopied(true);
+    window.setTimeout(() => setAddedCopied(false), 2000);
+    setStatus(`${addedSelected.size} үг хууллаа`);
+  }
+
+  async function onRemoveAddedFromLexicon() {
+    const words = addedFiltered
+      .filter((item) => addedSelected.has(item.folded))
+      .map((item) => item.word);
+    if (!words.length || acting) return;
+    setActing("added-remove");
+    setError(null);
+    try {
+      const result = await adminLexiconRemove(words, false);
+      if (!result.removed_count) {
+        setError(`Сонгосон үг хасагдсангүй: ${words.join(", ")}`);
+        setStatus("");
+      } else {
+        setStatus(`${result.removed_count} үг үгийн сангаас хаслаа`);
+        setAddedSelected(new Set());
+        await loadLists();
+        await loadAddedWords();
         await loadLexicon({ offset: lexOffset });
       }
     } catch (err) {
@@ -835,20 +965,145 @@ export function AdminApp() {
 
           {section === "added" ? (
             <section className="mw-admin-card" id="admin-added">
-              <h2>Нэмсэн үгс{addedWords.length ? ` · ${addedWords.length}` : ""}</h2>
-              {addedWords.length === 0 ? (
-                <p className="mw-muted">Хоосон</p>
+              <h2>
+                Нэмсэн үгс
+                {addedFiltered.length || addedWords.length
+                  ? ` · ${addedFiltered.length.toLocaleString("mn-MN")}`
+                  : ""}
+              </h2>
+              <p className="mw-muted">
+                Огноогоор шүүж, хуулж шалгаад буруу үгийг сангаас хасна.
+              </p>
+              <form
+                className="mw-lex-search mw-added-toolbar"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void loadAddedWords({
+                    since: addedSince,
+                    until: addedUntil,
+                    q: addedQuery,
+                  });
+                }}
+              >
+                <label className="mw-added-date">
+                  Эхлэх
+                  <input
+                    type="date"
+                    value={addedSince}
+                    onChange={(event) => setAddedSince(event.target.value)}
+                  />
+                </label>
+                <label className="mw-added-date">
+                  Дуусах
+                  <input
+                    type="date"
+                    value={addedUntil}
+                    onChange={(event) => setAddedUntil(event.target.value)}
+                  />
+                </label>
+                <input
+                  type="search"
+                  value={addedQuery}
+                  onChange={(event) => setAddedQuery(event.target.value)}
+                  placeholder="Үгээр хайх…"
+                />
+                <button type="submit" className="mw-btn" disabled={addedLoading}>
+                  {addedLoading ? "…" : "Шүүх"}
+                </button>
+                <button
+                  type="button"
+                  className="mw-btn"
+                  disabled={addedLoading || (!addedSince && !addedUntil && !addedQuery)}
+                  onClick={() => {
+                    setAddedSince("");
+                    setAddedUntil("");
+                    setAddedQuery("");
+                    void loadAddedWords({ since: "", until: "", q: "" });
+                  }}
+                >
+                  Цэвэрлэх
+                </button>
+              </form>
+
+              {addedFiltered.length === 0 ? (
+                <p className="mw-muted">{addedLoading ? "Уншиж байна…" : "Олдсонгүй"}</p>
               ) : (
-                <div className="mw-admin-scroll">
-                  <ul className="mw-admin-list">
-                    {addedWords.map((item) => (
-                      <li key={`${item.folded}-${item.added_at || "file"}`}>
-                        <strong>{item.word}</strong>
-                        <span className="mw-muted">{formatWhen(item.added_at)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                <>
+                  <div className="mw-select-box">
+                    <label className="mw-select-box-label" htmlFor="mw-added-selected-words">
+                      Хуулах / засах
+                      {addedSelected.size ? ` · ${addedSelected.size}` : ""}
+                    </label>
+                    <textarea
+                      id="mw-added-selected-words"
+                      className="mw-selected-words"
+                      value={addedSelectedText()}
+                      onChange={(event) => applyAddedSelectedText(event.target.value)}
+                      rows={4}
+                      spellCheck={false}
+                      placeholder="Сонгосон үгс энд гарна — хуулж аваад өөр газар шалгана"
+                    />
+                    <div className="mw-admin-row mw-lex-actions">
+                      <button
+                        type="button"
+                        className="mw-btn"
+                        disabled={!addedFiltered.length}
+                        onClick={() =>
+                          setAddedSelected(new Set(addedFiltered.map((item) => item.folded)))
+                        }
+                      >
+                        Бүгдийг сонгох
+                      </button>
+                      <button
+                        type="button"
+                        className="mw-btn"
+                        disabled={!addedSelected.size}
+                        onClick={() => setAddedSelected(new Set())}
+                      >
+                        Сонголт арилгах
+                      </button>
+                      <button
+                        type="button"
+                        className="mw-btn"
+                        disabled={!addedSelected.size}
+                        onClick={() => void copyAddedSelected()}
+                      >
+                        {addedCopied ? "Хуулсан" : "Хуулах"}
+                      </button>
+                      <button
+                        type="button"
+                        className="mw-btn"
+                        disabled={!addedSelected.size || acting === "added-remove"}
+                        onClick={() => void onRemoveAddedFromLexicon()}
+                      >
+                        {acting === "added-remove"
+                          ? "Хасаж байна…"
+                          : addedSelected.size
+                            ? `Сангаас устгах · ${addedSelected.size}`
+                            : "Сангаас устгах"}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="mw-admin-scroll">
+                    <ul className="mw-admin-list mw-lex-list">
+                      {addedFiltered.map((item) => (
+                        <li key={`${item.folded}-${item.added_at || "file"}`}>
+                          <label className="mw-candidate-main">
+                            <input
+                              type="checkbox"
+                              checked={addedSelected.has(item.folded)}
+                              onChange={(event) =>
+                                toggleAddedWord(item.folded, event.target.checked)
+                              }
+                            />
+                            <strong>{item.word}</strong>
+                          </label>
+                          <span className="mw-muted">{formatWhen(item.added_at)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </>
               )}
             </section>
           ) : null}

@@ -137,8 +137,50 @@ def record_admin_added(words: list[str]) -> list[dict[str, Any]]:
         return prepend
 
 
-def list_admin_added() -> list[dict[str, Any]]:
-    """Admin-added + user-dictionary words, newest first."""
+def forget_admin_added(words: list[str]) -> list[str]:
+    """Drop lemmas from the admin-added log (after lexicon remove)."""
+    targets = {raw.strip().casefold() for raw in words if raw.strip()}
+    if not targets:
+        return []
+    with _lock:
+        rows = _load_admin_added()
+        kept: list[dict[str, Any]] = []
+        dropped: list[str] = []
+        for row in rows:
+            folded = str(row.get("folded") or "").casefold()
+            if folded in targets:
+                dropped.append(str(row.get("word") or folded))
+                continue
+            kept.append(row)
+        if dropped:
+            _save_admin_added(kept)
+        return dropped
+
+
+def _parse_day_bound(value: str, *, end: bool) -> datetime | None:
+    """Parse YYYY-MM-DD (or full ISO) into an inclusive UTC bound."""
+    raw = (value or "").strip()
+    if not raw:
+        return None
+    if len(raw) == 10 and raw[4] == "-" and raw[7] == "-":
+        stamp = datetime.fromisoformat(raw + ("T23:59:59.999999+00:00" if end else "T00:00:00+00:00"))
+        return stamp
+    try:
+        stamp = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if stamp.tzinfo is None:
+        stamp = stamp.replace(tzinfo=UTC)
+    return stamp.astimezone(UTC)
+
+
+def list_admin_added(
+    *,
+    since: str = "",
+    until: str = "",
+    q: str = "",
+) -> list[dict[str, Any]]:
+    """Admin-added + user-dictionary words, newest first. Optional date/query filter."""
     from app.engine.dictionary import list_user_dictionary_lemmas
 
     with _lock:
@@ -159,7 +201,37 @@ def list_admin_added() -> list[dict[str, Any]]:
             continue
         seen.add(folded)
         out.append(row)
-    return out
+
+    since_dt = _parse_day_bound(since, end=False)
+    until_dt = _parse_day_bound(until, end=True)
+    query = q.strip().casefold()
+    if not since_dt and not until_dt and not query:
+        return out
+
+    filtered: list[dict[str, Any]] = []
+    for row in out:
+        word = str(row.get("word") or "")
+        folded = str(row.get("folded") or word).casefold()
+        if query and query not in folded and query not in word.casefold():
+            continue
+        added_raw = str(row.get("added_at") or "").strip()
+        if since_dt or until_dt:
+            if not added_raw:
+                # File-only lemmas have no stamp — hide when a date range is set.
+                continue
+            try:
+                added_dt = datetime.fromisoformat(added_raw.replace("Z", "+00:00"))
+            except ValueError:
+                continue
+            if added_dt.tzinfo is None:
+                added_dt = added_dt.replace(tzinfo=UTC)
+            added_dt = added_dt.astimezone(UTC)
+            if since_dt and added_dt < since_dt:
+                continue
+            if until_dt and added_dt > until_dt:
+                continue
+        filtered.append(row)
+    return filtered
 
 
 def admin_lists_payload() -> dict[str, Any]:
