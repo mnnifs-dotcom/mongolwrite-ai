@@ -9,12 +9,24 @@ from typing import Any, Literal
 
 from app.engine.confusables import _variants
 from app.engine.dictionary import DictionaryProvider, _FREQ_TRUST, _repo_root
+from app.engine.grammar import _glued_forms
 from app.engine.misspellings import lookup_misspelling
 from app.engine.pipeline import LanguageEngine
-from app.engine.spelling import _is_implausible
+from app.engine.spelling import _RULE_FIRST, _is_implausible, _suggest
 from app.engine.text import is_cyrillic_letter, tokenize
 
 Tier = Literal["reliable", "doubt"]
+
+# Clear orthography/grammar hits — admin should not review these one-by-one.
+_CLEAR_RULES = _RULE_FIRST | {
+    "common_misspelling",
+    "doubled_letter",
+    "glued_auxiliary",
+    "glued_question_particle",
+    "glued_directive",
+    "glued_words",
+    "separate_particle",
+}
 
 _log = logging.getLogger(__name__)
 _lock = threading.Lock()
@@ -152,6 +164,7 @@ def list_admin_added() -> list[dict[str, Any]]:
 
 def admin_lists_payload() -> dict[str, Any]:
     """Single payload for the admin UI lists."""
+    prune_clear_error_candidates()
     reliable = list_candidates("reliable")
     doubt = list_candidates("doubt")
     added = list_admin_added()
@@ -216,18 +229,41 @@ def in_curated_lexicon(dictionary: DictionaryProvider, word: str) -> bool:
     return dictionary.in_seed(word)
 
 
+def is_clear_orthography_error(dictionary: DictionaryProvider, word: str) -> bool:
+    """True for glued/rule misspellings that the engine can already fix automatically."""
+    cleaned = word.strip()
+    if len(cleaned) < 2:
+        return False
+    if lookup_misspelling(cleaned):
+        return True
+    tokens = tokenize(cleaned)
+    for item in _glued_forms(tokens, dictionary):
+        if item.rule_id in _CLEAR_RULES:
+            return True
+    if len(cleaned) >= 4:
+        suggested = _suggest(cleaned, dictionary)
+        if suggested and suggested[1] in _CLEAR_RULES:
+            return True
+    return False
+
+
 def classify_candidate(dictionary: DictionaryProvider, word: str) -> dict[str, Any] | None:
-    """Return reliable/doubt item, or None when the word should not be listed."""
+    """Return reliable/doubt item, or None when the word should not be listed.
+
+    Only uncertain lexicon gaps belong here — clear rule/grammar errors are excluded
+    so admins are not asked to re-judge every obvious misspelling.
+    """
     cleaned = word.strip()
     folded = cleaned.casefold()
     if len(folded) < 2:
         return None
-    miss = lookup_misspelling(cleaned)
-    if miss:
+    if lookup_misspelling(cleaned):
         return None
     if _is_implausible(cleaned):
         return None
     if in_curated_lexicon(dictionary, cleaned):
+        return None
+    if is_clear_orthography_error(dictionary, cleaned):
         return None
 
     hun_ok = hunspell_knows(dictionary, cleaned)
@@ -270,7 +306,7 @@ def classify_candidate(dictionary: DictionaryProvider, word: str) -> dict[str, A
         "word": cleaned,
         "folded": folded,
         "tier": "doubt",
-        "reason": "Санд байхгүй үг. Админ шалгаад оруулна.",
+        "reason": "Эргэлзээтэй / санд байхгүй үг. Админ шийдэнэ.",
         "suggestion": "",
     }
 
@@ -385,6 +421,28 @@ def list_candidates(tier: Tier | str | None = None) -> list[dict[str, Any]]:
     return rows
 
 
+def prune_clear_error_candidates(dictionary: DictionaryProvider | None = None) -> int:
+    """Drop queued words that are clear orthography/grammar errors (one-shot cleanup)."""
+    from app.engine.runtime import get_engine
+
+    dict_provider = dictionary or get_engine().dictionary
+    removed = 0
+    with _lock:
+        rows = _load_rows()
+        drop = [
+            folded
+            for folded, row in rows.items()
+            if is_clear_orthography_error(dict_provider, str(row.get("word") or folded))
+        ]
+        if not drop:
+            return 0
+        for folded in drop:
+            rows.pop(folded, None)
+            removed += 1
+        _save_rows(rows)
+    return removed
+
+
 def counts() -> dict[str, int]:
     rows = list_candidates()
     reliable = sum(1 for row in rows if row.get("tier") == "reliable")
@@ -438,6 +496,54 @@ def reject_words(words: list[str]) -> dict[str, Any]:
         _save_rows(rows)
         _save_rejected(rejected)
     return {"removed": removed, "removed_count": len(removed)}
+
+
+def queue_doubt_words(
+    words: list[str],
+    *,
+    reason: str = "Админ сангаас хассан · алдаатай гэж тэмдэглэсэн",
+) -> dict[str, Any]:
+    """Put lemmas into the admin doubt queue (and clear any prior rejection)."""
+    cleaned = [item.strip() for item in words if item.strip()]
+    if not cleaned:
+        return {"queued": [], "queued_count": 0}
+    stamped = _now()
+    queued: list[str] = []
+    with _lock:
+        rows = _load_rows()
+        rejected = _load_rejected()
+        for word in cleaned:
+            folded = word.casefold()
+            rejected.discard(folded)
+            prev = rows.get(folded)
+            if prev:
+                prev["tier"] = "doubt"
+                prev["reason"] = reason
+                prev["updated_at"] = stamped
+                prev["count"] = max(1, int(prev.get("count") or 1))
+            else:
+                rows[folded] = {
+                    "word": word,
+                    "folded": folded,
+                    "tier": "doubt",
+                    "reason": reason,
+                    "suggestion": "",
+                    "count": 1,
+                    "seen_at": stamped,
+                    "updated_at": stamped,
+                }
+            queued.append(folded)
+        # Cap growth
+        if len(rows) > _MAX_CANDIDATES:
+            ordered = sorted(
+                rows.values(),
+                key=lambda row: str(row.get("updated_at") or ""),
+                reverse=True,
+            )[:_MAX_CANDIDATES]
+            rows = {str(row["folded"]): row for row in ordered}
+        _save_rows(rows)
+        _save_rejected(rejected)
+    return {"queued": queued, "queued_count": len(queued)}
 
 
 def harvest_safe(engine: LanguageEngine, text: str) -> None:

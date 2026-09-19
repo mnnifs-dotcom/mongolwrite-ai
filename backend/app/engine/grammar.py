@@ -13,7 +13,7 @@ _QUESTION = frozenset({"уу", "үү"})
 _VE = frozenset({"бэ", "вэ"})
 _GLUED_QUESTION = re.compile(r"^(.+?)(уу|үү)$", re.IGNORECASE)
 _GLUED_AUX = re.compile(
-    r"^(.+ж)(байна|байгаа|байсан|байх|болно)$",
+    r"^(.+[жч])(байна|байгаа|байсан|байх|байдаг|байлаа|байжээ|болно|болох)$",
     re.IGNORECASE,
 )
 _GLUED_DIRECTION = re.compile(r"^(.+)(руу|рүү)$", re.IGNORECASE)

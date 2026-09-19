@@ -27,29 +27,41 @@ export type ImproveResponse = CheckResponse & {
 
 export type SettingsResponse = {
   ai_enabled: boolean;
+  check_max_chars?: number;
+  google_client_id?: string | null;
 };
 
+export type AuthUser = {
+  id: string;
+  email: string;
+  name: string;
+  picture: string;
+  plan: string;
+  plan_name: string;
+  entitlements: {
+    check_max_chars: number;
+    checks_per_day: number | null;
+    features: string[];
+  };
+};
+
+export type AuthMeResponse = {
+  authenticated: boolean;
+  user: AuthUser | null;
+  google_client_id: string | null;
+  plans: Array<{
+    id: string;
+    name: string;
+    price_mnt: number;
+    check_max_chars: number;
+    checks_per_day: number | null;
+    features: string[];
+  }>;
+};
+
+/** Editor only shows spelling marks. */
 export const CATEGORY_LABELS: Record<string, string> = {
-  SPELLING: "Үсэг",
-  GRAMMAR: "Дүрэм",
-  PUNCTUATION: "Цэг таслал",
-  WORD_CHOICE: "Үгийн сонголт",
-  STYLE: "Найруулга",
-  FORMALITY: "Албан хэл",
-  CLARITY: "Ойлгомжтой байдал",
-  REDUNDANCY: "Давхардал",
-  TERMINOLOGY: "Нэр томьёо",
-  AI_REWRITE: "AI",
+  SPELLING: "Зөв бичиг",
 };
 
-export const FILTERS = [
-  "ALL",
-  "SPELLING",
-  "GRAMMAR",
-  "WORD_CHOICE",
-  "STYLE",
-  "CLARITY",
-  "PUNCTUATION",
-  "REDUNDANCY",
-  "FORMALITY",
-] as const;
+export const FILTERS = ["ALL", "SPELLING"] as const;
