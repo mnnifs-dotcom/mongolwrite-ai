@@ -125,4 +125,20 @@ else:
         def aldaga_shalgah_page() -> FileResponse:
             return FileResponse(_aldaga_html)
 
+    _terms_html = _frontend / "uilchilgeenii-nokhtsol.html"
+    if _terms_html.is_file():
+
+        @app.get("/uilchilgeenii-nokhtsol")
+        @app.get("/uilchilgeenii-nokhtsol/")
+        def terms_page() -> FileResponse:
+            return FileResponse(_terms_html)
+
+    _report_html = _frontend / "aldaa-medegdeh.html"
+    if _report_html.is_file():
+
+        @app.get("/aldaa-medegdeh")
+        @app.get("/aldaa-medegdeh/")
+        def report_error_page() -> FileResponse:
+            return FileResponse(_report_html)
+
     app.mount("/", StaticFiles(directory=_frontend, html=True), name="frontend")

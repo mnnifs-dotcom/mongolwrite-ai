@@ -1912,6 +1912,13 @@ body {
   .mw-editor-footer {
     padding: 12px 18px 14px;
     gap: 28px;
+    flex-wrap: wrap;
+  }
+
+  .mw-editor-legal {
+    width: 100%;
+    margin-left: 0;
+    margin-top: 2px;
   }
 
   .mw-count strong {
@@ -2095,4 +2102,141 @@ body {
 
 .mw-seo-foot-cta {
   margin-top: 36px;
+}
+
+.mw-site-footer {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 8px 20px 40px;
+  border-top: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+}
+
+.mw-site-footer-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin-bottom: 10px;
+}
+
+.mw-site-footer-nav a {
+  color: color-mix(in srgb, var(--ink) 72%, var(--muted));
+  text-decoration: none;
+  font-size: 13px;
+}
+
+.mw-site-footer-nav a:hover {
+  color: var(--accent-deep);
+  text-decoration: underline;
+}
+
+.mw-site-footer-copy {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.mw-legal-article section + section {
+  margin-top: 8px;
+}
+
+.mw-legal-article p {
+  margin: 8px 0;
+}
+
+.mw-report-form {
+  display: grid;
+  gap: 14px;
+  margin: 20px 0 12px;
+  max-width: 520px;
+}
+
+.mw-report-field {
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+  color: color-mix(in srgb, var(--ink) 88%, var(--muted));
+}
+
+.mw-report-field input,
+.mw-report-field select,
+.mw-report-field textarea {
+  width: 100%;
+  border: 1px solid color-mix(in srgb, var(--ink) 16%, transparent);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font: inherit;
+  background: #fff;
+  color: var(--ink);
+}
+
+.mw-report-field input:focus,
+.mw-report-field select:focus,
+.mw-report-field textarea:focus {
+  outline: 2px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-color: var(--accent);
+}
+
+.mw-report-field textarea {
+  resize: vertical;
+  min-height: 120px;
+}
+
+.mw-report-error {
+  margin: 0;
+  color: #b42318;
+  font-size: 14px;
+}
+
+.mw-report-done {
+  margin: 20px 0;
+  padding: 16px 18px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 10%, #fff);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.mw-report-done p {
+  margin: 8px 0 14px;
+}
+
+.mw-report-note {
+  margin-top: 28px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.mw-report-note a {
+  color: var(--accent-deep);
+}
+
+.mw-pop-report {
+  display: block;
+  margin-top: 4px;
+  padding: 4px 4px 2px;
+  font-size: 13px;
+  color: var(--accent-deep);
+  text-decoration: none;
+}
+
+.mw-pop-report:hover {
+  text-decoration: underline;
+}
+
+.mw-editor-legal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  margin-left: auto;
+  align-items: center;
+}
+
+.mw-editor-legal a {
+  font-size: 12px;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.mw-editor-legal a:hover {
+  color: var(--accent-deep);
+  text-decoration: underline;
 }

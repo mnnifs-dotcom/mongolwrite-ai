@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { SiteFooter } from "@/components/SiteFooter";
+
 const SITE = "https://mongolwrite.com";
 
 export const metadata: Metadata = {
@@ -108,6 +110,7 @@ export default function UgiinAldagaShalgahPage() {
           </Link>
         </p>
       </article>
+      <SiteFooter />
     </main>
   );
 }
