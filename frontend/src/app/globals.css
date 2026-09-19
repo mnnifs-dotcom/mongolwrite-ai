@@ -507,54 +507,6 @@ body {
   color: var(--accent-deep);
 }
 
-.mw-key {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 0;
-  border: 0;
-}
-
-.mw-key summary {
-  cursor: pointer;
-  font-size: 13px;
-  color: var(--muted);
-  list-style: none;
-}
-
-.mw-key summary::-webkit-details-marker {
-  display: none;
-}
-
-.mw-key form {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.mw-key p {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.45;
-  color: var(--muted);
-}
-
-.mw-key input {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 8px 10px;
-  font-size: 13px;
-  background: #fff;
-  color: var(--ink);
-}
-
-.mw-key input:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--sky-mist);
-}
-
 .mw-filters {
   display: flex;
   flex-wrap: wrap;

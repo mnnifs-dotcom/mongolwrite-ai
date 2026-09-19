@@ -11,7 +11,6 @@ import {
   getSettings,
   importDocument,
   improveText,
-  saveAiKey,
   skipSpellingWord,
 } from "@/lib/api";
 import { cyrillicToBichig } from "@/lib/bichig";
@@ -219,7 +218,6 @@ export function EditorApp() {
   const [counts, setCounts] = useState({ words: 0, chars: 0 });
   const [error, setError] = useState<string | null>(null);
   const [aiEnabled, setAiEnabled] = useState(false);
-  const [apiKey, setApiKey] = useState("");
   const [empty, setEmpty] = useState(true);
   const [shown, setShown] = useState(false);
   const [checking, setChecking] = useState(false);
@@ -547,20 +545,6 @@ export function EditorApp() {
     editor?.commands.focus("end");
   }
 
-  async function connectUnderstanding() {
-    try {
-      const result = await saveAiKey(apiKey);
-      setAiEnabled(result.ai_enabled);
-      setApiKey("");
-      setError(result.ai_enabled ? null : "Түлхүүр хоосон байна.");
-      if (editor && result.ai_enabled) {
-        void runCheck(plainTextFromDoc(editor.state.doc));
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Түлхүүр хадгалж чадсангүй");
-    }
-  }
-
   async function onPickFile(file: File | undefined) {
     if (!file || !editor) return;
     setError(null);
@@ -751,30 +735,6 @@ export function EditorApp() {
                   : "Санал"}
           </h2>
         </div>
-        {aiEnabled ? null : (
-          <details className="mw-key">
-            <summary>Ойлголт холбох</summary>
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                void connectUnderstanding();
-              }}
-            >
-              <p>Бичвэрийг утгаар нь ойлгож засахын тулд OpenAI түлхүүрээ оруулаарай.</p>
-              <input
-                type="password"
-                value={apiKey}
-                onChange={(event) => setApiKey(event.target.value)}
-                placeholder="sk-..."
-                autoComplete="off"
-                aria-label="OpenAI түлхүүр"
-              />
-              <button type="submit" className="mw-btn-primary">
-                Холбох
-              </button>
-            </form>
-          </details>
-        )}
         <ul className="mw-list">
           {checking ? (
             <li className="mw-checking-panel">
