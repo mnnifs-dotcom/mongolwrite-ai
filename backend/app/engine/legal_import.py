@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import logging
 from pathlib import Path
 from typing import Any
@@ -11,10 +10,10 @@ from app.engine.dictionary import _repo_root
 from app.engine.hunspell_candidates import (
     _load_json,
     _load_rejected,
+    _load_rows,
     _lock,
     _now,
-    _save_json,
-    candidates_path,
+    _save_rows,
     in_curated_lexicon,
     record_admin_added,
 )
@@ -62,6 +61,7 @@ def _read_doubt_items() -> list[dict[str, Any]]:
         folded = str(row.get("folded") or word).casefold()
         if len(folded) < 3:
             continue
+        stamped = _now()
         out.append(
             {
                 "word": word or folded,
@@ -69,9 +69,9 @@ def _read_doubt_items() -> list[dict[str, Any]]:
                 "tier": "doubt",
                 "reason": str(row.get("reason") or "legalinfo · админ шалгана"),
                 "suggestion": str(row.get("suggestion") or ""),
-                "count": int(row.get("legal_df") or row.get("count") or 1),
-                "updated_at": _now(),
-                "source": "legalinfo",
+                "count": max(1, int(row.get("legal_df") or row.get("count") or 1)),
+                "seen_at": stamped,
+                "updated_at": stamped,
             }
         )
     return out
@@ -98,14 +98,8 @@ def apply_legal_lexicon(engine: LanguageEngine) -> dict[str, Any]:
         record_admin_added(to_add)
 
     queued = 0
-    rows: list[dict[str, Any]] = []
     with _lock:
-        raw = _load_json(candidates_path())
-        existing: dict[str, dict[str, Any]] = {}
-        if isinstance(raw, dict):
-            for row in raw.get("items", []) if isinstance(raw.get("items"), list) else []:
-                if isinstance(row, dict) and row.get("folded"):
-                    existing[str(row["folded"])] = row
+        existing = _load_rows()
         for item in doubt_items:
             folded = str(item["folded"])
             if folded in rejected or in_curated_lexicon(dictionary, folded):
@@ -117,18 +111,11 @@ def apply_legal_lexicon(engine: LanguageEngine) -> dict[str, Any]:
                 prev["suggestion"] = item.get("suggestion") or prev.get("suggestion") or ""
                 prev["tier"] = "doubt"
                 prev["updated_at"] = _now()
-                prev["source"] = "legalinfo"
             else:
                 existing[folded] = item
                 queued += 1
-        rows = sorted(
-            existing.values(),
-            key=lambda row: (-int(row.get("count") or 0), str(row.get("folded") or "")),
-        )
-        _save_json(
-            candidates_path(),
-            {"items": rows[:5000], "updated_at": _now()},
-        )
+        _save_rows(existing)
+        total = len(existing)
 
     result = {
         "trusted_file": len(trusted),
@@ -136,7 +123,7 @@ def apply_legal_lexicon(engine: LanguageEngine) -> dict[str, Any]:
         "added_to_lexicon": len(added),
         "added_words": added[:50],
         "queued_for_admin": queued,
-        "candidates_total": len(rows),
+        "candidates_total": total,
     }
     _log.info("legal lexicon import: %s", result)
     return result

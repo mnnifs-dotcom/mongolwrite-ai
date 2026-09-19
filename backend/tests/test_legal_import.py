@@ -54,9 +54,9 @@ def test_legal_import_preview_and_apply(tmp_path, monkeypatch) -> None:
     assert not engine.dictionary.in_seed("эргэлзээтэйтестүг")
 
     candidates = json.loads((persist / "hunspell_candidates.json").read_text(encoding="utf-8"))
-    folded = {row["folded"] for row in candidates["items"]}
+    folded = {row["folded"] for row in candidates["words"]}
     assert "эргэлзээтэйтестүг" in folded
-    assert all(row.get("tier") == "doubt" for row in candidates["items"] if row["folded"] == "эргэлзээтэйтестүг")
+    assert all(row.get("tier") == "doubt" for row in candidates["words"] if row["folded"] == "эргэлзээтэйтестүг")
 
     again = legal_import.apply_legal_lexicon(engine)
     assert again["added_to_lexicon"] == 0
