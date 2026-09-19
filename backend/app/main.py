@@ -71,8 +71,8 @@ if _frontend is None:
         }
 
 else:
-    # Next static export writes admin.html; Starlette StaticFiles(html=True) does not
-    # map /admin → admin.html, so register an explicit page route before the mount.
+    # Next static export writes page.html; Starlette StaticFiles(html=True) does not
+    # map /page → page.html, so register explicit page routes before the mount.
     _admin_html = _frontend / "admin.html"
     if _admin_html.is_file():
 
@@ -80,5 +80,13 @@ else:
         @app.get("/admin/")
         def admin_page() -> FileResponse:
             return FileResponse(_admin_html)
+
+    _seo_html = _frontend / "ugiin-aldaga-shalgah.html"
+    if _seo_html.is_file():
+
+        @app.get("/ugiin-aldaga-shalgah")
+        @app.get("/ugiin-aldaga-shalgah/")
+        def ugiin_aldaga_shalgah_page() -> FileResponse:
+            return FileResponse(_seo_html)
 
     app.mount("/", StaticFiles(directory=_frontend, html=True), name="frontend")
