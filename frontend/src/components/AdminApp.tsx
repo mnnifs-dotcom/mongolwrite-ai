@@ -151,13 +151,49 @@ export function AdminApp() {
     }
   }
 
-  function toggleWord(word: string, enabled: boolean) {
+  function toggleWord(folded: string, enabled: boolean) {
     setSelected((current) => {
       const next = new Set(current);
-      if (enabled) next.add(word);
-      else next.delete(word);
+      if (enabled) next.add(folded);
+      else next.delete(folded);
       return next;
     });
+  }
+
+  function selectAllHunspell() {
+    setSelected(new Set([...reliable, ...doubt].map((item) => item.folded)));
+  }
+
+  function clearHunspellSelection() {
+    setSelected(new Set());
+  }
+
+  function selectedWordsText(items: HunspellCandidate[]): string {
+    return items.map((item) => item.word).join(" ");
+  }
+
+  function applySelectedText(text: string) {
+    const tokens = text
+      .split(/[\s,;]+/)
+      .map((part) => part.trim())
+      .filter(Boolean);
+    if (!tokens.length) {
+      setSelected(new Set());
+      return;
+    }
+    const byFold = new Map(
+      [...reliable, ...doubt].map((item) => [item.folded, item] as const),
+    );
+    const byWord = new Map(
+      [...reliable, ...doubt].map((item) => [item.word.toLocaleLowerCase("mn"), item] as const),
+    );
+    const next = new Set<string>();
+    for (const token of tokens) {
+      const folded = token.toLocaleLowerCase("mn");
+      const match = byFold.get(folded) ?? byWord.get(folded);
+      if (match) next.add(match.folded);
+    }
+    setSelected(next);
   }
 
   async function approveMany(words: string[]) {
@@ -182,18 +218,18 @@ export function AdminApp() {
     }
   }
 
-  async function rejectOne(word: string) {
-    if (acting) return;
-    setActing(word);
+  async function rejectMany(words: string[]) {
+    if (!words.length || acting) return;
+    setActing("reject");
     setError(null);
     try {
-      await adminRejectCandidates([word]);
-      setStatus(`«${word}» хасагдлаа`);
-      setSelected((current) => {
-        const next = new Set(current);
-        next.delete(word);
-        return next;
-      });
+      const result = await adminRejectCandidates(words);
+      setStatus(
+        result.removed_count
+          ? `${result.removed_count} үг жагсаалтаас хасагдлаа`
+          : "Сонгосон үгс хасагдлаа",
+      );
+      setSelected(new Set());
       await loadLists();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Хасаж чадсангүй");
@@ -418,8 +454,7 @@ export function AdminApp() {
             {hunspellWords.length ? ` · ${hunspellWords.length}` : ""}
           </h2>
           <p className="mw-muted">
-            Санд байхгүй боловч Hunspell зөв гэсэн (эсвэл текстэд гарсан шинэ) үгс. Эндээс санд
-            оруулна.
+            Санд байхгүй боловч Hunspell зөв гэсэн үгс. Чагталж сонгоод санд оруулна эсвэл устгана.
           </p>
 
           <form className="mw-harvest-box" onSubmit={(event) => void onHarvest(event)}>
@@ -441,31 +476,74 @@ export function AdminApp() {
             </p>
           ) : (
             <>
+              <div className="mw-select-box">
+                <label className="mw-select-box-label" htmlFor="mw-selected-words">
+                  Сонгосон үгс{selectedHunspell.length ? ` · ${selectedHunspell.length}` : ""}
+                </label>
+                <textarea
+                  id="mw-selected-words"
+                  className="mw-selected-words"
+                  value={selectedWordsText(selectedHunspell)}
+                  onChange={(event) => applySelectedText(event.target.value)}
+                  placeholder="Доорх жагсаалтаас чагталсан үгс энд текстээр гарна…"
+                  rows={4}
+                />
+                <div className="mw-admin-row mw-select-actions">
+                  <button type="button" className="mw-btn" onClick={selectAllHunspell}>
+                    Бүгдийг сонгох
+                  </button>
+                  <button
+                    type="button"
+                    className="mw-btn"
+                    disabled={!selectedHunspell.length}
+                    onClick={clearHunspellSelection}
+                  >
+                    Сонголт арилгах
+                  </button>
+                  <button
+                    type="button"
+                    className="mw-btn-primary"
+                    disabled={!selectedHunspell.length || acting === "approve"}
+                    onClick={() => void approveMany(selectedHunspell.map((item) => item.word))}
+                  >
+                    {acting === "approve"
+                      ? "Нэмж байна…"
+                      : selectedHunspell.length
+                        ? `Санд нэмэх · ${selectedHunspell.length}`
+                        : "Санд нэмэх"}
+                  </button>
+                  <button
+                    type="button"
+                    className="mw-btn"
+                    disabled={!selectedHunspell.length || acting === "reject"}
+                    onClick={() => void rejectMany(selectedHunspell.map((item) => item.word))}
+                  >
+                    {acting === "reject"
+                      ? "Устгаж байна…"
+                      : selectedHunspell.length
+                        ? `Устгах · ${selectedHunspell.length}`
+                        : "Устгах"}
+                  </button>
+                </div>
+              </div>
+
               {reliable.length ? (
                 <div className="mw-list-block">
                   <div className="mw-list-block-head">
                     <h3>Найдвартай · {reliable.length}</h3>
-                    <div className="mw-admin-row">
-                      <button
-                        type="button"
-                        className="mw-btn"
-                        onClick={() => setSelected(new Set(reliable.map((item) => item.folded)))}
-                      >
-                        Бүгдийг сонгох
-                      </button>
-                      <button
-                        type="button"
-                        className="mw-btn-primary"
-                        disabled={!selectedHunspell.length || acting === "approve"}
-                        onClick={() =>
-                          void approveMany(selectedHunspell.map((item) => item.word))
-                        }
-                      >
-                        {acting === "approve"
-                          ? "Нэмж байна…"
-                          : `Сонгосон ${selectedHunspell.length}-ыг санд нэмэх`}
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      className="mw-btn"
+                      onClick={() =>
+                        setSelected((current) => {
+                          const next = new Set(current);
+                          for (const item of reliable) next.add(item.folded);
+                          return next;
+                        })
+                      }
+                    >
+                      Энэ хэсгийг сонгох
+                    </button>
                   </div>
                   <div className="mw-admin-scroll">
                     <ul className="mw-admin-list">
@@ -480,14 +558,6 @@ export function AdminApp() {
                             <strong title={item.reason}>{item.word}</strong>
                             <span className="mw-muted">{item.count}×</span>
                           </label>
-                          <button
-                            type="button"
-                            className="mw-btn"
-                            disabled={acting === item.word}
-                            onClick={() => void rejectOne(item.word)}
-                          >
-                            Татгалзах
-                          </button>
                         </li>
                       ))}
                     </ul>
@@ -497,35 +567,37 @@ export function AdminApp() {
 
               {doubt.length ? (
                 <div className="mw-list-block">
-                  <h3>Эргэлзээтэй · {doubt.length}</h3>
+                  <div className="mw-list-block-head">
+                    <h3>Эргэлзээтэй · {doubt.length}</h3>
+                    <button
+                      type="button"
+                      className="mw-btn"
+                      onClick={() =>
+                        setSelected((current) => {
+                          const next = new Set(current);
+                          for (const item of doubt) next.add(item.folded);
+                          return next;
+                        })
+                      }
+                    >
+                      Энэ хэсгийг сонгох
+                    </button>
+                  </div>
                   <div className="mw-admin-scroll">
                     <ul className="mw-admin-list">
                       {doubt.map((item) => (
                         <li key={item.folded}>
-                          <div className="mw-candidate-main">
+                          <label className="mw-candidate-main">
+                            <input
+                              type="checkbox"
+                              checked={selected.has(item.folded)}
+                              onChange={(event) => toggleWord(item.folded, event.target.checked)}
+                            />
                             <strong title={item.reason}>{item.word}</strong>
                             <span className="mw-muted">
                               {item.suggestion ? `→ ${item.suggestion}` : ""} {item.count}×
                             </span>
-                          </div>
-                          <div className="mw-admin-row">
-                            <button
-                              type="button"
-                              className="mw-btn-primary"
-                              disabled={!!acting}
-                              onClick={() => void approveMany([item.word])}
-                            >
-                              Санд нэмэх
-                            </button>
-                            <button
-                              type="button"
-                              className="mw-btn"
-                              disabled={acting === item.word}
-                              onClick={() => void rejectOne(item.word)}
-                            >
-                              Татгалзах
-                            </button>
-                          </div>
+                          </label>
                         </li>
                       ))}
                     </ul>
