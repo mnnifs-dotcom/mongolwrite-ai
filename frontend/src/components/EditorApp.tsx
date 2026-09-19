@@ -736,7 +736,7 @@ export function EditorApp() {
                 ? statusLabel(corrections)
                 : shown
                   ? "Алдаагүй"
-                  : "Санал"}
+                  : "Алдаатай үгс"}
           </h2>
         </div>
         <ul className="mw-list">
