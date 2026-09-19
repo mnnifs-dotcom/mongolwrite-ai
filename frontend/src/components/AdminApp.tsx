@@ -49,7 +49,7 @@ function healthLabel(status: string): string {
 export function AdminApp() {
   const [ready, setReady] = useState(false);
   const [authed, setAuthed] = useState(false);
-  const [username, setUsername] = useState("admin");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [overview, setOverview] = useState<SiteOverview | null>(null);
   const [reliable, setReliable] = useState<HunspellCandidate[]>([]);
@@ -273,7 +273,6 @@ export function AdminApp() {
         <div className="mw-admin">
           <form className="mw-admin-card mw-admin-login" onSubmit={(event) => void onLogin(event)}>
             <h1>Админ нэвтрэх</h1>
-            <p className="mw-muted">Үгийн сан, Hunspell нэр дэвшигч, нэмсэн үгсийг эндээс хяана.</p>
             <label>
               Нэвтрэх нэр
               <input

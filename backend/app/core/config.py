@@ -9,8 +9,8 @@ class Settings(BaseSettings):
     frontend_origin: str = "http://localhost:3000"
     frontend_dir: str = ""
     check_max_chars: int = 100_000
-    admin_username: str = "admin"
-    admin_password: str = ""
+    admin_username: str = "Admin write"
+    admin_password: str = "Ilove@00"
     openai_api_key: str = ""
     openai_base_url: str = "https://api.openai.com/v1"
     openai_model: str = "gpt-4o"
