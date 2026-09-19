@@ -224,8 +224,9 @@ export function EditorApp() {
   const [checking, setChecking] = useState(false);
   const [showBichig, setShowBichig] = useState(false);
   const [draft, setDraft] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const menuRef = useRef<HTMLDetailsElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const checkSeq = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
@@ -462,8 +463,24 @@ export function EditorApp() {
   );
 
   function closeMenu() {
-    if (menuRef.current) menuRef.current.open = false;
+    setMenuOpen(false);
   }
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDoc = (event: MouseEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
 
   function apply(item: Correction, replacement?: string) {
     const suggested = replacement ?? item.suggested_text;
@@ -584,23 +601,41 @@ export function EditorApp() {
           <div className="mw-top-spacer" />
           <div className="mw-top-actions">
             <AuthButton />
-            <details className="mw-menu" ref={menuRef}>
-              <summary aria-label="Цэс">⋯</summary>
-              <div className="mw-menu-list">
-                <button type="button" onClick={newDocument}>
-                  Шинэ
-                </button>
-                <button type="button" onClick={() => fileRef.current?.click()}>
-                  Файл
-                </button>
-                <button type="button" onClick={() => void copyText()}>
-                  Хуулах
-                </button>
-                <button type="button" onClick={loadSample}>
-                  Жишээ
-                </button>
-              </div>
-            </details>
+            <div className="mw-menu" ref={menuRef}>
+              <button
+                type="button"
+                className={menuOpen ? "mw-menu-trigger is-open" : "mw-menu-trigger"}
+                aria-label="Цэс"
+                aria-expanded={menuOpen}
+                aria-haspopup="menu"
+                onClick={() => setMenuOpen((open) => !open)}
+              >
+                ⋯
+              </button>
+              {menuOpen ? (
+                <div className="mw-menu-list" role="menu">
+                  <button type="button" role="menuitem" onClick={newDocument}>
+                    Шинэ
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      closeMenu();
+                      fileRef.current?.click();
+                    }}
+                  >
+                    Файл
+                  </button>
+                  <button type="button" role="menuitem" onClick={() => void copyText()}>
+                    Хуулах
+                  </button>
+                  <button type="button" role="menuitem" onClick={loadSample}>
+                    Жишээ
+                  </button>
+                </div>
+              ) : null}
+            </div>
             <span className="mw-top-rule" aria-hidden />
             <input
               ref={fileRef}

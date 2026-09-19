@@ -161,6 +161,9 @@ body {
   flex: 0 0 auto;
   flex-wrap: wrap;
   min-height: 48px;
+  overflow: visible;
+  position: relative;
+  z-index: 30;
 }
 
 .mw-top-spacer {
@@ -174,13 +177,16 @@ body {
   gap: 4px;
   padding: 6px;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.9);
   border: 1px solid rgba(196, 212, 230, 0.9);
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.9) inset,
     0 10px 28px rgba(13, 27, 42, 0.08),
     0 1px 2px rgba(13, 27, 42, 0.04);
-  backdrop-filter: blur(16px) saturate(1.2);
+  /* Avoid backdrop-filter here: it clips absolute dropdown menus in Chromium. */
+  overflow: visible;
+  position: relative;
+  z-index: 40;
   animation: mw-fade-rise 0.5s ease 0.05s both;
 }
 
@@ -269,7 +275,7 @@ body {
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
-  z-index: 20;
+  z-index: 80;
   min-width: 200px;
   padding: 12px;
   border: 1px solid var(--line);
@@ -338,51 +344,47 @@ body {
 
 .mw-menu {
   position: relative;
+  z-index: 50;
 }
 
-.mw-menu summary {
+.mw-menu-trigger {
   list-style: none;
   border: 0;
   background: transparent;
   border-radius: 10px;
   width: 34px;
   height: 34px;
+  min-height: 34px;
   display: grid;
   place-items: center;
   cursor: pointer;
   font-size: 18px;
   line-height: 1;
   color: var(--muted);
+  font-family: inherit;
+  padding: 0;
   transition:
     color 0.15s ease,
     background 0.15s ease;
 }
 
-.mw-menu summary:hover {
-  color: var(--ink);
-  background: color-mix(in srgb, var(--accent) 10%, #fff);
-}
-
-.mw-menu[open] summary {
+.mw-menu-trigger:hover,
+.mw-menu-trigger.is-open {
   color: var(--accent-deep);
   background: color-mix(in srgb, var(--accent) 12%, #fff);
-}
-
-.mw-menu summary::-webkit-details-marker {
-  display: none;
 }
 
 .mw-menu-list {
   position: absolute;
   right: 0;
   top: calc(100% + 10px);
-  z-index: 20;
+  z-index: 80;
   min-width: 168px;
   background: #fff;
   border: 1px solid color-mix(in srgb, var(--line) 80%, #fff);
   border-radius: 12px;
   padding: 6px;
-  box-shadow: 0 14px 36px rgba(13, 27, 42, 0.12);
+  box-shadow: 0 14px 36px rgba(13, 27, 42, 0.14);
   animation: mw-fade-rise 0.2s ease;
 }
 
@@ -398,6 +400,7 @@ body {
   font-weight: 500;
   cursor: pointer;
   color: var(--ink);
+  font-family: inherit;
 }
 
 .mw-menu-list button:hover {
@@ -428,7 +431,7 @@ body {
 .mw-top-actions .mw-btn,
 .mw-top-actions .mw-btn-primary,
 .mw-top-actions .mw-auth-login,
-.mw-top-actions .mw-menu summary {
+.mw-top-actions .mw-menu-trigger {
   min-height: 36px;
 }
 
