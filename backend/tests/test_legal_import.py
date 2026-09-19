@@ -46,6 +46,7 @@ def test_legal_import_preview_and_apply(tmp_path, monkeypatch) -> None:
     preview = legal_import.legal_import_preview()
     assert preview["trusted_count"] == 1
     assert preview["doubt_count"] == 1
+    assert "corpus" in preview
 
     result = legal_import.apply_legal_lexicon(engine)
     assert result["added_to_lexicon"] == 1

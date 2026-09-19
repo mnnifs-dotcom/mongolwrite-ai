@@ -137,13 +137,22 @@ def legal_import_preview() -> dict[str, Any]:
     trusted = _read_trusted()
     doubt = _read_doubt_items()
     meta: dict[str, Any] = {}
+    corpus: dict[str, Any] = {}
     raw = _load_json(doubt_path())
     if isinstance(raw, dict):
+        corpus_raw = raw.get("corpus")
+        if isinstance(corpus_raw, dict):
+            corpus = {
+                "articles": int(corpus_raw.get("articles") or 0),
+                "unique_tokens": int(corpus_raw.get("unique_tokens") or 0),
+                "already_in_seed": int(corpus_raw.get("already_in_seed") or 0),
+            }
         meta = {
             "source": raw.get("source"),
             "rules": raw.get("rules"),
             "trusted_count": raw.get("trusted_count", len(trusted)),
             "doubt_count": raw.get("doubt_count", len(doubt)),
+            "corpus": corpus,
         }
     return {
         "present": legal_artifacts_present(),
@@ -151,5 +160,6 @@ def legal_import_preview() -> dict[str, Any]:
         "doubt_count": len(doubt),
         "trusted_sample": trusted[:20],
         "doubt_sample": [row["word"] for row in doubt[:20]],
+        "corpus": corpus,
         "meta": meta,
     }
