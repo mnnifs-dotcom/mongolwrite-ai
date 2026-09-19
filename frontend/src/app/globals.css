@@ -870,6 +870,49 @@ body {
   field-sizing: fixed;
 }
 
+.mw-select-box {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 6%, #fff);
+}
+
+.mw-select-box-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-deep);
+}
+
+.mw-selected-words {
+  width: 100%;
+  min-height: 88px;
+  height: 110px;
+  max-height: 160px;
+  resize: none;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink);
+  background: #fff;
+}
+
+.mw-selected-words:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.mw-select-actions {
+  flex-wrap: wrap;
+}
+
 .mw-list-block {
   display: flex;
   flex-direction: column;
