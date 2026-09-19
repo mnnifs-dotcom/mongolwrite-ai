@@ -407,7 +407,8 @@ body {
   animation: mw-fade-rise 0.2s ease;
 }
 
-.mw-menu-list button {
+.mw-menu-list button,
+.mw-menu-list a {
   display: block;
   width: 100%;
   text-align: left;
@@ -420,9 +421,12 @@ body {
   cursor: pointer;
   color: var(--ink);
   font-family: inherit;
+  text-decoration: none;
+  box-sizing: border-box;
 }
 
-.mw-menu-list button:hover {
+.mw-menu-list button:hover,
+.mw-menu-list a:hover {
   background: color-mix(in srgb, var(--accent) 10%, #fff);
   color: var(--accent-deep);
 }
@@ -1979,4 +1983,116 @@ body {
   .mw-lex-scroll {
     max-height: 40vh;
   }
+}
+
+/* —— SEO / crawlable copy —— */
+.mw-seo-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.mw-seo-page {
+  min-height: 100vh;
+  background:
+    radial-gradient(1200px 600px at 10% -10%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 60%),
+    linear-gradient(180deg, #eef4fa 0%, var(--bg) 40%, #e8eef5 100%);
+  color: var(--ink);
+  font-family: var(--font-sans), "Noto Sans", sans-serif;
+}
+
+.mw-seo-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 20px 20px 8px;
+}
+
+.mw-seo-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-display), "Noto Serif", Georgia, serif;
+  font-weight: 700;
+  font-size: 20px;
+  color: var(--accent-deep);
+  text-decoration: none;
+}
+
+.mw-seo-brand img {
+  display: block;
+  height: 33px;
+  width: auto;
+}
+
+.mw-seo-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+.mw-seo-cta:hover {
+  filter: brightness(1.05);
+}
+
+.mw-seo-cta-inline {
+  margin: 8px 0 4px;
+}
+
+.mw-seo-article {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 12px 20px 64px;
+  line-height: 1.65;
+}
+
+.mw-seo-article h1 {
+  font-family: var(--font-display), "Noto Serif", Georgia, serif;
+  font-size: clamp(1.6rem, 3vw, 2.1rem);
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  margin: 12px 0 14px;
+  color: var(--accent-deep);
+}
+
+.mw-seo-article h2 {
+  font-size: 1.15rem;
+  margin: 28px 0 10px;
+  color: var(--ink);
+}
+
+.mw-seo-lead {
+  font-size: 1.05rem;
+  color: color-mix(in srgb, var(--ink) 88%, var(--muted));
+}
+
+.mw-seo-article ul,
+.mw-seo-article ol {
+  padding-left: 1.25rem;
+  margin: 8px 0 12px;
+}
+
+.mw-seo-article li {
+  margin: 6px 0;
+}
+
+.mw-seo-foot-cta {
+  margin-top: 36px;
 }

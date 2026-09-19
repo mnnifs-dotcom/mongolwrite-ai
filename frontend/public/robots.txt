@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api/
+
+Host: https://mongolwrite-ai.fly.dev
+Sitemap: https://mongolwrite-ai.fly.dev/sitemap.xml

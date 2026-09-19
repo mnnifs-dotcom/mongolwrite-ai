@@ -1,9 +1,10 @@
 {
-  "name": "MongolWrite AI",
+  "name": "MongolWrite — үгийн алдаа шалгах",
   "short_name": "MongolWrite",
-  "description": "Монгол зөв бичих · Монгол бичиг хөрвүүлэх",
+  "description": "Монгол үгийн алдаа шалгах, зөв бичих, монгол бичиг хөрвүүлэх",
   "start_url": "/",
   "display": "standalone",
+  "lang": "mn",
   "background_color": "#e6eef6",
   "theme_color": "#1f6fad",
   "icons": [
