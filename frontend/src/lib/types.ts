@@ -28,6 +28,35 @@ export type ImproveResponse = CheckResponse & {
 export type SettingsResponse = {
   ai_enabled: boolean;
   check_max_chars?: number;
+  google_client_id?: string | null;
+};
+
+export type AuthUser = {
+  id: string;
+  email: string;
+  name: string;
+  picture: string;
+  plan: string;
+  plan_name: string;
+  entitlements: {
+    check_max_chars: number;
+    checks_per_day: number | null;
+    features: string[];
+  };
+};
+
+export type AuthMeResponse = {
+  authenticated: boolean;
+  user: AuthUser | null;
+  google_client_id: string | null;
+  plans: Array<{
+    id: string;
+    name: string;
+    price_mnt: number;
+    check_max_chars: number;
+    checks_per_day: number | null;
+    features: string[];
+  }>;
 };
 
 /** Editor only shows spelling marks. */

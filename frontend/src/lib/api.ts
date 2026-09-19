@@ -1,4 +1,12 @@
-import type { CheckResponse, ImproveResponse, SettingsResponse } from "./types";
+import type {
+  AuthMeResponse,
+  AuthUser,
+  CheckResponse,
+  ImproveResponse,
+  SettingsResponse,
+} from "./types";
+
+export type { AuthMeResponse, AuthUser };
 
 function apiUrl(path: string): string {
   if (typeof window !== "undefined") return path;
@@ -110,6 +118,36 @@ export async function getSettings(): Promise<SettingsResponse> {
     return { ai_enabled: false };
   }
   return response.json() as Promise<SettingsResponse>;
+}
+
+export async function authMe(): Promise<AuthMeResponse> {
+  const response = await fetch(apiUrl("/api/v1/auth/me"), { credentials: "include" });
+  if (!response.ok) {
+    return { authenticated: false, user: null, google_client_id: null, plans: [] };
+  }
+  return response.json() as Promise<AuthMeResponse>;
+}
+
+export async function loginWithGoogle(
+  credential: string,
+): Promise<{ ok: boolean; user: AuthUser }> {
+  const response = await fetch(apiUrl("/api/v1/auth/google"), {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ credential }),
+  });
+  if (!response.ok) {
+    throw new Error("Google-ээр нэвтэрч чадсангүй");
+  }
+  return response.json() as Promise<{ ok: boolean; user: AuthUser }>;
+}
+
+export async function authLogout(): Promise<void> {
+  await fetch(apiUrl("/api/v1/auth/logout"), {
+    method: "POST",
+    credentials: "include",
+  });
 }
 
 export async function saveAiKey(key: string): Promise<SettingsResponse> {

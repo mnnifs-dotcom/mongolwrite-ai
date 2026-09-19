@@ -17,6 +17,7 @@ import { cyrillicToBichig } from "@/lib/bichig";
 import { IssueHighlight, setIssueDecorations } from "@/lib/highlight";
 import { mapRange, plainTextFromDoc } from "@/lib/offsets";
 import { type Correction } from "@/lib/types";
+import { AuthButton } from "@/components/AuthButton";
 
 const STYLE = "government_official";
 const DOC_TYPE = "official_letter";
@@ -211,10 +212,8 @@ function SuggestionPopover({
 }
 
 export function EditorApp() {
-  const [title, setTitle] = useState("Шинэ баримт");
   const [corrections, setCorrections] = useState<Correction[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [status, setStatus] = useState("Бэлэн");
   const [counts, setCounts] = useState({ words: 0, chars: 0 });
   const [maxChars, setMaxChars] = useState(100_000);
   const [error, setError] = useState<string | null>(null);
@@ -273,7 +272,6 @@ export function EditorApp() {
     setCounts({ words: result.word_count, chars: result.character_count });
     if (typeof result.ai_enabled === "boolean") setAiEnabled(result.ai_enabled);
     setError(null);
-    setStatus(statusLabel(kept));
     setActiveId((current) => (kept.some((item) => item.id === current) ? current : null));
   }, []);
 
@@ -283,7 +281,6 @@ export function EditorApp() {
     setChecking(false);
     setCorrections([]);
     setActiveId(null);
-    setStatus("Бэлэн");
   }, []);
 
   const runCheck = useCallback(async (text: string) => {
@@ -316,7 +313,6 @@ export function EditorApp() {
         if (err instanceof Error && err.name === "AbortError") return;
         if (shownRef.current) {
           setError(err instanceof Error ? err.message : "Алдаа");
-          setStatus("Холбогдсонгүй");
         }
       }
     })();
@@ -344,14 +340,13 @@ export function EditorApp() {
     if (!editor || checking) return;
     const text = plainTextFromDoc(editor.state.doc);
     if (!text.trim()) {
-      setStatus("Бичвэр алга");
+      setError(null);
       return;
     }
     shownRef.current = true;
     setShown(true);
     setError(null);
     setChecking(true);
-    setStatus("Шалгаж байна…");
     const started = Date.now();
     try {
       const ready = pending.current;
@@ -397,7 +392,6 @@ export function EditorApp() {
         correctionsRef.current = next;
         setCorrections(next);
         setActiveId((id) => (id && next.some((item) => item.id === id) ? id : null));
-        setStatus(statusLabel(next));
       }
       lastText.current = text;
       if (timer.current) clearTimeout(timer.current);
@@ -518,7 +512,6 @@ export function EditorApp() {
   async function copyText() {
     if (!editor) return;
     await navigator.clipboard.writeText(plainTextFromDoc(editor.state.doc));
-    setStatus("Хуулсан");
     closeMenu();
   }
 
@@ -536,9 +529,6 @@ export function EditorApp() {
       shownRef.current = true;
       setShown(true);
       applyResult(result);
-      setStatus(
-        result.applied_count ? `${result.applied_count} зассан` : "Засах зүйл алга",
-      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Сайжруулж чадсангүй");
     }
@@ -546,7 +536,6 @@ export function EditorApp() {
 
   function loadSample() {
     editor?.commands.setContent(textToHtml(SAMPLE));
-    setTitle("Жишээ");
     closeMenu();
     editor?.commands.focus("end");
   }
@@ -558,7 +547,6 @@ export function EditorApp() {
     try {
       const imported = await importDocument(file);
       editor.commands.setContent(textToHtml(imported.text || ""));
-      setTitle(file.name.replace(/\.(docx|txt)$/i, ""));
       editor.commands.focus("start");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Файл нээгдсэнгүй");
@@ -574,11 +562,9 @@ export function EditorApp() {
     setShown(false);
     setChecking(false);
     editor?.commands.setContent("<p></p>");
-    setTitle("Шинэ баримт");
     setCorrections([]);
     setDraft("");
     setCounts({ words: 0, chars: 0 });
-    setStatus("Бэлэн");
     setError(null);
     closeMenu();
     editor?.commands.focus();
@@ -587,7 +573,6 @@ export function EditorApp() {
   async function copyBichig() {
     if (!bichigText.trim()) return;
     await navigator.clipboard.writeText(bichigText);
-    setStatus("Монгол бичиг хууллаа");
   }
 
   return (
@@ -595,36 +580,16 @@ export function EditorApp() {
       <main className="mw-main">
         <header className="mw-top">
           <div className="mw-brand">MongolWrite</div>
-          <input
-            className="mw-title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            aria-label="Баримтын нэр"
-          />
-          <span
-            className={
-              checking
-                ? "mw-stat busy"
-                : corrections.some((item) => item.severity === "error")
-                  ? "mw-stat bad"
-                  : shown && !corrections.length && counts.words
-                    ? "mw-stat ok"
-                    : "mw-stat"
-            }
-            aria-live="polite"
-          >
-            {checking
-              ? "Шалгаж байна…"
-              : `${counts.words ? `${counts.words} үг · ` : ""}${status}`}
-          </span>
+          <div className="mw-top-spacer" />
+          <AuthButton />
           <details className="mw-menu" ref={menuRef}>
             <summary aria-label="Цэс">⋯</summary>
             <div className="mw-menu-list">
               <button type="button" onClick={newDocument}>
-                Шинэ баримт
+                Шинэ
               </button>
               <button type="button" onClick={() => fileRef.current?.click()}>
-                Файл нээх
+                Файл
               </button>
               <button type="button" onClick={() => void copyText()}>
                 Хуулах
@@ -663,10 +628,10 @@ export function EditorApp() {
             {checking ? (
               <>
                 <span className="mw-spinner" aria-hidden />
-                Шалгаж байна…
+                …
               </>
             ) : (
-              "Алдаа шалгах"
+              "Шалгах"
             )}
           </button>
           <button

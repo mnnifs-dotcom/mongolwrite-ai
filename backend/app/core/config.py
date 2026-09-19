@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     check_max_chars: int = 100_000
     admin_username: str = "Admin write"
     admin_password: str = "Ilove@00"
+    google_client_id: str = ""
     openai_api_key: str = ""
     openai_base_url: str = "https://api.openai.com/v1"
     openai_model: str = "gpt-4o"
