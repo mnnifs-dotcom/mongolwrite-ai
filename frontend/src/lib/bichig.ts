@@ -1,10 +1,12 @@
-import { convert } from "@gege-mn/gege-converter";
+import { analyze, convert } from "@gege-mn/gege-converter";
 
 const MVS = "\u180E";
 const NNBSP = "\u202F";
 const FVS1 = "\u180B";
 
 const MN_DIGITS = "᠐᠑᠒᠓᠔᠕᠖᠗᠘᠙";
+
+const CONVERT_OPTS = { digits: "mongolian" as const, punctuation: "mongolian" as const };
 
 /**
  * High-trust Bolorsoft/KIMO readings for words gege mis-ranks or mis-shapes.
@@ -54,7 +56,35 @@ const WORD_OVERRIDES: Record<string, string> = {
   авч: "ᠠᠪᠴᠤ",
   уу: "ᠤᠤ",
   үү: "ᠦᠦ",
+  // Classical teγülder — gege mis-ranks as töγel-dü-ber (tofu + wrong stem)
+  төгөлдөр: "ᠲᠡᢉᠦᠯᠳᠡᠷ",
+  хамтдаа: `ᠬᠠᠮᠲᠤ${NNBSP}ᠳ${FVS1}ᠤ${NNBSP}ᠪᠠᠨ`,
 };
+
+/** Cyrillic case/particle endings → traditional suffixes (front / back). */
+const DECLENSIONS: Array<{
+  re: RegExp;
+  front: string;
+  back: string;
+}> = [
+  { re: /ийн$/u, front: `${NNBSP}ᠦ${FVS1}ᠨ`, back: `${NNBSP}ᠤ${FVS1}ᠨ` },
+  { re: /ын$/u, front: `${NNBSP}ᠦ${FVS1}ᠨ`, back: `${NNBSP}ᠤ${FVS1}ᠨ` },
+  { re: /ийг$/u, front: `${NNBSP}ᠶ${FVS1}ᠢ`, back: `${NNBSP}ᠶ${FVS1}ᠢ` },
+  { re: /ыг$/u, front: `${NNBSP}ᠶ${FVS1}ᠢ`, back: `${NNBSP}ᠶ${FVS1}ᠢ` },
+  { re: /ээс$/u, front: `${NNBSP}ᠡᠴᠡ`, back: `${NNBSP}ᠠᠴᠠ` },
+  { re: /аас$/u, front: `${NNBSP}ᠡᠴᠡ`, back: `${NNBSP}ᠠᠴᠠ` },
+  { re: /өөс$/u, front: `${NNBSP}ᠡᠴᠡ`, back: `${NNBSP}ᠠᠴᠠ` },
+  { re: /оос$/u, front: `${NNBSP}ᠡᠴᠡ`, back: `${NNBSP}ᠠᠴᠠ` },
+  { re: /ээр$/u, front: `${NNBSP}ᠢᠶᠡᠷ`, back: `${NNBSP}ᠢᠶᠠᠷ` },
+  { re: /аар$/u, front: `${NNBSP}ᠢᠶᠡᠷ`, back: `${NNBSP}ᠢᠶᠠᠷ` },
+  { re: /өөр$/u, front: `${NNBSP}ᠢᠶᠡᠷ`, back: `${NNBSP}ᠢᠶᠠᠷ` },
+  { re: /оор$/u, front: `${NNBSP}ᠢᠶᠡᠷ`, back: `${NNBSP}ᠢᠶᠠᠷ` },
+  { re: /тэй$/u, front: `${NNBSP}ᠲᠡᠶᠢ`, back: `${NNBSP}ᠲᠠᠶᠢ` },
+  { re: /тай$/u, front: `${NNBSP}ᠲᠡᠶᠢ`, back: `${NNBSP}ᠲᠠᠶᠢ` },
+  { re: /той$/u, front: `${NNBSP}ᠲᠡᠶᠢ`, back: `${NNBSP}ᠲᠣᠶᠢ` },
+  { re: /д$/u, front: `${NNBSP}ᠳ${FVS1}ᠦ`, back: `${NNBSP}ᠳ${FVS1}ᠤ` },
+  { re: /т$/u, front: `${NNBSP}ᠲ${FVS1}ᠦ`, back: `${NNBSP}ᠲ${FVS1}ᠤ` },
+];
 
 const PUNCT_MAP: Record<string, string> = {
   ".": "᠃",
@@ -67,9 +97,18 @@ const PUNCT_MAP: Record<string, string> = {
   "»": "》",
 };
 
+function isFrontStem(script: string): boolean {
+  const hasFront = /[ᠡᠥᠦᢈᢉ]/.test(script);
+  const hasBack = /[ᠠᠣᠤ]/.test(script);
+  return hasFront && !hasBack;
+}
+
 /**
  * Gege emits Unicode-16 MVS connectors. Practical Word/KIMO shaping uses NNBSP
  * + FVS1 on case suffixes, monggol with ᠣ, and ᠶᠢ diphthongs.
+ *
+ * Leftover MVS that is not a true vowel separator (before ᠠ/ᠡ) must be removed:
+ * MongolianScript maps U+180E to an empty base glyph, so browsers show tofu.
  */
 function toPracticalBichig(script: string): string {
   let out = script.replaceAll("ᠮᠣᠩᠭᠤᠯ", "ᠮᠣᠩᠭᠣᠯ");
@@ -90,10 +129,19 @@ function toPracticalBichig(script: string): string {
     ["ᠶᠢᠨ", `ᠶ${FVS1}ᠢᠨ`],
     ["ᠠᠴᠠ", "ᠠᠴᠠ"],
     ["ᠡᠴᠡ", "ᠡᠴᠡ"],
+    ["ᠪᠡᠷ", "ᠪᠡᠷ"],
+    ["ᠪᠠᠷ", "ᠪᠠᠷ"],
+    ["ᠢᠶᠡᠷ", "ᠢᠶᠡᠷ"],
+    ["ᠢᠶᠠᠷ", "ᠢᠶᠠᠷ"],
+    ["ᠪᠠᠨ", "ᠪᠠᠨ"],
+    ["ᠪᠡᠨ", "ᠪᠡᠨ"],
   ];
   for (const [from, to] of suffixForms) {
     out = out.replaceAll(`${MVS}${from}`, `${NNBSP}${to}`);
   }
+
+  // Drop leftover MVS that is not a vowel separator (before final a/e).
+  out = out.replace(/\u180E(?![ᠠᠡ])/g, "");
   return out;
 }
 
@@ -121,14 +169,52 @@ function convertDigits(token: string): string {
     .join("");
 }
 
+/**
+ * Gege often ranks a multi-suffix parse above a whole-word guess (e.g. төгөлдөр →
+ * töγel-dü-ber). Prefer the unsuffixed reading when the top hit has 2+ separate
+ * case suffixes and a whole-word candidate exists.
+ */
+function pickGegeScript(word: string): string {
+  try {
+    const tokens = analyze(word, CONVERT_OPTS);
+    const cands =
+      tokens.find((t) => t.token.kind === "word" && t.token.text === word)?.candidates ??
+      tokens.find((t) => t.token.kind === "word")?.candidates ??
+      [];
+    if (!cands.length) {
+      return convert(word, CONVERT_OPTS);
+    }
+    const top = cands[0];
+    const sepCount =
+      top.segmentation?.suffixes?.filter((s) => s.separate).length ?? 0;
+    if (sepCount >= 2) {
+      const whole = cands.find((c) => (c.segmentation?.suffixes?.length ?? 0) === 0);
+      if (whole?.script) return whole.script;
+    }
+    return top.script;
+  } catch {
+    return convert(word, CONVERT_OPTS);
+  }
+}
+
 function convertWord(word: string): string {
   const key = word.toLocaleLowerCase("mn");
   const override = WORD_OVERRIDES[key];
   if (override) return override;
+
+  // Declined forms of overridden stems: төгөлдөрийн → stem + genitive
+  for (const decl of DECLENSIONS) {
+    const m = key.match(decl.re);
+    if (!m) continue;
+    const stem = key.slice(0, -m[0].length);
+    if (!stem || !WORD_OVERRIDES[stem]) continue;
+    const stemScript = WORD_OVERRIDES[stem];
+    const suffix = isFrontStem(stemScript) ? decl.front : decl.back;
+    return stemScript + suffix;
+  }
+
   try {
-    return toAliGaliFront(
-      toPracticalBichig(convert(word, { digits: "mongolian", punctuation: "mongolian" })),
-    );
+    return toAliGaliFront(toPracticalBichig(pickGegeScript(word)));
   } catch {
     return word;
   }
@@ -142,9 +228,7 @@ function convertToken(token: string): string {
   const match = token.match(/^(\P{L}*)(\p{L}[\p{L}\p{M}\-']*)(\P{L}*)$/u);
   if (!match) {
     try {
-      return toAliGaliFront(
-        toPracticalBichig(convert(token, { digits: "mongolian", punctuation: "mongolian" })),
-      );
+      return toAliGaliFront(toPracticalBichig(pickGegeScript(token)));
     } catch {
       return token;
     }
