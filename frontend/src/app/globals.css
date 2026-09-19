@@ -1,5 +1,5 @@
-@import "tailwindcss";
 @import url("https://fonts.googleapis.com/css2?family=Noto+Sans+Mongolian&display=swap");
+@import "tailwindcss";
 
 :root {
   --bg: #e6eef6;
