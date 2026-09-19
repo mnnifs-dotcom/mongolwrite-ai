@@ -208,6 +208,12 @@ function SuggestionPopover({
       <button type="button" className="mw-pop-skip" onClick={() => onDismiss(item.id)}>
         Алгасах
       </button>
+      <a
+        className="mw-pop-report"
+        href={`/aldaa-medegdeh?word=${encodeURIComponent(item.original_text)}&type=spelling`}
+      >
+        Алдаа мэдэгдэх
+      </a>
     </div>,
     document.body,
   );
@@ -703,6 +709,12 @@ export function EditorApp() {
                   <a href="/aldaga-shalgah" role="menuitem" onClick={closeMenu}>
                     Алдаа шалгах
                   </a>
+                  <a href="/aldaa-medegdeh" role="menuitem" onClick={closeMenu}>
+                    Алдаа мэдэгдэх
+                  </a>
+                  <a href="/uilchilgeenii-nokhtsol" role="menuitem" onClick={closeMenu}>
+                    Үйлчилгээний нөхцөл
+                  </a>
                 </div>
               ) : null}
             </div>
@@ -769,6 +781,10 @@ export function EditorApp() {
                 <strong>
                   {counts.chars.toLocaleString("mn-MN")}/{maxChars.toLocaleString("mn-MN")}
                 </strong>
+              </div>
+              <div className="mw-editor-legal">
+                <a href="/aldaa-medegdeh">Алдаа мэдэгдэх</a>
+                <a href="/uilchilgeenii-nokhtsol">Үйлчилгээний нөхцөл</a>
               </div>
             </footer>
             {checking ? (

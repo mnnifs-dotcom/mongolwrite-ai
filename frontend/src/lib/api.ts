@@ -68,6 +68,34 @@ async function postCheck(
   throw lastError ?? new Error("Шалгалт амжилтгүй");
 }
 
+export async function submitFeedback(input: {
+  category: string;
+  message: string;
+  word?: string;
+  email?: string;
+  page?: string;
+}): Promise<{ ok: boolean; id: string }> {
+  const response = await fetch(apiUrl("/api/v1/feedback"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      category: input.category,
+      message: input.message,
+      word: input.word ?? "",
+      email: input.email ?? "",
+      page: input.page ?? "",
+    }),
+  });
+  if (!response.ok) {
+    throw new Error(
+      response.status === 422
+        ? "Тайлбар хэт богино байна."
+        : "Мэдэгдэл илгээж чадсангүй.",
+    );
+  }
+  return response.json() as Promise<{ ok: boolean; id: string }>;
+}
+
 export async function improveText(
   text: string,
   options?: { document_type?: string; style?: string },

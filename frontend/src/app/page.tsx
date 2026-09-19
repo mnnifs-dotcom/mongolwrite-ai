@@ -19,6 +19,8 @@ export default function Home() {
       <nav className="mw-seo-sr-only" aria-label="SEO холбоос">
         <Link href="/aldaga-shalgah">Алдаа шалгах тухай</Link>
         <Link href="/ugiin-aldaga-shalgah">Үгийн алдаа шалгах</Link>
+        <Link href="/uilchilgeenii-nokhtsol">Үйлчилгээний нөхцөл</Link>
+        <Link href="/aldaa-medegdeh">Алдаа мэдэгдэх</Link>
       </nav>
     </>
   );
