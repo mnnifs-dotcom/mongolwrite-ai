@@ -21,6 +21,7 @@ import {
   type PendingSkippedWord,
   type SiteOverview,
 } from "@/lib/api";
+import { BrandLogo } from "@/components/BrandLogo";
 
 function formatWhen(value: string): string {
   if (!value) return "—";
@@ -286,7 +287,8 @@ export function AdminApp() {
   if (!ready) {
     return (
       <div className="mw-admin-page">
-        <div className="mw-admin">
+        <div className="mw-admin mw-admin-centered">
+          <BrandLogo size="lg" className="mw-brand-splash" />
           <p className="mw-muted">Уншиж байна…</p>
         </div>
       </div>
@@ -296,8 +298,9 @@ export function AdminApp() {
   if (!authed) {
     return (
       <div className="mw-admin-page">
-        <div className="mw-admin">
+        <div className="mw-admin mw-admin-centered">
           <form className="mw-admin-card mw-admin-login" onSubmit={(event) => void onLogin(event)}>
+            <BrandLogo size="lg" className="mw-brand-splash" wordmark="MongolWrite · Админ" />
             <h1>Админ нэвтрэх</h1>
             <label>
               Нэвтрэх нэр
@@ -334,7 +337,7 @@ export function AdminApp() {
   return (
     <div className="mw-admin-page">
       <header className="mw-admin-bar">
-        <strong className="mw-brand">MongolWrite · Админ</strong>
+        <BrandLogo size="sm" wordmark="MongolWrite · Админ" />
         <Link className="mw-btn" href="/">
           Засварлагч
         </Link>
