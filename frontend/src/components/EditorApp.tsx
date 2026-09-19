@@ -110,7 +110,7 @@ function dismissKey(item: Correction): string {
 }
 
 function statusLabel(items: Correction[]): string {
-  if (!items.length) return "Алдаагүй";
+  if (!items.length) return "Алдаагүй байна";
   return `${items.length} зөв бичгийн алдаа`;
 }
 
@@ -705,6 +705,26 @@ export function EditorApp() {
                 <span className="mw-spinner lg" aria-hidden />
               </div>
             ) : null}
+            {!checking && shown && !empty && corrections.length === 0 ? (
+              <div className="mw-success-overlay" role="status" aria-live="polite">
+                <div className="mw-success-card">
+                  <span className="mw-success-check" aria-hidden>
+                    <svg viewBox="0 0 48 48" width="48" height="48" fill="none">
+                      <circle cx="24" cy="24" r="22" stroke="currentColor" strokeWidth="2.5" opacity="0.35" />
+                      <path
+                        d="M14 24.5 21 31.5 34 16.5"
+                        stroke="currentColor"
+                        strokeWidth="3.2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
+                  <strong>Алдаагүй байна</strong>
+                  <p>Текст зөв бичигдсэн байна.</p>
+                </div>
+              </div>
+            ) : null}
           </div>
           {showBichig ? (
             <aside className="mw-bichig-panel" aria-label="Монгол бичиг хөрвүүлэлт">
@@ -739,7 +759,7 @@ export function EditorApp() {
               : corrections.length
                 ? statusLabel(corrections)
                 : shown
-                  ? "Алдаагүй"
+                  ? "Алдаагүй байна"
                   : "Алдаатай үгс"}
           </h2>
         </div>
@@ -748,7 +768,14 @@ export function EditorApp() {
             <li className="mw-checking-panel">
               <span className="mw-spinner lg" aria-hidden />
             </li>
-          ) : visible.length === 0 ? null : (
+          ) : visible.length === 0 ? (
+            shown && !empty ? (
+              <li className="mw-ok">
+                <strong>Алдаагүй байна</strong>
+                <p>Зөв бичгийн алдаа олдсонгүй.</p>
+              </li>
+            ) : null
+          ) : (
             visible.map((item) => (
               <li key={item.id} data-card-id={item.id}>
                 <div

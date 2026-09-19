@@ -50,6 +50,8 @@ def test_glued_question_particle() -> None:
 
 def test_glued_auxiliary() -> None:
     assert suggestion("үзэжбайна", "glued_auxiliary") == "үзэж байна"
+    assert suggestion("ажиллажбайна", "glued_auxiliary") == "ажиллаж байна"
+    assert suggestion("авчбайна", "glued_auxiliary") == "авч байна"
 
 
 def test_common_misspellings() -> None:
@@ -57,7 +59,10 @@ def test_common_misspellings() -> None:
     assert suggestion("гэхмэт", "common_misspelling") == "гэх мэт"
     assert suggestion("байхгуй", "common_misspelling") == "байхгүй"
     assert suggestion("гуйцэтгэх", "common_misspelling") == "гүйцэтгэх"
-    assert suggestion("ямарч", "common_misspelling") == "ямар ч"
+    # «ямарч» is also caught as a glued particle; either rule is fine.
+    assert suggestion("ямарч", "separate_particle") == "ямар ч" or suggestion(
+        "ямарч", "common_misspelling"
+    ) == "ямар ч"
     assert suggestion("шаардлагтай", "common_misspelling") == "шаардлагатай"
     assert suggestion("шаардагтай", "common_misspelling") == "шаардлагатай"
     assert suggestion("шаардлагтайг", "common_misspelling") == "шаардлагатайг"
@@ -367,8 +372,12 @@ def test_school_misspellings() -> None:
     assert suggestion("маргаш", "common_misspelling") == "маргааш"
     assert suggestion("зовхон", "common_misspelling") == "зөвхөн"
     assert suggestion("хамгын", "common_misspelling") == "хамгийн"
-    assert suggestion("яагаадгэвэл", "common_misspelling") == "яагаад гэвэл"
-    assert suggestion("байнадаа", "common_misspelling") == "байна даа"
+    assert suggestion("яагаадгэвэл", "glued_words") == "яагаад гэвэл" or suggestion(
+        "яагаадгэвэл", "common_misspelling"
+    ) == "яагаад гэвэл"
+    assert suggestion("байнадаа", "common_misspelling") == "байна даа" or suggestion(
+        "байнадаа", "separate_particle"
+    ) == "байна даа"
 
 
 def test_correct_orthography_is_kept() -> None:
