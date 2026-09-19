@@ -339,11 +339,21 @@ export type LegalImportPreview = {
   doubt_count: number;
   trusted_sample: string[];
   doubt_sample: string[];
+  corpus?: {
+    articles?: number;
+    unique_tokens?: number;
+    already_in_seed?: number;
+  };
   meta?: {
     source?: string;
     rules?: Record<string, unknown>;
     trusted_count?: number;
     doubt_count?: number;
+    corpus?: {
+      articles?: number;
+      unique_tokens?: number;
+      already_in_seed?: number;
+    };
   };
 };
 

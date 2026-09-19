@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Build conservative legalinfo.mn lexicon artifacts from the public HF mirror.
+"""Build legalinfo.mn lexicon artifacts from the public HF mirror.
 
-Trusted (auto lexicon): Hunspell-accepted + wiki frequency + high legal DF.
-Doubt (admin queue): frequent in laws but not safe enough to auto-merge.
+Trusted (auto lexicon): Hunspell-accepted + frequent across official law articles.
+Doubt (admin queue): frequent in laws but not safe enough to auto-merge
+(missing from Hunspell, rival lemma, etc.).
 
 Source: Hugging Face endomorphosis/ipfs_mongolia_laws (articles scraped from
 legalinfo.mn). Official legalinfo.mn texts remain authoritative.
@@ -27,14 +28,13 @@ PARQUET_URL = (
     "resolve/main/data/articles.parquet"
 )
 
-# Dual evidence required for automatic curated-lexicon merge.
-MIN_LEGAL_DF_TRUSTED = 100
-MIN_WIKI_TRUSTED = 50
-# Admin review queue — frequent but not dual-confirmed.
-MIN_LEGAL_DF_DOUBT = 40
-MIN_LEGAL_DF_DOUBT_NO_HUN = 150
-MIN_WIKI_DOUBT_NO_HUN = 80
-MAX_DOUBT = 500
+# Auto-merge when Hunspell agrees and the form appears across many law articles.
+MIN_LEGAL_DF_TRUSTED = 40
+# Admin review — frequent legal tokens that need a human eye.
+MIN_LEGAL_DF_DOUBT = 20
+MIN_LEGAL_DF_DOUBT_NO_HUN = 60
+MIN_WIKI_DOUBT_NO_HUN = 20
+MAX_DOUBT = 2000
 
 CYR_WORD = re.compile(r"[А-ЯӨҮЁа-яөүё]{3,}")
 
@@ -101,6 +101,7 @@ def main() -> int:
 
     trusted: list[tuple[str, int, int]] = []
     doubt: list[dict[str, object]] = []
+    already_in_seed = 0
 
     def better_variant(word: str, wiki: int) -> str | None:
         best = ""
@@ -115,6 +116,7 @@ def main() -> int:
 
     for word, legal_df in freq.most_common():
         if dictionary.in_seed(word):
+            already_in_seed += 1
             continue
         if lookup_misspelling(word) or _is_implausible(word):
             continue
@@ -136,8 +138,8 @@ def main() -> int:
                 )
             continue
 
-        # Trusted: Hunspell + Wikipedia + legal corpus agreement.
-        if hun_ok and wiki >= MIN_WIKI_TRUSTED and legal_df >= MIN_LEGAL_DF_TRUSTED:
+        # Trusted: Hunspell + strong legal document frequency.
+        if hun_ok and legal_df >= MIN_LEGAL_DF_TRUSTED:
             trusted.append((word, legal_df, wiki))
             continue
 
@@ -176,9 +178,14 @@ def main() -> int:
             {
                 "source": "legalinfo.mn via HF ipfs_mongolia_laws articles",
                 "rules": {
-                    "trusted": "hunspell AND wiki>=50 AND legal_df>=100",
+                    "trusted": f"hunspell AND legal_df>={MIN_LEGAL_DF_TRUSTED}",
                     "doubt": "frequent legal tokens not meeting trusted",
                     "max_doubt": MAX_DOUBT,
+                },
+                "corpus": {
+                    "articles": len(texts),
+                    "unique_tokens": len(freq),
+                    "already_in_seed": already_in_seed,
                 },
                 "trusted_count": len(trusted),
                 "doubt_count": len(doubt),
@@ -191,6 +198,7 @@ def main() -> int:
     )
     print(f"Wrote {OUT_TRUSTED} ({len(trusted)} trusted)")
     print(f"Wrote {OUT_DOUBT} ({len(doubt)} doubt)")
+    print(f"Corpus: {len(texts)} articles, {len(freq)} tokens, {already_in_seed} already in seed")
     for word, legal_df, wiki in trusted[:15]:
         print(f"  trusted {word} df={legal_df} wiki={wiki}")
 

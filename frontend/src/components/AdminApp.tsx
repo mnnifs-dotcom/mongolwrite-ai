@@ -403,8 +403,16 @@ export function AdminApp() {
           <section className="mw-admin-card" id="legalinfo-import">
             <h2>legalinfo.mn үгс</h2>
             <p className="mw-muted">
-              Найдвартай {legalPreview.trusted_count} · эргэлзээтэй {legalPreview.doubt_count}
+              Шинэ найдвартай {legalPreview.trusted_count.toLocaleString("mn-MN")} · админ шалгах{" "}
+              {legalPreview.doubt_count.toLocaleString("mn-MN")}
             </p>
+            {legalPreview.corpus?.articles ? (
+              <p className="mw-muted">
+                {(legalPreview.corpus.articles ?? 0).toLocaleString("mn-MN")} хуулийн өгүүллээс ·{" "}
+                {(legalPreview.corpus.already_in_seed ?? 0).toLocaleString("mn-MN")} үг аль хэдийн тольд
+                байсан
+              </p>
+            ) : null}
             <div className="mw-admin-row">
               <button
                 type="button"
