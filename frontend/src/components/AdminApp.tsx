@@ -375,15 +375,19 @@ export function AdminApp() {
     setError(null);
     try {
       const result = await adminLexiconRemove(words, queueAsDoubt);
-      setStatus(
-        queueAsDoubt
-          ? `${result.removed_count} үг сангаас хасаж, алдаатай жагсаалтад орууллаа`
-          : `${result.removed_count} үг сангаас хаслаа`,
-      );
-      setLexSelected(new Set());
-      await loadLists();
-      await loadLexicon({ offset: 0 });
-      setLexOffset(0);
+      if (!result.removed_count) {
+        setError(`Сонгосон үг хасагдсангүй: ${words.join(", ")}`);
+        setStatus("");
+      } else {
+        setStatus(
+          queueAsDoubt
+            ? `${result.removed_count} үг сангаас хасаж, алдаатай жагсаалтад орууллаа`
+            : `${result.removed_count} үг сангаас хаслаа`,
+        );
+        setLexSelected(new Set());
+        await loadLists();
+        await loadLexicon({ offset: lexOffset });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Хасаж чадсангүй");
     } finally {

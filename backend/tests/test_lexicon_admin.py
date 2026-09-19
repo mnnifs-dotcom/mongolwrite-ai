@@ -39,3 +39,26 @@ def test_remove_words_blocks_contains(tmp_path, monkeypatch) -> None:
     assert not dictionary.in_seed("тестовог")
     listing = dictionary.list_lexicon(query="тест", offset=0, limit=20)
     assert listing["total"] == 0
+
+
+def test_remove_single_letter_lemma(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr("app.engine.dictionary.persist_dir", lambda: tmp_path)
+    monkeypatch.setattr(
+        "app.engine.dictionary.user_dictionary_path",
+        lambda: tmp_path / "user_dictionary.txt",
+    )
+    monkeypatch.setattr(
+        "app.engine.dictionary.removed_lexicon_path",
+        lambda: tmp_path / "lexicon_removed.json",
+    )
+    dictionary = DictionaryProvider(
+        frozenset({"а", "аав", "барилга"}),
+        use_hunspell=False,
+        frequency={},
+    )
+    dictionary._persist_user = True
+    assert dictionary.contains("а")
+    removed = dictionary.remove_words(["а"])
+    assert removed == ["а"]
+    assert not dictionary.contains("а")
+    assert "а" not in dictionary.list_lexicon(letter="а", offset=0, limit=50)["words"]

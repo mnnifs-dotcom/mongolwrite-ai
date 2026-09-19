@@ -313,11 +313,13 @@ class DictionaryProvider:
         """Remove curated lemmas (tombstone + user-dict rewrite)."""
         removed: list[str] = []
         for raw in words:
-            word = raw.strip()
-            if len(word) < 2:
+            word = str(raw).strip()
+            # Allow single-letter lemmas (e.g. «а») that appear in the curated list.
+            if not word:
                 continue
             folded = word.casefold()
-            was_curated = folded in self._seed or word in self._seed
+            if not folded:
+                continue
             self._removed.add(folded)
             self._seed.discard(folded)
             self._seed.discard(word)
@@ -326,9 +328,8 @@ class DictionaryProvider:
             self._lookup_cache[folded] = False
             self._lookup_cache.pop(word, None)
             self._freq.pop(folded, None)
-            if was_curated or folded not in removed:
-                if folded not in removed:
-                    removed.append(folded)
+            if folded not in removed:
+                removed.append(folded)
         if not removed:
             return []
         if self._persist_user:
