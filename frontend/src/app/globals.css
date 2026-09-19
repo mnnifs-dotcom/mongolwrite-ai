@@ -618,8 +618,8 @@ body {
 }
 
 .mw-bichig-panel {
-  flex: 0 1 240px;
-  min-width: 168px;
+  flex: 0 1 260px;
+  min-width: 200px;
   max-width: 300px;
   display: flex;
   flex-direction: column;
@@ -642,27 +642,33 @@ body {
 
 .mw-bichig-head {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
   flex: 0 0 auto;
-  padding-bottom: 8px;
+  padding-bottom: 10px;
   border-bottom: 1px solid rgba(196, 160, 53, 0.28);
 }
 
 .mw-bichig-actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 6px;
-  justify-content: flex-end;
 }
 
 .mw-bichig-actions .mw-btn {
-  font-size: 12px;
-  padding: 5px 10px;
+  width: 100%;
+  justify-content: center;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  padding: 6px 8px;
   background: #fff;
   color: var(--accent-deep);
   border-color: color-mix(in srgb, var(--accent) 40%, #fff);
+  border-radius: 8px;
+  box-shadow: 0 1px 0 rgba(13, 27, 42, 0.06);
 }
 
 .mw-bichig-actions .mw-btn:disabled {
@@ -671,10 +677,11 @@ body {
 
 .mw-bichig-title {
   margin: 0;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
+  white-space: nowrap;
   color: color-mix(in srgb, var(--gold) 78%, #fff);
 }
 
