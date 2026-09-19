@@ -27,3 +27,4 @@ data/hunspell/*.zip
 data/user_dictionary.txt
 data/.openai_key
 
+data/persist/
