@@ -55,6 +55,11 @@ _EXPLANATIONS = {
     "soft_sign_genitive": "Ь-ийн дараа харьяалах, заах тийн ялгал -ийн/-ийг гэж бичигдэнэ.",
     "extra_soft_sign": "Энэ үгэнд ь хэрэггүй. Толь дахь хэлбэрээр бичнэ.",
     "palatal_case": "Г, ж, ш, ч-ийн дараа харьяалах, заах тийн ялгал -ийн/-ийг гэж бичигдэнэ.",
+    "glued_auxiliary": "Туслах үйл үг «байна/болно»-г тусад нь бичнэ.",
+    "glued_question_particle": "Асуух «уу/үү»-г тусад нь бичнэ.",
+    "glued_directive": "Чиглэлийн «руу/рүү»-г тусад нь бичнэ.",
+    "glued_words": "Хоёр үг наалдсан байна. Зай эсвэл таслал дутуу.",
+    "separate_particle": "Энэ нөхцөл, өгүүлэхүүнийг тусад нь бичнэ.",
 }
 
 
@@ -103,11 +108,39 @@ def _looks_like_name(word: str) -> bool:
     return word[:1].isupper() and not _is_implausible(word)
 
 
+_AUX_OR_PARTICLE_TAILS = frozenset(
+    {
+        "байна",
+        "байгаа",
+        "байсан",
+        "байх",
+        "байдаг",
+        "байлаа",
+        "байжээ",
+        "болно",
+        "болох",
+        "уу",
+        "үү",
+        "руу",
+        "рүү",
+        "даа",
+        "шүү",
+    }
+)
+
+
 def _has_wordlist_stem(word: str, dictionary: DictionaryProvider) -> bool:
+    """True when word looks like a known stem + inflection — not stem + free word glued on."""
     folded = word.casefold()
     for n in range(len(folded) - 1, 4, -1):
-        if dictionary.in_wordlist(folded[:n]):
-            return True
+        stem, rest = folded[:n], folded[n:]
+        if not dictionary.in_wordlist(stem):
+            continue
+        if rest in _AUX_OR_PARTICLE_TAILS:
+            continue
+        if len(rest) >= 4 and (dictionary.in_wordlist(rest) or dictionary.contains(rest)):
+            continue
+        return True
     return False
 
 
@@ -136,6 +169,8 @@ _RULE_FIRST = frozenset(
 def _confidence(rule_id: str) -> float:
     if rule_id == "common_misspelling":
         return 0.9
+    if rule_id.startswith(("glued_", "separate_")):
+        return 0.92
     if rule_id == "unknown_word":
         return 0.5
     if rule_id == "nearby_spelling":

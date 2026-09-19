@@ -35,10 +35,15 @@ def _verify(value: str) -> bool:
 
 
 def credentials_ok(username: str, password: str) -> bool:
-    if not settings.admin_password:
+    expected_user = settings.admin_username
+    expected_pass = settings.admin_password
+    if not expected_pass:
         return False
-    return secrets.compare_digest(username, settings.admin_username) and secrets.compare_digest(
-        password, settings.admin_password
+    # compare_digest requires equal-length strings; mismatched login must be False, not 500.
+    if len(username) != len(expected_user) or len(password) != len(expected_pass):
+        return False
+    return secrets.compare_digest(username, expected_user) and secrets.compare_digest(
+        password, expected_pass
     )
 
 

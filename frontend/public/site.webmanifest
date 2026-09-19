@@ -1,0 +1,27 @@
+{
+  "name": "MongolWrite AI",
+  "short_name": "MongolWrite",
+  "description": "Монгол зөв бичих · Монгол бичиг хөрвүүлэх",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#e6eef6",
+  "theme_color": "#1f6fad",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
