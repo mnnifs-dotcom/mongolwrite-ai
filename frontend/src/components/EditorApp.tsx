@@ -8,6 +8,7 @@ import StarterKit from "@tiptap/starter-kit";
 import {
   checkText,
   checkTextWithAI,
+  downloadBichigDocx,
   getSettings,
   importDocument,
   improveText,
@@ -593,6 +594,16 @@ export function EditorApp() {
     await navigator.clipboard.writeText(bichigText);
   }
 
+  async function downloadBichigWord() {
+    if (!bichigText.trim()) return;
+    setError(null);
+    try {
+      await downloadBichigDocx(bichigText, "mongol-bichig.docx");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Word татаж чадсангүй");
+    }
+  }
+
   return (
     <div className={showBichig ? "mw-shell is-bichig-open" : "mw-shell"}>
       <main className="mw-main">
@@ -729,14 +740,24 @@ export function EditorApp() {
             <aside className="mw-bichig-panel" aria-label="Монгол бичиг хөрвүүлэлт">
               <div className="mw-bichig-head">
                 <div className="mw-bichig-title">Монгол бичиг</div>
-                <button
-                  type="button"
-                  className="mw-btn"
-                  onClick={() => void copyBichig()}
-                  disabled={!bichigText.trim()}
-                >
-                  Хуулах
-                </button>
+                <div className="mw-bichig-actions">
+                  <button
+                    type="button"
+                    className="mw-btn"
+                    onClick={() => void copyBichig()}
+                    disabled={!bichigText.trim()}
+                  >
+                    Хуулах
+                  </button>
+                  <button
+                    type="button"
+                    className="mw-btn"
+                    onClick={() => void downloadBichigWord()}
+                    disabled={!bichigText.trim()}
+                  >
+                    Word татах
+                  </button>
+                </div>
               </div>
               {bichigText.trim() ? (
                 <div className="mw-bichig-body" lang="mn-Mong">

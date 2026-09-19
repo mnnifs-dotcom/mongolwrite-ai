@@ -650,6 +650,25 @@ body {
   border-bottom: 1px solid rgba(196, 160, 53, 0.28);
 }
 
+.mw-bichig-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.mw-bichig-actions .mw-btn {
+  font-size: 12px;
+  padding: 5px 10px;
+  background: #fff;
+  color: var(--accent-deep);
+  border-color: color-mix(in srgb, var(--accent) 40%, #fff);
+}
+
+.mw-bichig-actions .mw-btn:disabled {
+  opacity: 0.45;
+}
+
 .mw-bichig-title {
   margin: 0;
   font-size: 12px;

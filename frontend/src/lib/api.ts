@@ -100,6 +100,30 @@ export async function importDocument(file: File): Promise<{ filename: string; te
   return response.json() as Promise<{ filename: string; text: string }>;
 }
 
+/** Download Mongolian-script text as a Word (.docx) file. */
+export async function downloadBichigDocx(
+  text: string,
+  filename = "mongol-bichig.docx",
+): Promise<void> {
+  const response = await fetch(apiUrl("/api/v1/export/docx"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, filename, script: "bichig" }),
+  });
+  if (!response.ok) {
+    throw new Error("Word файл үүсгэж чадсангүй");
+  }
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename.endsWith(".docx") ? filename : `${filename}.docx`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
 export async function learnFromText(text: string): Promise<{ added: string[]; added_count: number }> {
   const response = await fetch(apiUrl("/api/v1/dictionary/learn"), {
     method: "POST",
