@@ -397,10 +397,11 @@ export function AdminApp() {
     try {
       const result = await adminLegalImport();
       setStatus(
-        `Legalinfo: санд ${result.added_to_lexicon} · админд ${result.queued_for_admin}`,
+        `Legalinfo: санд ${result.added_to_lexicon} нэмэгдлээ · Hunspell → Эргэлзээтэй рүү ${result.queued_for_admin} үг орлоо`,
       );
       await loadLists();
       await loadLexicon({ offset: 0 });
+      setSection("hunspell");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Импорт амжилтгүй");
     } finally {
@@ -764,6 +765,17 @@ export function AdminApp() {
                   {(legalPreview.corpus.articles ?? 0).toLocaleString("mn-MN")} хуулийн өгүүллээс ·{" "}
                   {(legalPreview.corpus.already_in_seed ?? 0).toLocaleString("mn-MN")} үг аль хэдийн
                   тольд байсан
+                </p>
+              ) : null}
+              <p className="mw-muted mw-legal-hint">
+                «Админ шалгах» {legalPreview.doubt_count.toLocaleString("mn-MN")} үг одоо legalinfo
+                файлын жагсаалтад байна. <strong>Импортлох</strong> дарвал тэд{" "}
+                <strong>Hunspell үгс → Эргэлзээтэй</strong> рүү орно (автоматаар тольд нэмэгдэхгүй).
+              </p>
+              {legalPreview.doubt_sample?.length ? (
+                <p className="mw-muted mw-legal-sample">
+                  Жишээ: {legalPreview.doubt_sample.slice(0, 8).join(", ")}
+                  {legalPreview.doubt_count > 8 ? "…" : ""}
                 </p>
               ) : null}
               <div className="mw-admin-row">

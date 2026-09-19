@@ -771,7 +771,6 @@ export function EditorApp() {
             shown && !empty ? (
               <li className="mw-ok">
                 <strong>Алдаагүй байна</strong>
-                <p>Зөв бичгийн алдаа олдсонгүй.</p>
               </li>
             ) : null
           ) : (
