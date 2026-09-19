@@ -31,4 +31,4 @@ if [[ -n "${ADMIN_PASSWORD:-}" ]]; then
     -a mongolwrite-ai
 fi
 
-echo "Deploy OK → https://mongolwrite-ai.fly.dev/admin"
+echo "Deploy OK → https://mongolwrite.com/"

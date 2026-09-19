@@ -1,14 +1,38 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.api import api_router
 from app.core.config import settings
 from app.engine.warmup import keep_warm_loop, warm_now
+
+PUBLIC_HOST = "mongolwrite.com"
+LEGACY_HOSTS = frozenset(
+    {
+        "mongolwrite-ai.fly.dev",
+        "www.mongolwrite.com",
+    }
+)
+
+
+class CanonicalHostMiddleware(BaseHTTPMiddleware):
+    """Send legacy hosts to the public mongolwrite.com URL."""
+
+    async def dispatch(self, request: Request, call_next):
+        host = (request.headers.get("host") or "").split(":")[0].lower()
+        if host in LEGACY_HOSTS:
+            path = request.url.path or "/"
+            query = f"?{request.url.query}" if request.url.query else ""
+            return RedirectResponse(
+                url=f"https://{PUBLIC_HOST}{path}{query}",
+                status_code=301,
+            )
+        return await call_next(request)
 
 
 def _frontend_dir() -> Path | None:
@@ -44,6 +68,8 @@ _origins = {
     settings.frontend_origin,
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "https://mongolwrite.com",
+    "https://www.mongolwrite.com",
 }
 _allow_all = settings.app_env == "production"
 app.add_middleware(
@@ -56,6 +82,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+if settings.app_env == "production":
+    app.add_middleware(CanonicalHostMiddleware)
 app.include_router(api_router)
 
 if _frontend is None:

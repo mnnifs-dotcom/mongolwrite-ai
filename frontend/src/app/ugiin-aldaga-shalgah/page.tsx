@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-const SITE = "https://mongolwrite-ai.fly.dev";
+const SITE = "https://mongolwrite.com";
 
 export const metadata: Metadata = {
   title: {
