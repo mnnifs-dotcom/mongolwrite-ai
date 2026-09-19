@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Noto_Sans, Noto_Serif } from "next/font/google";
 import "./globals.css";
 
+const SITE = "https://mongolwrite-ai.fly.dev";
+
 const sans = Noto_Sans({
   subsets: ["cyrillic", "latin"],
   weight: ["400", "500", "600", "700"],
@@ -20,11 +22,43 @@ export const viewport: Viewport = {
   themeColor: "#1f6fad",
 };
 
+const titleDefault = "Үгийн алдаа шалгах | MongolWrite — монгол зөв бичих";
+const descriptionDefault =
+  "Монгол үгийн алдаа шалгах, бичгийн алдаа засах онлайн. Кирилл текстээ шалгаад засварлаж, монгол бичиг рүү хөрвүүлээд Word-оор татаж авна.";
+
 export const metadata: Metadata = {
-  metadataBase: new URL("https://mongolwrite-ai.fly.dev"),
-  title: "MongolWrite AI",
-  description: "Монгол зөв бичих · Монгол бичиг хөрвүүлэх",
+  metadataBase: new URL(SITE),
+  title: {
+    default: titleDefault,
+    template: "%s | MongolWrite",
+  },
+  description: descriptionDefault,
   applicationName: "MongolWrite",
+  keywords: [
+    "үгийн алдаа шалгах",
+    "үгийн алдаа шалгагч",
+    "монгол үгийн алдаа шалгах",
+    "бичгийн алдаа шалгах",
+    "монгол хэлний алдаа шалгагч",
+    "монгол зөв бичих",
+    "монгол бичиг хөрвүүлэх",
+    "spellcheck",
+    "MongolWrite",
+  ],
+  authors: [{ name: "MongolWrite" }],
+  alternates: {
+    canonical: "/",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
   icons: {
     icon: [
       { url: "/favicon.ico" },
@@ -37,18 +71,58 @@ export const metadata: Metadata = {
     shortcut: ["/favicon.ico"],
   },
   openGraph: {
-    title: "MongolWrite AI",
-    description: "Монгол зөв бичих · Монгол бичиг хөрвүүлэх",
+    title: titleDefault,
+    description: descriptionDefault,
+    url: SITE,
     siteName: "MongolWrite",
-    images: [{ url: "/logo-512.png", width: 512, height: 512, alt: "MongolWrite" }],
+    locale: "mn_MN",
+    type: "website",
+    images: [{ url: "/logo-512.png", width: 512, height: 512, alt: "MongolWrite үгийн алдаа шалгагч" }],
   },
   twitter: {
     card: "summary",
-    title: "MongolWrite AI",
-    description: "Монгол зөв бичих · Монгол бичиг хөрвүүлэх",
+    title: titleDefault,
+    description: descriptionDefault,
     images: ["/logo-512.png"],
   },
   manifest: "/site.webmanifest",
+  category: "productivity",
+};
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": `${SITE}/#website`,
+      url: SITE,
+      name: "MongolWrite",
+      description: descriptionDefault,
+      inLanguage: "mn",
+    },
+    {
+      "@type": "WebApplication",
+      "@id": `${SITE}/#app`,
+      name: "MongolWrite",
+      url: SITE,
+      applicationCategory: "BusinessApplication",
+      operatingSystem: "Web",
+      inLanguage: "mn",
+      description: descriptionDefault,
+      offers: {
+        "@type": "Offer",
+        price: "19900",
+        priceCurrency: "MNT",
+        category: "нээлтийн урамшуулал — жилийн эрх",
+      },
+      featureList: [
+        "Үгийн алдаа шалгах",
+        "Бичгийн алдаа засах",
+        "Монгол бичиг хөрвүүлэх",
+        "Word татах",
+      ],
+    },
+  ],
 };
 
 export default function RootLayout({
@@ -58,7 +132,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="mn" className={`${sans.variable} ${display.variable}`}>
-      <body>{children}</body>
+      <body>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+        {children}
+      </body>
     </html>
   );
 }
