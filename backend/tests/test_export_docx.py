@@ -49,13 +49,13 @@ def test_export_bichig_docx() -> None:
         assert "word/fonts/font1.odttf" in names
         assert "word/_rels/fontTable.xml.rels" in names
         font_table = archive.read("word/fontTable.xml").decode("utf-8")
-        assert "Classical Mongolian Dashitseden" in font_table
+        assert "MongolianScript" in font_table
         assert "embedRegular" in font_table
         settings = archive.read("word/settings.xml").decode("utf-8")
         assert "embedTrueTypeFonts" in settings
         document = archive.read("word/document.xml").decode("utf-8")
-        assert "Classical Mongolian Dashitseden" in document
-        assert "ᢈ" in document  # Ali Gali preserved for Dashitseden
+        assert "MongolianScript" in document
+        assert "ᢈ" in document  # Ali Gali preserved for Bolorsoft faces
         # Embedded face is larger than a bare docx shell.
         assert len(archive.read("word/fonts/font1.odttf")) > 100_000
 
@@ -75,9 +75,11 @@ def test_obfuscate_font_roundtrip() -> None:
     assert twice == payload
 
 
-def test_build_bichig_docx_embeds_dashitseden() -> None:
+def test_build_bichig_docx_embeds_mongolian_script() -> None:
     data = build_bichig_docx("ᠮᠣᠩᠭᠣᠯ ᢈᠦᠴᠦᠨ")
     with zipfile.ZipFile(BytesIO(data)) as archive:
         assert "word/fonts/font1.odttf" in archive.namelist()
         rels = archive.read("word/_rels/fontTable.xml.rels").decode("utf-8")
         assert "fonts/font1.odttf" in rels
+        document = archive.read("word/document.xml").decode("utf-8")
+        assert 'w:ascii="MongolianScript"' in document
