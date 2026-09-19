@@ -426,7 +426,7 @@ export function AdminApp() {
             <textarea
               value={harvestText}
               onChange={(event) => setHarvestText(event.target.value)}
-              rows={4}
+              rows={5}
               placeholder="Текст буулгаад Hunspell нэр дэвшигч цуглуулна…"
             />
             <button type="submit" className="mw-btn-primary" disabled={busy || !harvestText.trim()}>

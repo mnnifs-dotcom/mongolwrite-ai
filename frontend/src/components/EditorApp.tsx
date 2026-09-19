@@ -216,6 +216,7 @@ export function EditorApp() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [status, setStatus] = useState("Бэлэн");
   const [counts, setCounts] = useState({ words: 0, chars: 0 });
+  const [maxChars, setMaxChars] = useState(100_000);
   const [error, setError] = useState<string | null>(null);
   const [aiEnabled, setAiEnabled] = useState(false);
   const [empty, setEmpty] = useState(true);
@@ -423,7 +424,12 @@ export function EditorApp() {
   }, [editor, corrections, activeId]);
 
   useEffect(() => {
-    void getSettings().then((result) => setAiEnabled(result.ai_enabled));
+    void getSettings().then((result) => {
+      setAiEnabled(result.ai_enabled);
+      if (result.check_max_chars && result.check_max_chars > 0) {
+        setMaxChars(result.check_max_chars);
+      }
+    });
   }, []);
 
   useEffect(() => {
@@ -571,6 +577,7 @@ export function EditorApp() {
     setTitle("Шинэ баримт");
     setCorrections([]);
     setDraft("");
+    setCounts({ words: 0, chars: 0 });
     setStatus("Бэлэн");
     setError(null);
     closeMenu();
@@ -684,7 +691,21 @@ export function EditorApp() {
         ) : null}
         <div className="mw-stage">
           <div className={empty ? "mw-editor is-empty" : "mw-editor"} aria-busy={checking}>
-            <EditorContent editor={editor} />
+            <div className="mw-editor-scroll">
+              <EditorContent editor={editor} />
+            </div>
+            <footer className="mw-editor-footer" aria-live="polite">
+              <div className="mw-count">
+                <span>Үгийн тоо</span>
+                <strong>{counts.words.toLocaleString("mn-MN")}</strong>
+              </div>
+              <div className="mw-count">
+                <span>Тэмдэгтийн тоо</span>
+                <strong>
+                  {counts.chars.toLocaleString("mn-MN")}/{maxChars.toLocaleString("mn-MN")}
+                </strong>
+              </div>
+            </footer>
             {checking ? (
               <div className="mw-checking-overlay" role="status" aria-live="polite">
                 <span className="mw-spinner lg" aria-hidden />

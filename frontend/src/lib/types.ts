@@ -27,6 +27,7 @@ export type ImproveResponse = CheckResponse & {
 
 export type SettingsResponse = {
   ai_enabled: boolean;
+  check_max_chars?: number;
 };
 
 /** Editor only shows spelling marks. */
