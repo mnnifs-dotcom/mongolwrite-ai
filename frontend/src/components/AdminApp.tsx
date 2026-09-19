@@ -246,8 +246,8 @@ export function AdminApp() {
       const result = await adminHarvest(harvestText);
       setStatus(
         result.queued
-          ? `${result.queued} үг жагсаалтад орлоо/шинэчлэгдлээ`
-          : "Шинэ үг олдсонгүй (бүгд аль хэдийн санд байсан эсвэл татгалзсан).",
+          ? `${result.queued} үг цугларлаа`
+          : "Шинэ үг олдсонгүй",
       );
       await loadLists();
     } catch (err) {
@@ -308,12 +308,7 @@ export function AdminApp() {
   return (
     <div className="mw-admin-page">
       <header className="mw-admin-bar">
-        <strong className="mw-brand">
-          MongolWrite · Админ
-          <span className="mw-brand-bichig" lang="mn-Mong">
-            ᠮᠣᠩᠭᠤᠯ ᠪᠢᠴᠢᠭ
-          </span>
-        </strong>
+        <strong className="mw-brand">MongolWrite · Админ</strong>
         <Link className="mw-btn" href="/">
           Засварлагч
         </Link>
@@ -336,13 +331,11 @@ export function AdminApp() {
                 {healthLabel(overview.health.status)}
               </span>
             </div>
-            <p className="mw-health-advice">{overview.health.advice}</p>
             <p className="mw-muted">
-              Сүүлийн 24 цагт {overview.health.checks_24h} шалгалт · хурд{" "}
-              {overview.health.warm_p95_ms_24h || overview.health.p95_ms_24h}мс · ажилласан{" "}
+              {overview.health.checks_24h} шалгалт ·{" "}
+              {overview.health.warm_p95_ms_24h || overview.health.p95_ms_24h}мс ·{" "}
               {formatUptime(overview.health.uptime_seconds)}
             </p>
-            <p className="mw-muted">Анх асахад удаашрал гарвал систем өөрөө засана. Админ товч хэрэггүй.</p>
           </section>
         ) : null}
 
@@ -351,32 +344,30 @@ export function AdminApp() {
             <h2>Тойм</h2>
             <div className="mw-overview-grid">
               <div className="mw-overview-tile">
-                <span>Найдвартай үгийн сан</span>
+                <span>Үгийн сан</span>
                 <strong>{overview.lexicon.seed.toLocaleString("mn-MN")}</strong>
                 <em>
                   {overview.lexicon.hunspell_stems
                     ? `Hunspell ${(overview.lexicon.hunspell_stems / 1000).toFixed(0)} мянга`
                     : overview.lexicon.has_hunspell
-                      ? "Hunspell бэлэн"
-                      : "Hunspell байхгүй"}
+                      ? "Hunspell"
+                      : "—"}
                 </em>
               </div>
               <div className="mw-overview-tile">
-                <span>Алгассан үгс</span>
+                <span>Алгассан</span>
                 <strong>{pendingSkipped.length.toLocaleString("mn-MN")}</strong>
-                <em>Засварлагчаас алгассан · шийд</em>
               </div>
               <div className="mw-overview-tile">
-                <span>Hunspell нэр дэвшигч</span>
+                <span>Hunspell</span>
                 <strong>{hunspellWords.length}</strong>
                 <em>
-                  Найдвартай {reliable.length} · эргэлзээтэй {doubt.length}
+                  {reliable.length} / {doubt.length}
                 </em>
               </div>
               <div className="mw-overview-tile">
-                <span>Админаас нэмсэн</span>
+                <span>Нэмсэн</span>
                 <strong>{addedWords.length.toLocaleString("mn-MN")}</strong>
-                <em>Шинэ нь дээр харагдана</em>
               </div>
             </div>
           </section>
@@ -384,12 +375,8 @@ export function AdminApp() {
 
         <section className="mw-admin-card" id="pending-skipped">
           <h2>Алгассан үгс{pendingSkipped.length ? ` · ${pendingSkipped.length}` : ""}</h2>
-          <p className="mw-muted">
-            Засварлагч дээр зөв бичгийн алдааг засахгүйгээр алгассан үгс. Санд оруулах эсвэл
-            татгалзана.
-          </p>
           {pendingSkipped.length === 0 ? (
-            <p className="mw-muted">Хүлээгдэж буй үг алга.</p>
+            <p className="mw-muted">Хоосон</p>
           ) : (
             <div className="mw-admin-scroll">
               <ul className="mw-admin-list">
@@ -398,7 +385,7 @@ export function AdminApp() {
                     <div className="mw-candidate-main">
                       <strong>{item.word}</strong>
                       <span className="mw-muted">
-                        {item.count} удаа · {formatWhen(item.updated_at)}
+                        {item.count}× · {formatWhen(item.updated_at)}
                       </span>
                     </div>
                     <div className="mw-admin-row">
@@ -427,12 +414,9 @@ export function AdminApp() {
         </section>
 
         <section className="mw-admin-card" id="admin-added">
-          <h2>Админаас нэмсэн үгс{addedWords.length ? ` · ${addedWords.length}` : ""}</h2>
-          <p className="mw-muted">
-            Админ санд оруулсан үгсийн жагсаалт. Хамгийн сүүлд нэмсэн нь дээр байна.
-          </p>
+          <h2>Нэмсэн үгс{addedWords.length ? ` · ${addedWords.length}` : ""}</h2>
           {addedWords.length === 0 ? (
-            <p className="mw-muted">Одоогоор нэмсэн үг алга. Доорх жагсаалтаас зөвшөөрч нэмнэ.</p>
+            <p className="mw-muted">Хоосон</p>
           ) : (
             <div className="mw-admin-scroll">
               <ul className="mw-admin-list">
@@ -449,42 +433,35 @@ export function AdminApp() {
 
         <section className="mw-admin-card" id="hunspell-candidates">
           <h2>
-            Hunspell-ээс зөв гэсэн үгс
+            Hunspell үгс
             {hunspellWords.length ? ` · ${hunspellWords.length}` : ""}
           </h2>
-          <p className="mw-muted">
-            Санд байхгүй боловч Hunspell зөв гэсэн үгс. Чагталж сонгоод санд оруулна эсвэл устгана.
-          </p>
 
           <form className="mw-harvest-box" onSubmit={(event) => void onHarvest(event)}>
             <textarea
               value={harvestText}
               onChange={(event) => setHarvestText(event.target.value)}
               rows={5}
-              placeholder="Текст буулгаад Hunspell нэр дэвшигч цуглуулна…"
+              placeholder="Текст…"
             />
             <button type="submit" className="mw-btn-primary" disabled={busy || !harvestText.trim()}>
-              {busy ? "Цуглуулж байна…" : "Жагсаалт руу цуглуулах"}
+              {busy ? "Цуглуулж байна…" : "Цуглуулах"}
             </button>
           </form>
 
           {hunspellWords.length === 0 ? (
-            <p className="mw-muted">
-              Жагсаалт хоосон. Дээр текст буулгаад цуглуулна, эсвэл засварлагч дээр шалгалт хийнэ —
-              автоматаар цугларна.
-            </p>
+            <p className="mw-muted">Хоосон</p>
           ) : (
             <>
               <div className="mw-select-box">
                 <label className="mw-select-box-label" htmlFor="mw-selected-words">
-                  Сонгосон үгс{selectedHunspell.length ? ` · ${selectedHunspell.length}` : ""}
+                  Сонгосон{selectedHunspell.length ? ` · ${selectedHunspell.length}` : ""}
                 </label>
                 <textarea
                   id="mw-selected-words"
                   className="mw-selected-words"
                   value={selectedWordsText(selectedHunspell)}
                   onChange={(event) => applySelectedText(event.target.value)}
-                  placeholder="Доорх жагсаалтаас чагталсан үгс энд текстээр гарна…"
                   rows={4}
                 />
                 <div className="mw-admin-row mw-select-actions">
@@ -497,7 +474,7 @@ export function AdminApp() {
                     disabled={!selectedHunspell.length}
                     onClick={clearHunspellSelection}
                   >
-                    Сонголт арилгах
+                    Арилгах
                   </button>
                   <button
                     type="button"

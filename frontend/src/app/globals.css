@@ -515,9 +515,7 @@ body {
 }
 
 .mw-editor.is-empty .mw-prose > p:first-child::before {
-  content: "Энд бичнэ үү…";
-  color: var(--muted);
-  pointer-events: none;
+  content: none;
 }
 
 .mw-mark {

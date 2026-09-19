@@ -96,13 +96,13 @@ def snapshot() -> dict[str, Any]:
     slow = sum(1 for ms in normal if ms >= _SLOW_MS)
     if not ready:
         status = "starting"
-        advice = "Сервер асаж байна. Систем өөрөө бэлдэнэ — та юу ч дарах хэрэггүй."
+        advice = "Асаж байна"
     elif slow >= 8:
         status = "busy"
-        advice = "Одоо олон хүн зэрэг ашиглаж байна. Түр удаан байж болно. Та юу ч хийх шаардлагагүй."
+        advice = "Завгүй"
     else:
         status = "ready"
-        advice = "Бүх зүйл хэвийн. Шалгалт хэвийн хурдтай. Та юу ч дарах хэрэггүй."
+        advice = "Хэвийн"
     return {
         "status": status,
         "ready": ready,
