@@ -15,7 +15,11 @@ from pydantic import BaseModel, Field
 router = APIRouter(prefix="/api/v1/export", tags=["export"])
 
 _MAX_CHARS = 200_000
+# Primary OpenType Mongolian fonts; Word picks the first installed face.
 _BICHIG_FONTS = ("Mongolian Baiti", "Noto Sans Mongolian", "Menksoft Qagan")
+# Traditional Mongolian: top→bottom within a column, columns left→right.
+# Matches CSS writing-mode: vertical-lr. Do NOT use tbRl (CJK right→left columns).
+_BICHIG_TEXT_DIRECTION = "tbLrV"
 
 
 class DocxExportRequest(BaseModel):
@@ -41,10 +45,16 @@ def _set_run_font(run, *, fonts: tuple[str, ...], size_pt: float) -> None:
     r_fonts.set(qn("w:hAnsi"), primary)
     r_fonts.set(qn("w:eastAsia"), primary)
     r_fonts.set(qn("w:cs"), primary)
+    # Hint Word/LibreOffice that this run is traditional Mongolian.
+    lang = OxmlElement("w:lang")
+    lang.set(qn("w:val"), "mn-Mong")
+    lang.set(qn("w:eastAsia"), "mn-Mong")
+    lang.set(qn("w:bidi"), "mn-Mong")
+    r_pr.append(lang)
 
 
-def _set_section_vertical(document: Document) -> None:
-    """Top-to-bottom, right-to-left page flow — usual layout for Mongolian script in Word."""
+def _set_section_mongolian_vertical(document: Document) -> None:
+    """Top-to-bottom columns progressing left-to-right — Mongolian layout in Word."""
     section = document.sections[0]
     section.page_width = Cm(21.0)
     section.page_height = Cm(29.7)
@@ -53,18 +63,17 @@ def _set_section_vertical(document: Document) -> None:
     section.top_margin = Cm(2.0)
     section.bottom_margin = Cm(2.0)
     sect_pr = section._sectPr
-    # Avoid duplicating if called twice.
     for child in list(sect_pr):
         if child.tag == qn("w:textDirection"):
             sect_pr.remove(child)
     text_direction = OxmlElement("w:textDirection")
-    text_direction.set(qn("w:val"), "tbRl")
+    text_direction.set(qn("w:val"), _BICHIG_TEXT_DIRECTION)
     sect_pr.append(text_direction)
 
 
 def build_bichig_docx(text: str) -> bytes:
     document = Document()
-    _set_section_vertical(document)
+    _set_section_mongolian_vertical(document)
     lines = text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
     if not any(line.strip() for line in lines):
         lines = [""]
