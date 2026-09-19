@@ -19,8 +19,8 @@ from pydantic import BaseModel, Field
 router = APIRouter(prefix="/api/v1/export", tags=["export"])
 
 _MAX_CHARS = 200_000
-# Bolorsoft face used by KIMO — embedded in the DOCX so Word matches the site.
-_PRIMARY_FONT = "Classical Mongolian Dashitseden"
+# Bolorsoft face used by KIMO (Mongolian Script) — embedded so Word matches the site.
+_PRIMARY_FONT = "MongolianScript"
 # Traditional Mongolian: top→bottom within a column, columns left→right.
 # Matches CSS writing-mode: vertical-lr. Do NOT use tbRl (CJK right→left columns).
 _BICHIG_TEXT_DIRECTION = "tbLrV"
@@ -33,8 +33,8 @@ _PKG_REL_NS = "http://schemas.openxmlformats.org/package/2006/relationships"
 
 _ASSETS = Path(__file__).resolve().parents[1] / "assets" / "fonts"
 _EMBED_FONTS: tuple[tuple[str, Path], ...] = (
-    (_PRIMARY_FONT, _ASSETS / "cmdashitseden.ttf"),
-    ("MongolianScript", _ASSETS / "MongolianScript.ttf"),
+    (_PRIMARY_FONT, _ASSETS / "MongolianScript.ttf"),
+    ("Classical Mongolian Dashitseden", _ASSETS / "cmdashitseden.ttf"),
 )
 
 ET.register_namespace("w", _W_NS)
@@ -55,12 +55,12 @@ def _safe_filename(name: str) -> str:
 
 
 def _set_run_font(run, *, size_pt: float) -> None:
-    """Mark the run as traditional Mongolian with Dashitseden."""
+    """Mark the run as traditional Mongolian with MongolianScript."""
     run.font.name = _PRIMARY_FONT
     run.font.size = Pt(size_pt)
     r_pr = run._element.get_or_add_rPr()
     r_fonts = r_pr.get_or_add_rFonts()
-    # ascii/hAnsi/eastAsia/cs all point at Dashitseden so Word does not
+    # ascii/hAnsi/eastAsia/cs all point at MongolianScript so Word does not
     # substitute a Latin face that breaks Ali Gali shaping.
     for attr in ("w:ascii", "w:hAnsi", "w:eastAsia", "w:cs"):
         r_fonts.set(qn(attr), _PRIMARY_FONT)
@@ -151,9 +151,9 @@ def _ensure_font_content_types(types_xml: bytes) -> bytes:
 def _build_font_table_and_rels(
     font_table_xml: bytes,
 ) -> tuple[bytes, bytes, list[tuple[str, bytes]]]:
-    """Register embedded Dashitseden (+ MongolianScript) in fontTable + package parts."""
+    """Register embedded MongolianScript (+ Dashitseden) in fontTable + package parts."""
     root = ET.fromstring(font_table_xml)
-    keep_names = {_PRIMARY_FONT, "MongolianScript"}
+    keep_names = {_PRIMARY_FONT, "Classical Mongolian Dashitseden"}
     for font in list(root.findall(_qname(_W_NS, "font"))):
         if font.get(_qname(_W_NS, "name")) in keep_names:
             root.remove(font)

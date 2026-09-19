@@ -1,7 +1,7 @@
 @import url("https://fonts.googleapis.com/css2?family=Noto+Sans+Mongolian&display=swap");
 @import "tailwindcss";
 
-/* Bolorsoft faces used by KIMO — Ali Gali ᢈ/ᢉ and classical shaping */
+/* Bolorsoft faces used by KIMO — Mongolian Script primary, Dashitseden fallback */
 @font-face {
   font-family: "Classical Mongolian Dashitseden";
   src: url("/fonts/cmdashitseden.ttf") format("truetype");
@@ -30,7 +30,8 @@
   --error: #c62828;
   --warning: #b86b12;
   --suggest: #1a7ab8;
-  --font-mongol: "Classical Mongolian Dashitseden", "MongolianScript", "Noto Sans Mongolian",
+  /* KIMO default face: Mongolian Script (Bolorsoft) */
+  --font-mongol: "MongolianScript", "Classical Mongolian Dashitseden", "Noto Sans Mongolian",
     "Mongolian Baiti", sans-serif;
   --ready: #1a7a6a;
   --ready-bg: #e4f4f1;
