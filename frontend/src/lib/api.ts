@@ -143,6 +143,21 @@ export async function loginWithGoogle(
   return response.json() as Promise<{ ok: boolean; user: AuthUser }>;
 }
 
+export async function loginWithGoogleAccessToken(
+  accessToken: string,
+): Promise<{ ok: boolean; user: AuthUser }> {
+  const response = await fetch(apiUrl("/api/v1/auth/google"), {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ access_token: accessToken }),
+  });
+  if (!response.ok) {
+    throw new Error("Google-ээр нэвтэрч чадсангүй");
+  }
+  return response.json() as Promise<{ ok: boolean; user: AuthUser }>;
+}
+
 export async function authLogout(): Promise<void> {
   await fetch(apiUrl("/api/v1/auth/logout"), {
     method: "POST",
