@@ -225,6 +225,8 @@ export function EditorApp() {
   const [checking, setChecking] = useState(false);
   const [successFlash, setSuccessFlash] = useState(false);
   const [showBichig, setShowBichig] = useState(false);
+  const [bichigText, setBichigText] = useState("");
+  const [bichigBusy, setBichigBusy] = useState(false);
   const [draft, setDraft] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -489,7 +491,6 @@ export function EditorApp() {
   }, [activeId]);
 
   const visible = corrections;
-  const bichigText = useMemo(() => (showBichig ? cyrillicToBichig(draft) : ""), [showBichig, draft]);
 
   const activeItem = useMemo(
     () => corrections.find((item) => item.id === activeId) ?? null,
@@ -642,6 +643,30 @@ export function EditorApp() {
     }
   }
 
+  function convertToBichig() {
+    if (!editor) return;
+    const text = plainTextFromDoc(editor.state.doc);
+    setBichigBusy(true);
+    setError(null);
+    try {
+      // Full-text convert after writing — not live while typing.
+      setBichigText(cyrillicToBichig(text));
+      setShowBichig(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Хөрвүүлж чадсангүй");
+    } finally {
+      setBichigBusy(false);
+    }
+  }
+
+  function toggleBichigPanel() {
+    if (showBichig) {
+      setShowBichig(false);
+      return;
+    }
+    convertToBichig();
+  }
+
   return (
     <div className={showBichig ? "mw-shell is-bichig-open" : "mw-shell"}>
       <main className="mw-main">
@@ -700,10 +725,12 @@ export function EditorApp() {
             <button
               type="button"
               className={showBichig ? "mw-btn mw-btn-toggle is-on" : "mw-btn mw-btn-toggle"}
-              onClick={() => setShowBichig((open) => !open)}
+              onClick={toggleBichigPanel}
               aria-pressed={showBichig}
+              disabled={bichigBusy || empty}
+              aria-busy={bichigBusy}
             >
-              Монгол бичиг
+              {bichigBusy ? "Хөрвүүлж…" : "Монгол бичиг"}
             </button>
             <button
               type="button"
@@ -779,6 +806,14 @@ export function EditorApp() {
               <div className="mw-bichig-head">
                 <div className="mw-bichig-title">Монгол бичиг</div>
                 <div className="mw-bichig-actions">
+                  <button
+                    type="button"
+                    className="mw-btn"
+                    onClick={convertToBichig}
+                    disabled={bichigBusy || empty}
+                  >
+                    {bichigBusy ? "…" : "Хөрвүүлэх"}
+                  </button>
                   <button
                     type="button"
                     className="mw-btn"
