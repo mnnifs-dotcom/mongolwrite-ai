@@ -22,6 +22,7 @@ from app.engine.hunspell_candidates import (
     reject_words,
 )
 from app.engine.learn import learn_accepted_words
+from app.engine.legal_import import apply_legal_lexicon, legal_import_preview
 from app.engine.metrics import snapshot
 from app.engine.pending import list_pending, pop_pending
 from app.engine.runtime import get_engine
@@ -175,3 +176,15 @@ def candidates_reject(body: WordsAction, _: AdminDep) -> dict[str, Any]:
 def candidates_harvest(body: HarvestRequest, _: AdminDep) -> dict[str, Any]:
     queued = record_from_text(get_engine(), body.text)
     return {"queued": queued, "counts": counts()}
+
+
+@router.get("/lexicon/legal-preview")
+def lexicon_legal_preview(_: AdminDep) -> dict[str, Any]:
+    return legal_import_preview()
+
+
+@router.post("/lexicon/legal-import")
+def lexicon_legal_import(_: AdminDep) -> dict[str, Any]:
+    """Import legalinfo trusted lemmas into curated lexicon; queue doubt for review."""
+    result = apply_legal_lexicon(get_engine())
+    return {**result, "counts": counts(), "preview": legal_import_preview()}

@@ -1,0 +1,4512 @@
+{
+  "source": "legalinfo.mn via HF ipfs_mongolia_laws articles",
+  "rules": {
+    "trusted": "hunspell AND wiki>=50 AND legal_df>=100",
+    "doubt": "frequent legal tokens not meeting trusted",
+    "max_doubt": 500
+  },
+  "trusted_count": 40,
+  "doubt_count": 500,
+  "items": [
+    {
+      "word": "эсхүл",
+      "folded": "эсхүл",
+      "legal_df": 3901,
+      "wiki": 232,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "дараахь",
+      "folded": "дараахь",
+      "legal_df": 2786,
+      "wiki": 218,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "конвенцийн",
+      "folded": "конвенцийн",
+      "legal_df": 2565,
+      "wiki": 45,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "тохирогч",
+      "folded": "тохирогч",
+      "legal_df": 1554,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "конвенцийг",
+      "folded": "конвенцийг",
+      "legal_df": 1527,
+      "wiki": 35,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "конвенцид",
+      "folded": "конвенцид",
+      "legal_df": 1396,
+      "wiki": 38,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "батласан",
+      "folded": "батласан",
+      "legal_df": 1112,
+      "wiki": 57,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "батламж",
+      "folded": "батламж",
+      "legal_df": 965,
+      "wiki": 31,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "мэдэгдэнэ",
+      "folded": "мэдэгдэнэ",
+      "legal_df": 888,
+      "wiki": 33,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "шийдвэрлэнэ",
+      "folded": "шийдвэрлэнэ",
+      "legal_df": 787,
+      "wiki": 37,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "талаархи",
+      "folded": "талаархи",
+      "legal_df": 762,
+      "wiki": 231,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "заалтад",
+      "folded": "заалтад",
+      "legal_df": 740,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "зааснаас",
+      "folded": "зааснаас",
+      "legal_df": 637,
+      "wiki": 29,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "батална",
+      "folded": "батална",
+      "legal_df": 595,
+      "wiki": 25,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "заалтуудыг",
+      "folded": "заалтуудыг",
+      "legal_df": 569,
+      "wiki": 30,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "цэцэд",
+      "folded": "цэцэд",
+      "legal_df": 494,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "актын",
+      "folded": "актын",
+      "legal_df": 493,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "нөхцлийг",
+      "folded": "нөхцлийг",
+      "legal_df": 431,
+      "wiki": 211,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "заасныг",
+      "folded": "заасныг",
+      "legal_df": 411,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "захиралд",
+      "folded": "захиралд",
+      "legal_df": 410,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "болих",
+      "folded": "болих",
+      "legal_df": 393,
+      "wiki": 27,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "эдэлнэ",
+      "folded": "эдэлнэ",
+      "legal_df": 393,
+      "wiki": 23,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "үлдээнэ",
+      "folded": "үлдээнэ",
+      "legal_df": 387,
+      "wiki": 32,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "олонхийн",
+      "folded": "олонхийн",
+      "legal_df": 387,
+      "wiki": 38,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "мөрдөнө",
+      "folded": "мөрдөнө",
+      "legal_df": 385,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хаягаа",
+      "folded": "хаягаа",
+      "legal_df": 377,
+      "wiki": 24,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "тодруулга",
+      "folded": "тодруулга",
+      "legal_df": 376,
+      "wiki": 23,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "харахгүй",
+      "folded": "харахгүй",
+      "legal_df": 375,
+      "wiki": 19,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "томруулах",
+      "folded": "томруулах",
+      "legal_df": 370,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хадгалуулахаар",
+      "folded": "хадгалуулахаар",
+      "legal_df": 370,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "улаанбаатар",
+      "folded": "улаанбаатар",
+      "legal_df": 366,
+      "wiki": 5719,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "зохицуулна",
+      "folded": "зохицуулна",
+      "legal_df": 361,
+      "wiki": 30,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "эсэххайлтын",
+      "folded": "эсэххайлтын",
+      "legal_df": 358,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "өөрчлөлтнийт",
+      "folded": "өөрчлөлтнийт",
+      "legal_df": 358,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "харахнийт",
+      "folded": "харахнийт",
+      "legal_df": 358,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "хуульхайлтын",
+      "folded": "хуульхайлтын",
+      "legal_df": 358,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "тусгана",
+      "folded": "тусгана",
+      "legal_df": 357,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "сэжигтэн",
+      "folded": "сэжигтэн",
+      "legal_df": 333,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "талуудад",
+      "folded": "талуудад",
+      "legal_df": 328,
+      "wiki": 33,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "дэгийн",
+      "folded": "дэгийн",
+      "legal_df": 326,
+      "wiki": 28,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "зөрчөөгүй",
+      "folded": "зөрчөөгүй",
+      "legal_df": 306,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хариуцна",
+      "folded": "хариуцна",
+      "legal_df": 304,
+      "wiki": 27,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "шилжүүлнэ",
+      "folded": "шилжүүлнэ",
+      "legal_df": 304,
+      "wiki": 48,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "мэдээлнэ",
+      "folded": "мэдээлнэ",
+      "legal_df": 300,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "чингэхдээ",
+      "folded": "чингэхдээ",
+      "legal_df": 296,
+      "wiki": 40,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "баримтална",
+      "folded": "баримтална",
+      "legal_df": 293,
+      "wiki": 23,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "гэснийг",
+      "folded": "гэснийг",
+      "legal_df": 289,
+      "wiki": 39,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "тогтоомжоор",
+      "folded": "тогтоомжоор",
+      "legal_df": 286,
+      "wiki": 22,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хүлээлгэх",
+      "folded": "хүлээлгэх",
+      "legal_df": 284,
+      "wiki": 34,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "томилогч",
+      "folded": "томилогч",
+      "legal_df": 278,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "бүртгэгч",
+      "folded": "бүртгэгч",
+      "legal_df": 273,
+      "wiki": 38,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "цуцлалт",
+      "folded": "цуцлалт",
+      "legal_df": 273,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "түвшинд",
+      "folded": "түвшинд",
+      "legal_df": 271,
+      "wiki": 1209,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "ирүүлэхийг",
+      "folded": "ирүүлэхийг",
+      "legal_df": 266,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "олзлогч",
+      "folded": "олзлогч",
+      "legal_df": 261,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "шархтан",
+      "folded": "шархтан",
+      "legal_df": 256,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хадгалуулна",
+      "folded": "хадгалуулна",
+      "legal_df": 254,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "яллагдагч",
+      "folded": "яллагдагч",
+      "legal_df": 251,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "эрхэд",
+      "folded": "эрхэд",
+      "legal_df": 249,
+      "wiki": 47,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хэдийд",
+      "folded": "хэдийд",
+      "legal_df": 247,
+      "wiki": 35,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "томилно",
+      "folded": "томилно",
+      "legal_df": 247,
+      "wiki": 28,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "пактад",
+      "folded": "пактад",
+      "legal_df": 246,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "үндэслэлгүй",
+      "folded": "үндэслэлгүй",
+      "legal_df": 244,
+      "wiki": 47,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "конвенцоор",
+      "folded": "конвенцоор",
+      "legal_df": 237,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "тушаалтны",
+      "folded": "тушаалтны",
+      "legal_df": 233,
+      "wiki": 49,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "зурахад",
+      "folded": "зурахад",
+      "legal_df": 233,
+      "wiki": 29,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "нэрвэгдэж",
+      "folded": "нэрвэгдэж",
+      "legal_df": 233,
+      "wiki": 41,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хөндөхгүй",
+      "folded": "хөндөхгүй",
+      "legal_df": 230,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "даргалагч",
+      "folded": "даргалагч",
+      "legal_df": 222,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "үндэслэлийг",
+      "folded": "үндэслэлийг",
+      "legal_df": 221,
+      "wiki": 48,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хадгалуулсан",
+      "folded": "хадгалуулсан",
+      "legal_df": 221,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хүсч",
+      "folded": "хүсч",
+      "legal_df": 221,
+      "wiki": 247,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "биелүүлнэ",
+      "folded": "биелүүлнэ",
+      "legal_df": 218,
+      "wiki": 18,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "гомдлыг",
+      "folded": "гомдлыг",
+      "legal_df": 217,
+      "wiki": 32,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "этгээдээс",
+      "folded": "этгээдээс",
+      "legal_df": 216,
+      "wiki": 21,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "үзэхгүй",
+      "folded": "үзэхгүй",
+      "legal_df": 212,
+      "wiki": 30,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "биелүүлэхэд",
+      "folded": "биелүүлэхэд",
+      "legal_df": 211,
+      "wiki": 46,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "ногдуулах",
+      "folded": "ногдуулах",
+      "legal_df": 210,
+      "wiki": 35,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "харьяалах",
+      "folded": "харьяалах",
+      "legal_df": 210,
+      "wiki": 20,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хадгалагчид",
+      "folded": "хадгалагчид",
+      "legal_df": 209,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "мэдүүлгийг",
+      "folded": "мэдүүлгийг",
+      "legal_df": 204,
+      "wiki": 19,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "тайлбартаа",
+      "folded": "тайлбартаа",
+      "legal_df": 203,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "зөвлөмжийг",
+      "folded": "зөвлөмжийг",
+      "legal_df": 202,
+      "wiki": 37,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "дүгнэлтийн",
+      "folded": "дүгнэлтийн",
+      "legal_df": 198,
+      "wiki": 44,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "түдгэлзүүлэх",
+      "folded": "түдгэлзүүлэх",
+      "legal_df": 197,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "бүртгэлт",
+      "folded": "бүртгэлт",
+      "legal_df": 196,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "захирамж",
+      "folded": "захирамж",
+      "legal_df": 195,
+      "wiki": 38,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "төлнө",
+      "folded": "төлнө",
+      "legal_df": 194,
+      "wiki": 26,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хавсаргана",
+      "folded": "хавсаргана",
+      "legal_df": 191,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хэлэлцэхэд",
+      "folded": "хэлэлцэхэд",
+      "legal_df": 190,
+      "wiki": 32,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "мэдэгдлийн",
+      "folded": "мэдэгдлийн",
+      "legal_df": 190,
+      "wiki": 23,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "гаргуулах",
+      "folded": "гаргуулах",
+      "legal_df": 187,
+      "wiki": 25,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "ассамблейгаас",
+      "folded": "ассамблейгаас",
+      "legal_df": 185,
+      "wiki": 25,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хөхиүлэн",
+      "folded": "хөхиүлэн",
+      "legal_df": 182,
+      "wiki": 46,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "болгосугай",
+      "folded": "болгосугай",
+      "legal_df": 181,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "өргөдлийг",
+      "folded": "өргөдлийг",
+      "legal_df": 179,
+      "wiki": 32,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "мэдэгдэлд",
+      "folded": "мэдэгдэлд",
+      "legal_df": 179,
+      "wiki": 35,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "үйлчилнэ",
+      "folded": "үйлчилнэ",
+      "legal_df": 178,
+      "wiki": 40,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "биелэлтийг",
+      "folded": "биелэлтийг",
+      "legal_df": 176,
+      "wiki": 17,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "импортлох",
+      "folded": "импортлох",
+      "legal_df": 175,
+      "wiki": 22,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "нөхцлийн",
+      "folded": "нөхцлийн",
+      "legal_df": 174,
+      "wiki": 38,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "шүүгдэгч",
+      "folded": "шүүгдэгч",
+      "legal_df": 172,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "биелүүлээгүй",
+      "folded": "биелүүлээгүй",
+      "legal_df": 168,
+      "wiki": 26,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "дурьдсан",
+      "folded": "дурьдсан",
+      "legal_df": 166,
+      "wiki": 161,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "бичвэрүүд",
+      "folded": "бичвэрүүд",
+      "legal_df": 166,
+      "wiki": 32,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "ямба",
+      "folded": "ямба",
+      "legal_df": 165,
+      "wiki": 31,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "даргалж",
+      "folded": "даргалж",
+      "legal_df": 164,
+      "wiki": 31,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "нотолгооны",
+      "folded": "нотолгооны",
+      "legal_df": 163,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хуралдуулна",
+      "folded": "хуралдуулна",
+      "legal_df": 163,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "зөвшөөрснөөр",
+      "folded": "зөвшөөрснөөр",
+      "legal_df": 162,
+      "wiki": 35,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "оногдуулсан",
+      "folded": "оногдуулсан",
+      "legal_df": 160,
+      "wiki": 17,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "ассамблейд",
+      "folded": "ассамблейд",
+      "legal_df": 160,
+      "wiki": 42,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "адилтгах",
+      "folded": "адилтгах",
+      "legal_df": 159,
+      "wiki": 36,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "эдлүүлэх",
+      "folded": "эдлүүлэх",
+      "legal_df": 158,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "үүргээс",
+      "folded": "үүргээс",
+      "legal_df": 158,
+      "wiki": 34,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хүлээлгэнэ",
+      "folded": "хүлээлгэнэ",
+      "legal_df": 158,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "уламжилсугай",
+      "folded": "уламжилсугай",
+      "legal_df": 157,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хэрэгжүүлэхдээ",
+      "folded": "хэрэгжүүлэхдээ",
+      "legal_df": 157,
+      "wiki": 19,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "шударгаар",
+      "folded": "шударгаар",
+      "legal_df": 156,
+      "wiki": 43,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "тэдгээртэй",
+      "folded": "тэдгээртэй",
+      "legal_df": 155,
+      "wiki": 33,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "олонхи",
+      "folded": "олонхи",
+      "legal_df": 155,
+      "wiki": 146,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "олзлогдогчдын",
+      "folded": "олзлогдогчдын",
+      "legal_df": 155,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "баталгаат",
+      "folded": "баталгаат",
+      "legal_df": 154,
+      "wiki": 42,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "шийдвэрлүүлэх",
+      "folded": "шийдвэрлүүлэх",
+      "legal_df": 153,
+      "wiki": 22,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "заалттай",
+      "folded": "заалттай",
+      "legal_df": 152,
+      "wiki": 21,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "гишүүнд",
+      "folded": "гишүүнд",
+      "legal_df": 150,
+      "wiki": 48,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "бямбадорж",
+      "folded": "бямбадорж",
+      "legal_df": 147,
+      "wiki": 271,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "дуусахаас",
+      "folded": "дуусахаас",
+      "legal_df": 147,
+      "wiki": 35,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "мэдүүлгийн",
+      "folded": "мэдүүлгийн",
+      "legal_df": 145,
+      "wiki": 16,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "цөлжилттэй",
+      "folded": "цөлжилттэй",
+      "legal_df": 143,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "пактын",
+      "folded": "пактын",
+      "legal_df": 142,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "гаргагчийн",
+      "folded": "гаргагчийн",
+      "legal_df": 140,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "гаргаагүй",
+      "folded": "гаргаагүй",
+      "legal_df": 139,
+      "wiki": 47,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "үйлдэгдсэн",
+      "folded": "үйлдэгдсэн",
+      "legal_df": 139,
+      "wiki": 19,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хариуцагч",
+      "folded": "хариуцагч",
+      "legal_df": 137,
+      "wiki": 46,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "маргаанд",
+      "folded": "маргаанд",
+      "legal_df": 137,
+      "wiki": 27,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "нийцэхгүй",
+      "folded": "нийцэхгүй",
+      "legal_df": 136,
+      "wiki": 39,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "тооцохгүй",
+      "folded": "тооцохгүй",
+      "legal_df": 136,
+      "wiki": 43,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "мэдүүлэгт",
+      "folded": "мэдүүлэгт",
+      "legal_df": 134,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "актаас",
+      "folded": "актаас",
+      "legal_df": 133,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "нэхэмжлэгч",
+      "folded": "нэхэмжлэгч",
+      "legal_df": 132,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хангаагүй",
+      "folded": "хангаагүй",
+      "legal_df": 131,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хүсэлтэд",
+      "folded": "хүсэлтэд",
+      "legal_df": 131,
+      "wiki": 26,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "батлаагүй",
+      "folded": "батлаагүй",
+      "legal_df": 130,
+      "wiki": 26,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "сахилгын",
+      "folded": "сахилгын",
+      "legal_df": 130,
+      "wiki": 24,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "бэлгэ",
+      "folded": "бэлгэ",
+      "legal_df": 130,
+      "wiki": 643,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "нөлөөлөхгүй",
+      "folded": "нөлөөлөхгүй",
+      "legal_df": 130,
+      "wiki": 32,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "харьяаллаа",
+      "folded": "харьяаллаа",
+      "legal_df": 130,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "амарсанаа",
+      "folded": "амарсанаа",
+      "legal_df": 129,
+      "wiki": 255,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "байцаалтыг",
+      "folded": "байцаалтыг",
+      "legal_df": 129,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "зөвлөлдсөний",
+      "folded": "зөвлөлдсөний",
+      "legal_df": 129,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "тогтоогдохгүй",
+      "folded": "тогтоогдохгүй",
+      "legal_df": 128,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хэрэгжүүлэхтэй",
+      "folded": "хэрэгжүүлэхтэй",
+      "legal_df": 128,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "өгснөөс",
+      "folded": "өгснөөс",
+      "legal_df": 127,
+      "wiki": 26,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "экспортлох",
+      "folded": "экспортлох",
+      "legal_df": 127,
+      "wiki": 36,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "сүйрэлд",
+      "folded": "сүйрэлд",
+      "legal_df": 126,
+      "wiki": 27,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "өргөдөлдөө",
+      "folded": "өргөдөлдөө",
+      "legal_df": 125,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "биелэлтэд",
+      "folded": "биелэлтэд",
+      "legal_df": 125,
+      "wiki": 20,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "зөрчигдсөн",
+      "folded": "зөрчигдсөн",
+      "legal_df": 124,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "өргөдөлд",
+      "folded": "өргөдөлд",
+      "legal_df": 124,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "очирбат",
+      "folded": "очирбат",
+      "legal_df": 124,
+      "wiki": 320,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "заалтаас",
+      "folded": "заалтаас",
+      "legal_df": 124,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "анхааралдаа",
+      "folded": "анхааралдаа",
+      "legal_df": 124,
+      "wiki": 16,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "ногдуулсан",
+      "folded": "ногдуулсан",
+      "legal_df": 124,
+      "wiki": 28,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хуульчилсан",
+      "folded": "хуульчилсан",
+      "legal_df": 123,
+      "wiki": 47,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хэрэгжилтийн",
+      "folded": "хэрэгжилтийн",
+      "legal_df": 123,
+      "wiki": 47,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "бичвэрийг",
+      "folded": "бичвэрийг",
+      "legal_df": 123,
+      "wiki": 43,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "тохиролцоогүй",
+      "folded": "тохиролцоогүй",
+      "legal_df": 123,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хангагдах",
+      "folded": "хангагдах",
+      "legal_df": 122,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "шийдвэрээ",
+      "folded": "шийдвэрээ",
+      "legal_df": 122,
+      "wiki": 45,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хэрэгжилтэд",
+      "folded": "хэрэгжилтэд",
+      "legal_df": 122,
+      "wiki": 28,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "ирүүлнэ",
+      "folded": "ирүүлнэ",
+      "legal_df": 121,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "төлүүлэх",
+      "folded": "төлүүлэх",
+      "legal_df": 121,
+      "wiki": 19,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "шаардана",
+      "folded": "шаардана",
+      "legal_df": 121,
+      "wiki": 47,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "тохиролцогч",
+      "folded": "тохиролцогч",
+      "legal_df": 121,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "зүйлүүдэд",
+      "folded": "зүйлүүдэд",
+      "legal_df": 121,
+      "wiki": 36,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хойшлуулах",
+      "folded": "хойшлуулах",
+      "legal_df": 120,
+      "wiki": 30,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "байцаагчийн",
+      "folded": "байцаагчийн",
+      "legal_df": 120,
+      "wiki": 20,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хадгалуулснаас",
+      "folded": "хадгалуулснаас",
+      "legal_df": 120,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "заалтуудын",
+      "folded": "заалтуудын",
+      "legal_df": 119,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "эрхийнхээ",
+      "folded": "эрхийнхээ",
+      "legal_df": 119,
+      "wiki": 37,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "прокурорт",
+      "folded": "прокурорт",
+      "legal_df": 119,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "өмчлөгч",
+      "folded": "өмчлөгч",
+      "legal_df": 118,
+      "wiki": 26,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "учруулахгүй",
+      "folded": "учруулахгүй",
+      "legal_df": 118,
+      "wiki": 28,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хураамжийн",
+      "folded": "хураамжийн",
+      "legal_df": 118,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "эзлэгч",
+      "folded": "эзлэгч",
+      "legal_df": 118,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "олзлогдогчид",
+      "folded": "олзлогдогчид",
+      "legal_df": 118,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хавсралтад",
+      "folded": "хавсралтад",
+      "legal_df": 117,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "томъёог",
+      "folded": "томъёог",
+      "legal_df": 117,
+      "wiki": 279,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "шийтгүүлсэн",
+      "folded": "шийтгүүлсэн",
+      "legal_df": 116,
+      "wiki": 35,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "нийцээгүй",
+      "folded": "нийцээгүй",
+      "legal_df": 116,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "үйлдэхэд",
+      "folded": "үйлдэхэд",
+      "legal_df": 115,
+      "wiki": 18,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "доорхи",
+      "folded": "доорхи",
+      "legal_df": 114,
+      "wiki": 185,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "чөлөөлнө",
+      "folded": "чөлөөлнө",
+      "legal_df": 114,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "гаргагчид",
+      "folded": "гаргагчид",
+      "legal_df": 112,
+      "wiki": 18,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "шинжээчийн",
+      "folded": "шинжээчийн",
+      "legal_df": 112,
+      "wiki": 22,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "этгээдтэй",
+      "folded": "этгээдтэй",
+      "legal_df": 111,
+      "wiki": 18,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хангуулах",
+      "folded": "хангуулах",
+      "legal_df": 111,
+      "wiki": 17,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "сарантуяа",
+      "folded": "сарантуяа",
+      "legal_df": 111,
+      "wiki": 141,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "бүртгүүлнэ",
+      "folded": "бүртгүүлнэ",
+      "legal_df": 111,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хэлэлцэнэ",
+      "folded": "хэлэлцэнэ",
+      "legal_df": 111,
+      "wiki": 30,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хуралдуулах",
+      "folded": "хуралдуулах",
+      "legal_df": 110,
+      "wiki": 35,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хүлээхгүй",
+      "folded": "хүлээхгүй",
+      "legal_df": 110,
+      "wiki": 28,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "актыг",
+      "folded": "актыг",
+      "legal_df": 109,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "чөлөөлөгдөх",
+      "folded": "чөлөөлөгдөх",
+      "legal_df": 109,
+      "wiki": 49,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "заалтаар",
+      "folded": "заалтаар",
+      "legal_df": 108,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "дэвсгэртээ",
+      "folded": "дэвсгэртээ",
+      "legal_df": 107,
+      "wiki": 29,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "гүйцэтгэхийг",
+      "folded": "гүйцэтгэхийг",
+      "legal_df": 107,
+      "wiki": 31,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "конвенцууд",
+      "folded": "конвенцууд",
+      "legal_df": 107,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "женев",
+      "folded": "женев",
+      "legal_df": 107,
+      "wiki": 221,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "тушаалтанд",
+      "folded": "тушаалтанд",
+      "legal_df": 106,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "мэдэгдсэнээс",
+      "folded": "мэдэгдсэнээс",
+      "legal_df": 106,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "ашигласны",
+      "folded": "ашигласны",
+      "legal_df": 105,
+      "wiki": 46,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "эрхлэлтийн",
+      "folded": "эрхлэлтийн",
+      "legal_df": 105,
+      "wiki": 37,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "томъёо",
+      "folded": "томъёо",
+      "legal_df": 104,
+      "wiki": 480,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "женевийн",
+      "folded": "женевийн",
+      "legal_df": 104,
+      "wiki": 110,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "хавсралтын",
+      "folded": "хавсралтын",
+      "legal_df": 103,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "яллах",
+      "folded": "яллах",
+      "legal_df": 103,
+      "wiki": 27,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хэлэлцүүлэхээр",
+      "folded": "хэлэлцүүлэхээр",
+      "legal_df": 103,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "шүүгдэгчийн",
+      "folded": "шүүгдэгчийн",
+      "legal_df": 103,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хураамжаас",
+      "folded": "хураамжаас",
+      "legal_df": 103,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "ирүүлэх",
+      "folded": "ирүүлэх",
+      "legal_df": 103,
+      "wiki": 26,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "зөвшилцөн",
+      "folded": "зөвшилцөн",
+      "legal_df": 102,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "илтгэлийг",
+      "folded": "илтгэлийг",
+      "legal_df": 102,
+      "wiki": 36,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хэрэгжүүлэхийг",
+      "folded": "хэрэгжүүлэхийг",
+      "legal_df": 101,
+      "wiki": 36,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "саатуулах",
+      "folded": "саатуулах",
+      "legal_df": 101,
+      "wiki": 24,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "шийдвэрлүүлэхээр",
+      "folded": "шийдвэрлүүлэхээр",
+      "legal_df": 100,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "харшлахгүй",
+      "folded": "харшлахгүй",
+      "legal_df": 100,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "дурдсанаас",
+      "folded": "дурдсанаас",
+      "legal_df": 100,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "сунгах",
+      "folded": "сунгах",
+      "legal_df": 100,
+      "wiki": 47,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "орлогоос",
+      "folded": "орлогоос",
+      "legal_df": 100,
+      "wiki": 44,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "бүртгүүлэхээр",
+      "folded": "бүртгүүлэхээр",
+      "legal_df": 100,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "зөвшөөрвөл",
+      "folded": "зөвшөөрвөл",
+      "legal_df": 100,
+      "wiki": 17,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "чөлөөлөгдөнө",
+      "folded": "чөлөөлөгдөнө",
+      "legal_df": 100,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "гаргавал",
+      "folded": "гаргавал",
+      "legal_df": 99,
+      "wiki": 26,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "оролцуулна",
+      "folded": "оролцуулна",
+      "legal_df": 98,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "дансанд",
+      "folded": "дансанд",
+      "legal_df": 98,
+      "wiki": 39,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "танилцуулна",
+      "folded": "танилцуулна",
+      "legal_df": 98,
+      "wiki": 19,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "оногдуулах",
+      "folded": "оногдуулах",
+      "legal_df": 98,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "тогтоовол",
+      "folded": "тогтоовол",
+      "legal_df": 98,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "төлөгчийн",
+      "folded": "төлөгчийн",
+      "legal_df": 98,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "гүйцэтгэгчийн",
+      "folded": "гүйцэтгэгчийн",
+      "legal_df": 97,
+      "wiki": 18,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "туслалцааг",
+      "folded": "туслалцааг",
+      "legal_df": 97,
+      "wiki": 17,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "зөрчих",
+      "folded": "зөрчих",
+      "legal_df": 96,
+      "wiki": 40,
+      "tier": "doubt",
+      "reason": "legalinfo · «зорчих» илүү түгээмэл — админ шалгана",
+      "suggestion": "зорчих"
+    },
+    {
+      "word": "хүлээлгэсэн",
+      "folded": "хүлээлгэсэн",
+      "legal_df": 95,
+      "wiki": 27,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "шийдвэрлэхдээ",
+      "folded": "шийдвэрлэхдээ",
+      "legal_df": 95,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "олзлогдогчдод",
+      "folded": "олзлогдогчдод",
+      "legal_df": 95,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "даалгасугай",
+      "folded": "даалгасугай",
+      "legal_df": 94,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "зөрчигчид",
+      "folded": "зөрчигчид",
+      "legal_df": 94,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "биелүүлэхийг",
+      "folded": "биелүүлэхийг",
+      "legal_df": 94,
+      "wiki": 16,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хадгалуулах",
+      "folded": "хадгалуулах",
+      "legal_df": 94,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "харшлах",
+      "folded": "харшлах",
+      "legal_df": 94,
+      "wiki": 17,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "албадлагын",
+      "folded": "албадлагын",
+      "legal_df": 94,
+      "wiki": 20,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "тохиролцов",
+      "folded": "тохиролцов",
+      "legal_df": 94,
+      "wiki": 61,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "мэдэгдлээ",
+      "folded": "мэдэгдлээ",
+      "legal_df": 94,
+      "wiki": 35,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "төлбөрөөс",
+      "folded": "төлбөрөөс",
+      "legal_df": 92,
+      "wiki": 21,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "ногдуулна",
+      "folded": "ногдуулна",
+      "legal_df": 92,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "гаргуулж",
+      "folded": "гаргуулж",
+      "legal_df": 91,
+      "wiki": 33,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "ажилтанд",
+      "folded": "ажилтанд",
+      "legal_df": 91,
+      "wiki": 19,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "бүртгэнэ",
+      "folded": "бүртгэнэ",
+      "legal_df": 91,
+      "wiki": 16,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "эрүүдэн",
+      "folded": "эрүүдэн",
+      "legal_df": 91,
+      "wiki": 41,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "талуудаас",
+      "folded": "талуудаас",
+      "legal_df": 91,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "бүртгэснээс",
+      "folded": "бүртгэснээс",
+      "legal_df": 91,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "болдбаатар",
+      "folded": "болдбаатар",
+      "legal_df": 90,
+      "wiki": 255,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "өмчлөгчийн",
+      "folded": "өмчлөгчийн",
+      "legal_df": 90,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хадгаламжийн",
+      "folded": "хадгаламжийн",
+      "legal_df": 90,
+      "wiki": 52,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "ажилтныг",
+      "folded": "ажилтныг",
+      "legal_df": 90,
+      "wiki": 36,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "шалтгаангүйгээр",
+      "folded": "шалтгаангүйгээр",
+      "legal_df": 90,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "яллагдагчийг",
+      "folded": "яллагдагчийг",
+      "legal_df": 90,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хураалтад",
+      "folded": "хураалтад",
+      "legal_df": 89,
+      "wiki": 43,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "нэхэмжлэлийг",
+      "folded": "нэхэмжлэлийг",
+      "legal_df": 89,
+      "wiki": 29,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "оролцуулж",
+      "folded": "оролцуулж",
+      "legal_df": 89,
+      "wiki": 55,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "барьцаалах",
+      "folded": "барьцаалах",
+      "legal_df": 88,
+      "wiki": 22,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "харьяалалгүй",
+      "folded": "харьяалалгүй",
+      "legal_df": 88,
+      "wiki": 57,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "импортлогч",
+      "folded": "импортлогч",
+      "legal_df": 88,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "ялтан",
+      "folded": "ялтан",
+      "legal_df": 88,
+      "wiki": 41,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "бнмау",
+      "folded": "бнмау",
+      "legal_df": 88,
+      "wiki": 3771,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "бүхээгт",
+      "folded": "бүхээгт",
+      "legal_df": 88,
+      "wiki": 17,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хөндөхгүйгээр",
+      "folded": "хөндөхгүйгээр",
+      "legal_df": 88,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "олзлогдогчдыг",
+      "folded": "олзлогдогчдыг",
+      "legal_df": 88,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "үйлдэнэ",
+      "folded": "үйлдэнэ",
+      "legal_df": 88,
+      "wiki": 17,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "тооцсугай",
+      "folded": "тооцсугай",
+      "legal_df": 87,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "үйлдэв",
+      "folded": "үйлдэв",
+      "legal_df": 87,
+      "wiki": 35,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хөрөнгөөс",
+      "folded": "хөрөнгөөс",
+      "legal_df": 87,
+      "wiki": 26,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "шаардахгүй",
+      "folded": "шаардахгүй",
+      "legal_df": 87,
+      "wiki": 22,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "төлөөлөгчийг",
+      "folded": "төлөөлөгчийг",
+      "legal_df": 87,
+      "wiki": 33,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "этгээдээр",
+      "folded": "этгээдээр",
+      "legal_df": 86,
+      "wiki": 17,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "шүүгчийг",
+      "folded": "шүүгчийг",
+      "legal_df": 86,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "түвшинг",
+      "folded": "түвшинг",
+      "legal_df": 86,
+      "wiki": 199,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "дурдсаныг",
+      "folded": "дурдсаныг",
+      "legal_df": 86,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "нийтэлнэ",
+      "folded": "нийтэлнэ",
+      "legal_df": 86,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "гаргуулан",
+      "folded": "гаргуулан",
+      "legal_df": 85,
+      "wiki": 18,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "татгалзана",
+      "folded": "татгалзана",
+      "legal_df": 85,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хэмжээнүүдийг",
+      "folded": "хэмжээнүүдийг",
+      "legal_df": 85,
+      "wiki": 40,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "болмогц",
+      "folded": "болмогц",
+      "legal_df": 84,
+      "wiki": 33,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "далдугаар",
+      "folded": "далдугаар",
+      "legal_df": 84,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хүснэ",
+      "folded": "хүснэ",
+      "legal_df": 84,
+      "wiki": 54,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "үйлдлээс",
+      "folded": "үйлдлээс",
+      "legal_df": 84,
+      "wiki": 34,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "эвлэрүүлэх",
+      "folded": "эвлэрүүлэх",
+      "legal_df": 84,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "холбогдуулж",
+      "folded": "холбогдуулж",
+      "legal_df": 83,
+      "wiki": 34,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хөлсийг",
+      "folded": "хөлсийг",
+      "legal_df": 83,
+      "wiki": 28,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "үндэслэлгүйгээр",
+      "folded": "үндэслэлгүйгээр",
+      "legal_df": 83,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "баталгаагаар",
+      "folded": "баталгаагаар",
+      "legal_df": 83,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "өмгөөлөгчийн",
+      "folded": "өмгөөлөгчийн",
+      "legal_df": 83,
+      "wiki": 20,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "эдлэхэд",
+      "folded": "эдлэхэд",
+      "legal_df": 83,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "зохимжтой",
+      "folded": "зохимжтой",
+      "legal_df": 83,
+      "wiki": 40,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "байлгана",
+      "folded": "байлгана",
+      "legal_df": 83,
+      "wiki": 20,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хэлэлцүүлэх",
+      "folded": "хэлэлцүүлэх",
+      "legal_df": 82,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хэмжээнийхээ",
+      "folded": "хэмжээнийхээ",
+      "legal_df": 82,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "зураагүй",
+      "folded": "зураагүй",
+      "legal_df": 82,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "дуусмагц",
+      "folded": "дуусмагц",
+      "legal_df": 82,
+      "wiki": 30,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хүрвэл",
+      "folded": "хүрвэл",
+      "legal_df": 82,
+      "wiki": 47,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "эсэхээ",
+      "folded": "эсэхээ",
+      "legal_df": 81,
+      "wiki": 30,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хуулинд",
+      "folded": "хуулинд",
+      "legal_df": 81,
+      "wiki": 108,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "эрхэлнэ",
+      "folded": "эрхэлнэ",
+      "legal_df": 81,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "олгохыг",
+      "folded": "олгохыг",
+      "legal_df": 81,
+      "wiki": 57,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "цагаатгах",
+      "folded": "цагаатгах",
+      "legal_df": 81,
+      "wiki": 43,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "яллагдагчийн",
+      "folded": "яллагдагчийн",
+      "legal_df": 81,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хязгаарлахгүй",
+      "folded": "хязгаарлахгүй",
+      "legal_df": 81,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "ялтны",
+      "folded": "ялтны",
+      "legal_df": 80,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "өгвөл",
+      "folded": "өгвөл",
+      "legal_df": 80,
+      "wiki": 53,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "сүхбаатар",
+      "folded": "сүхбаатар",
+      "legal_df": 80,
+      "wiki": 2992,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "эвлэлдэн",
+      "folded": "эвлэлдэн",
+      "legal_df": 80,
+      "wiki": 34,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "шалгуурыг",
+      "folded": "шалгуурыг",
+      "legal_df": 80,
+      "wiki": 53,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "зөвшөөрөлд",
+      "folded": "зөвшөөрөлд",
+      "legal_df": 80,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "тайлагнах",
+      "folded": "тайлагнах",
+      "legal_df": 80,
+      "wiki": 40,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "төлбөрт",
+      "folded": "төлбөрт",
+      "legal_df": 80,
+      "wiki": 58,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "учруулахгүйгээр",
+      "folded": "учруулахгүйгээр",
+      "legal_df": 80,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "ажиллагааныхаа",
+      "folded": "ажиллагааныхаа",
+      "legal_df": 79,
+      "wiki": 33,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "шийдвэрлэхээр",
+      "folded": "шийдвэрлэхээр",
+      "legal_df": 79,
+      "wiki": 20,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "харьяалалд",
+      "folded": "харьяалалд",
+      "legal_df": 79,
+      "wiki": 35,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "зөвшөөрөлтэй",
+      "folded": "зөвшөөрөлтэй",
+      "legal_df": 79,
+      "wiki": 55,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хэрэгтнийг",
+      "folded": "хэрэгтнийг",
+      "legal_df": 79,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "гүйцэтгэхдээ",
+      "folded": "гүйцэтгэхдээ",
+      "legal_df": 79,
+      "wiki": 24,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "эрмэлзэнэ",
+      "folded": "эрмэлзэнэ",
+      "legal_df": 79,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хэтэрсэн",
+      "folded": "хэтэрсэн",
+      "legal_df": 78,
+      "wiki": 60,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "тушаалтныг",
+      "folded": "тушаалтныг",
+      "legal_df": 78,
+      "wiki": 52,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хэтэрч",
+      "folded": "хэтэрч",
+      "legal_df": 78,
+      "wiki": 25,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "гарчигт",
+      "folded": "гарчигт",
+      "legal_df": 78,
+      "wiki": 37,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "бүртгэхээс",
+      "folded": "бүртгэхээс",
+      "legal_df": 78,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "мэргэшлийн",
+      "folded": "мэргэшлийн",
+      "legal_df": 78,
+      "wiki": 25,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "бэлтгэнэ",
+      "folded": "бэлтгэнэ",
+      "legal_df": 78,
+      "wiki": 47,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "тохиролцсоны",
+      "folded": "тохиролцсоны",
+      "legal_df": 78,
+      "wiki": 26,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хэлцэл",
+      "folded": "хэлцэл",
+      "legal_df": 77,
+      "wiki": 60,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хангахуйц",
+      "folded": "хангахуйц",
+      "legal_df": 77,
+      "wiki": 18,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "шүүхийг",
+      "folded": "шүүхийг",
+      "legal_df": 77,
+      "wiki": 43,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "нотлогдсон",
+      "folded": "нотлогдсон",
+      "legal_df": 77,
+      "wiki": 50,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "дууссанаас",
+      "folded": "дууссанаас",
+      "legal_df": 77,
+      "wiki": 28,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "тохиролцох",
+      "folded": "тохиролцох",
+      "legal_df": 76,
+      "wiki": 17,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "бүрнээ",
+      "folded": "бүрнээ",
+      "legal_df": 76,
+      "wiki": 45,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "тушаалтнаас",
+      "folded": "тушаалтнаас",
+      "legal_df": 76,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хүчингүйд",
+      "folded": "хүчингүйд",
+      "legal_df": 76,
+      "wiki": 28,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хураамжийг",
+      "folded": "хураамжийг",
+      "legal_df": 76,
+      "wiki": 17,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хөнгөвчлөх",
+      "folded": "хөнгөвчлөх",
+      "legal_df": 76,
+      "wiki": 55,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хариуцлагаас",
+      "folded": "хариуцлагаас",
+      "legal_df": 75,
+      "wiki": 17,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "дээрхи",
+      "folded": "дээрхи",
+      "legal_df": 75,
+      "wiki": 193,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "үзэмжээр",
+      "folded": "үзэмжээр",
+      "legal_df": 75,
+      "wiki": 21,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "тасалгаанд",
+      "folded": "тасалгаанд",
+      "legal_df": 75,
+      "wiki": 26,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "зөвлөлдөж",
+      "folded": "зөвлөлдөж",
+      "legal_df": 75,
+      "wiki": 32,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "цуцлалтын",
+      "folded": "цуцлалтын",
+      "legal_df": 75,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "барьцаалагч",
+      "folded": "барьцаалагч",
+      "legal_df": 74,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "дэвшигчийг",
+      "folded": "дэвшигчийг",
+      "legal_df": 74,
+      "wiki": 35,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "төлөөгүй",
+      "folded": "төлөөгүй",
+      "legal_df": 74,
+      "wiki": 17,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "зөрчсөний",
+      "folded": "зөрчсөний",
+      "legal_df": 74,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "швейцарийн",
+      "folded": "швейцарийн",
+      "legal_df": 74,
+      "wiki": 501,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "баталсугай",
+      "folded": "баталсугай",
+      "legal_df": 74,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "товчооноос",
+      "folded": "товчооноос",
+      "legal_df": 74,
+      "wiki": 19,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "саналтай",
+      "folded": "саналтай",
+      "legal_df": 73,
+      "wiki": 44,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "өмчлөлд",
+      "folded": "өмчлөлд",
+      "legal_df": 73,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "эрхээс",
+      "folded": "эрхээс",
+      "legal_df": 73,
+      "wiki": 50,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хуралдаанаас",
+      "folded": "хуралдаанаас",
+      "legal_df": 73,
+      "wiki": 20,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "гаргахаас",
+      "folded": "гаргахаас",
+      "legal_df": 73,
+      "wiki": 52,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "жагсаалтаас",
+      "folded": "жагсаалтаас",
+      "legal_df": 73,
+      "wiki": 59,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "түдгэлзүүлж",
+      "folded": "түдгэлзүүлж",
+      "legal_df": 73,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "бүртгэлээс",
+      "folded": "бүртгэлээс",
+      "legal_df": 73,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "саатуулж",
+      "folded": "саатуулж",
+      "legal_df": 73,
+      "wiki": 40,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "олзлогдогч",
+      "folded": "олзлогдогч",
+      "legal_df": 73,
+      "wiki": 34,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "үүсч",
+      "folded": "үүсч",
+      "legal_df": 72,
+      "wiki": 479,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "шудрага",
+      "folded": "шудрага",
+      "legal_df": 72,
+      "wiki": 86,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "хэрэгжих",
+      "folded": "хэрэгжих",
+      "legal_df": 72,
+      "wiki": 55,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "санаачлагаар",
+      "folded": "санаачлагаар",
+      "legal_df": 72,
+      "wiki": 97,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "тайлангийн",
+      "folded": "тайлангийн",
+      "legal_df": 72,
+      "wiki": 33,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "даргаас",
+      "folded": "даргаас",
+      "legal_df": 72,
+      "wiki": 44,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "анхаарна",
+      "folded": "анхаарна",
+      "legal_df": 72,
+      "wiki": 50,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "шүүгдэгчид",
+      "folded": "шүүгдэгчид",
+      "legal_df": 72,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хэлээрх",
+      "folded": "хэлээрх",
+      "legal_df": 72,
+      "wiki": 486,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "хэлэлцэв",
+      "folded": "хэлэлцэв",
+      "legal_df": 71,
+      "wiki": 26,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "үүрэггүй",
+      "folded": "үүрэггүй",
+      "legal_df": 71,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "үгүйсгэхгүй",
+      "folded": "үгүйсгэхгүй",
+      "legal_df": 71,
+      "wiki": 21,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "гаргаснаас",
+      "folded": "гаргаснаас",
+      "legal_df": 71,
+      "wiki": 25,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "сонирхсон",
+      "folded": "сонирхсон",
+      "legal_df": 71,
+      "wiki": 42,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "төлөөлөгчдөд",
+      "folded": "төлөөлөгчдөд",
+      "legal_df": 71,
+      "wiki": 35,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хэрэглэхээр",
+      "folded": "хэрэглэхээр",
+      "legal_df": 71,
+      "wiki": 45,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "зөвлөлдөнө",
+      "folded": "зөвлөлдөнө",
+      "legal_df": 71,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "баянгол",
+      "folded": "баянгол",
+      "legal_df": 70,
+      "wiki": 644,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "гармагцаа",
+      "folded": "гармагцаа",
+      "legal_df": 70,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "цэцээс",
+      "folded": "цэцээс",
+      "legal_df": 70,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "зөвшилцсөний",
+      "folded": "зөвшилцсөний",
+      "legal_df": 70,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "агентлагт",
+      "folded": "агентлагт",
+      "legal_df": 70,
+      "wiki": 52,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "өнгөрсний",
+      "folded": "өнгөрсний",
+      "legal_df": 70,
+      "wiki": 48,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "батлуулахаар",
+      "folded": "батлуулахаар",
+      "legal_df": 70,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "гарсантай",
+      "folded": "гарсантай",
+      "legal_df": 70,
+      "wiki": 18,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "этгээдүүд",
+      "folded": "этгээдүүд",
+      "legal_df": 69,
+      "wiki": 36,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "олгохгүй",
+      "folded": "олгохгүй",
+      "legal_df": 69,
+      "wiki": 24,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "торгох",
+      "folded": "торгох",
+      "legal_df": 69,
+      "wiki": 28,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "шуудангаар",
+      "folded": "шуудангаар",
+      "legal_df": 69,
+      "wiki": 24,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "дэгийг",
+      "folded": "дэгийг",
+      "legal_df": 69,
+      "wiki": 19,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "шүүгдэгчийг",
+      "folded": "шүүгдэгчийг",
+      "legal_df": 69,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "дайсагнагч",
+      "folded": "дайсагнагч",
+      "legal_df": 69,
+      "wiki": 19,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хохирлоо",
+      "folded": "хохирлоо",
+      "legal_df": 68,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "маргагч",
+      "folded": "маргагч",
+      "legal_df": 68,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "тулгаж",
+      "folded": "тулгаж",
+      "legal_df": 68,
+      "wiki": 55,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "заасантай",
+      "folded": "заасантай",
+      "legal_df": 68,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "эргэлзээ",
+      "folded": "эргэлзээ",
+      "legal_df": 68,
+      "wiki": 39,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "гэрчийн",
+      "folded": "гэрчийн",
+      "legal_df": 68,
+      "wiki": 19,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "буцаана",
+      "folded": "буцаана",
+      "legal_df": 68,
+      "wiki": 38,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "актад",
+      "folded": "актад",
+      "legal_df": 68,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хуульчлан",
+      "folded": "хуульчлан",
+      "legal_df": 67,
+      "wiki": 40,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "өргөдлийн",
+      "folded": "өргөдлийн",
+      "legal_df": 67,
+      "wiki": 24,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "гаргуулахаар",
+      "folded": "гаргуулахаар",
+      "legal_df": 67,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "тэтгэмжийн",
+      "folded": "тэтгэмжийн",
+      "legal_df": 67,
+      "wiki": 17,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "үндэснийхээ",
+      "folded": "үндэснийхээ",
+      "legal_df": 67,
+      "wiki": 29,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "ялтныг",
+      "folded": "ялтныг",
+      "legal_df": 67,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "заалтуудад",
+      "folded": "заалтуудад",
+      "legal_df": 66,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "татгалзан",
+      "folded": "татгалзан",
+      "legal_df": 66,
+      "wiki": 37,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "нэхэмжлэлийн",
+      "folded": "нэхэмжлэлийн",
+      "legal_df": 66,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хоногоос",
+      "folded": "хоногоос",
+      "legal_df": 66,
+      "wiki": 35,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хүрэлцэхгүй",
+      "folded": "хүрэлцэхгүй",
+      "legal_df": 66,
+      "wiki": 48,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "шүүлтийн",
+      "folded": "шүүлтийн",
+      "legal_df": 66,
+      "wiki": 21,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "илгээмж",
+      "folded": "илгээмж",
+      "legal_df": 66,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "мэдүүлж",
+      "folded": "мэдүүлж",
+      "legal_df": 65,
+      "wiki": 45,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хариуцлагад",
+      "folded": "хариуцлагад",
+      "legal_df": 65,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "гүйцэтгүүлэх",
+      "folded": "гүйцэтгүүлэх",
+      "legal_df": 65,
+      "wiki": 23,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "гэрчилсэн",
+      "folded": "гэрчилсэн",
+      "legal_df": 65,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хамааруулна",
+      "folded": "хамааруулна",
+      "legal_df": 65,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "санхүүжүүлнэ",
+      "folded": "санхүүжүүлнэ",
+      "legal_df": 65,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хадгалуулснаар",
+      "folded": "хадгалуулснаар",
+      "legal_df": 65,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "шүүлгэх",
+      "folded": "шүүлгэх",
+      "legal_df": 64,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "тайлбараа",
+      "folded": "тайлбараа",
+      "legal_df": 64,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "татгалзвал",
+      "folded": "татгалзвал",
+      "legal_df": 64,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "биелүүлэхгүй",
+      "folded": "биелүүлэхгүй",
+      "legal_df": 64,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "тогтоогоогүй",
+      "folded": "тогтоогоогүй",
+      "legal_df": 64,
+      "wiki": 41,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "явуулахдаа",
+      "folded": "явуулахдаа",
+      "legal_df": 64,
+      "wiki": 23,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "эдлэхийг",
+      "folded": "эдлэхийг",
+      "legal_df": 64,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "зөвлөлөөр",
+      "folded": "зөвлөлөөр",
+      "legal_df": 64,
+      "wiki": 55,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хойшлуулж",
+      "folded": "хойшлуулж",
+      "legal_df": 64,
+      "wiki": 26,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "харьяаллыг",
+      "folded": "харьяаллыг",
+      "legal_df": 64,
+      "wiki": 20,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "харгалзахгүйгээр",
+      "folded": "харгалзахгүйгээр",
+      "legal_df": 63,
+      "wiki": 29,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хувьчлах",
+      "folded": "хувьчлах",
+      "legal_df": 63,
+      "wiki": 27,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "биелүүлэхийн",
+      "folded": "биелүүлэхийн",
+      "legal_df": 63,
+      "wiki": 53,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хянавал",
+      "folded": "хянавал",
+      "legal_df": 63,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хэлэлцэхдээ",
+      "folded": "хэлэлцэхдээ",
+      "legal_df": 63,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хэтрэхгүй",
+      "folded": "хэтрэхгүй",
+      "legal_df": 63,
+      "wiki": 58,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "гончигдорж",
+      "folded": "гончигдорж",
+      "legal_df": 63,
+      "wiki": 80,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "хүчинтэйд",
+      "folded": "хүчинтэйд",
+      "legal_df": 63,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "уялдуулах",
+      "folded": "уялдуулах",
+      "legal_df": 63,
+      "wiki": 36,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "үйлдсэний",
+      "folded": "үйлдсэний",
+      "legal_df": 63,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "дурдсаны",
+      "folded": "дурдсаны",
+      "legal_df": 63,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "нью",
+      "folded": "нью",
+      "legal_df": 63,
+      "wiki": 5030,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "ажиглагчаар",
+      "folded": "ажиглагчаар",
+      "legal_df": 63,
+      "wiki": 17,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "шилжүүлэхийг",
+      "folded": "шилжүүлэхийг",
+      "legal_df": 63,
+      "wiki": 49,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "сануулна",
+      "folded": "сануулна",
+      "legal_df": 63,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "биелүүлэхээс",
+      "folded": "биелүүлэхээс",
+      "legal_df": 62,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "байгуулаагүй",
+      "folded": "байгуулаагүй",
+      "legal_df": 62,
+      "wiki": 21,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "өмгөөлөх",
+      "folded": "өмгөөлөх",
+      "legal_df": 62,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "захирагчдын",
+      "folded": "захирагчдын",
+      "legal_df": 62,
+      "wiki": 26,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "нийцүүлэх",
+      "folded": "нийцүүлэх",
+      "legal_df": 62,
+      "wiki": 28,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "ажилтнуудыг",
+      "folded": "ажилтнуудыг",
+      "legal_df": 62,
+      "wiki": 57,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хангагдана",
+      "folded": "хангагдана",
+      "legal_df": 62,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "эсэхэд",
+      "folded": "эсэхэд",
+      "legal_df": 62,
+      "wiki": 32,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "биелүүлэхдээ",
+      "folded": "биелүүлэхдээ",
+      "legal_df": 62,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "мөрдөхийн",
+      "folded": "мөрдөхийн",
+      "legal_df": 62,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хойшлуулсан",
+      "folded": "хойшлуулсан",
+      "legal_df": 61,
+      "wiki": 36,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "үндэслэлийн",
+      "folded": "үндэслэлийн",
+      "legal_df": 61,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "түдгэлзүүлсүгэй",
+      "folded": "түдгэлзүүлсүгэй",
+      "legal_df": 61,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "зохицуулан",
+      "folded": "зохицуулан",
+      "legal_df": 61,
+      "wiki": 53,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "оролцогчийн",
+      "folded": "оролцогчийн",
+      "legal_df": 61,
+      "wiki": 20,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "йорк",
+      "folded": "йорк",
+      "legal_df": 61,
+      "wiki": 2886,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "битүүмжлэх",
+      "folded": "битүүмжлэх",
+      "legal_df": 61,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "ялаас",
+      "folded": "ялаас",
+      "legal_df": 60,
+      "wiki": 22,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хүсье",
+      "folded": "хүсье",
+      "legal_df": 60,
+      "wiki": 39,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "учруулахаар",
+      "folded": "учруулахаар",
+      "legal_df": 60,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "шүүгчээс",
+      "folded": "шүүгчээс",
+      "legal_df": 60,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "бололцоогоор",
+      "folded": "бололцоогоор",
+      "legal_df": 60,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "шийтгэлийг",
+      "folded": "шийтгэлийг",
+      "legal_df": 60,
+      "wiki": 17,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "бодитойгоор",
+      "folded": "бодитойгоор",
+      "legal_df": 60,
+      "wiki": 45,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "тэмдэглэлийг",
+      "folded": "тэмдэглэлийг",
+      "legal_df": 60,
+      "wiki": 53,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "огнооноос",
+      "folded": "огнооноос",
+      "legal_df": 60,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "удирдлаган",
+      "folded": "удирдлаган",
+      "legal_df": 60,
+      "wiki": 356,
+      "tier": "doubt",
+      "reason": "legalinfo · хуульд түгээмэл, Hunspell мэдэхгүй — админ шалгана",
+      "suggestion": ""
+    },
+    {
+      "word": "чөлөөгөө",
+      "folded": "чөлөөгөө",
+      "legal_df": 59,
+      "wiki": 46,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "ноцтойгоор",
+      "folded": "ноцтойгоор",
+      "legal_df": 59,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "эдлэхгүй",
+      "folded": "эдлэхгүй",
+      "legal_df": 59,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "барьцаалуулагч",
+      "folded": "барьцаалуулагч",
+      "legal_df": 59,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "эрхгүйгээр",
+      "folded": "эрхгүйгээр",
+      "legal_df": 59,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "хэрэгжүүлээгүй",
+      "folded": "хэрэгжүүлээгүй",
+      "legal_df": 59,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "дансны",
+      "folded": "дансны",
+      "legal_df": 59,
+      "wiki": 49,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "иргэнээс",
+      "folded": "иргэнээс",
+      "legal_df": 59,
+      "wiki": 17,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "мөрдөхгүй",
+      "folded": "мөрдөхгүй",
+      "legal_df": 59,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "олгохоос",
+      "folded": "олгохоос",
+      "legal_df": 59,
+      "wiki": 24,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    },
+    {
+      "word": "бололцооны",
+      "folded": "бололцооны",
+      "legal_df": 59,
+      "wiki": 0,
+      "tier": "doubt",
+      "reason": "legalinfo · Hunspell зөвшөөрсөн, админ баталгаажуулна",
+      "suggestion": ""
+    }
+  ]
+}
