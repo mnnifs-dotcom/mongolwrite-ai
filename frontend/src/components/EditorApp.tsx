@@ -579,69 +579,75 @@ export function EditorApp() {
     <div className={showBichig ? "mw-shell is-bichig-open" : "mw-shell"}>
       <main className="mw-main">
         <header className="mw-top">
-          <div className="mw-brand">MongolWrite</div>
+          <div className="mw-brand" aria-label="MongolWrite">
+            <span className="mw-brand-mark" aria-hidden />
+            <span className="mw-brand-text">MongolWrite</span>
+          </div>
           <div className="mw-top-spacer" />
-          <AuthButton />
-          <details className="mw-menu" ref={menuRef}>
-            <summary aria-label="Цэс">⋯</summary>
-            <div className="mw-menu-list">
-              <button type="button" onClick={newDocument}>
-                Шинэ
-              </button>
-              <button type="button" onClick={() => fileRef.current?.click()}>
-                Файл
-              </button>
-              <button type="button" onClick={() => void copyText()}>
-                Хуулах
-              </button>
-              <button type="button" onClick={loadSample}>
-                Жишээ
-              </button>
-            </div>
-          </details>
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".docx,.txt,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
-            hidden
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              event.target.value = "";
-              void onPickFile(file);
-            }}
-          />
-          <button
-            type="button"
-            className={showBichig ? "mw-btn-primary" : "mw-btn"}
-            onClick={() => setShowBichig((open) => !open)}
-            aria-pressed={showBichig}
-          >
-            Монгол бичиг
-          </button>
-          <button
-            type="button"
-            className={checking ? "mw-btn-primary is-busy" : "mw-btn-primary"}
-            onClick={() => void showErrors()}
-            disabled={empty || checking}
-            aria-busy={checking}
-          >
-            {checking ? (
-              <>
-                <span className="mw-spinner" aria-hidden />
-                …
-              </>
-            ) : (
-              "Шалгах"
-            )}
-          </button>
-          <button
-            type="button"
-            className="mw-btn"
-            onClick={() => void improveDocument()}
-            disabled={aiEnabled ? !counts.words && !counts.chars : !fixableCount}
-          >
-            Засах
-          </button>
+          <div className="mw-top-actions">
+            <AuthButton />
+            <details className="mw-menu" ref={menuRef}>
+              <summary aria-label="Цэс">⋯</summary>
+              <div className="mw-menu-list">
+                <button type="button" onClick={newDocument}>
+                  Шинэ
+                </button>
+                <button type="button" onClick={() => fileRef.current?.click()}>
+                  Файл
+                </button>
+                <button type="button" onClick={() => void copyText()}>
+                  Хуулах
+                </button>
+                <button type="button" onClick={loadSample}>
+                  Жишээ
+                </button>
+              </div>
+            </details>
+            <span className="mw-top-rule" aria-hidden />
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".docx,.txt,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+              hidden
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                event.target.value = "";
+                void onPickFile(file);
+              }}
+            />
+            <button
+              type="button"
+              className={showBichig ? "mw-btn mw-btn-toggle is-on" : "mw-btn mw-btn-toggle"}
+              onClick={() => setShowBichig((open) => !open)}
+              aria-pressed={showBichig}
+            >
+              Монгол бичиг
+            </button>
+            <button
+              type="button"
+              className={checking ? "mw-btn-primary is-busy" : "mw-btn-primary"}
+              onClick={() => void showErrors()}
+              disabled={empty || checking}
+              aria-busy={checking}
+            >
+              {checking ? (
+                <>
+                  <span className="mw-spinner" aria-hidden />
+                  …
+                </>
+              ) : (
+                "Шалгах"
+              )}
+            </button>
+            <button
+              type="button"
+              className="mw-btn"
+              onClick={() => void improveDocument()}
+              disabled={aiEnabled ? !counts.words && !counts.chars : !fixableCount}
+            >
+              Засах
+            </button>
+          </div>
         </header>
         {error ? <p className="mw-banner">{error}</p> : null}
         <div className="mw-stage">
