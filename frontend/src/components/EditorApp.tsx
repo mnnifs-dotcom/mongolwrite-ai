@@ -18,6 +18,7 @@ import { IssueHighlight, setIssueDecorations } from "@/lib/highlight";
 import { mapRange, plainTextFromDoc } from "@/lib/offsets";
 import { type Correction } from "@/lib/types";
 import { AuthButton } from "@/components/AuthButton";
+import { BrandLogo } from "@/components/BrandLogo";
 
 const STYLE = "government_official";
 const DOC_TYPE = "official_letter";
@@ -579,10 +580,7 @@ export function EditorApp() {
     <div className={showBichig ? "mw-shell is-bichig-open" : "mw-shell"}>
       <main className="mw-main">
         <header className="mw-top">
-          <div className="mw-brand" aria-label="MongolWrite">
-            <span className="mw-brand-mark" aria-hidden />
-            <span className="mw-brand-text">MongolWrite</span>
-          </div>
+          <BrandLogo size="md" />
           <div className="mw-top-spacer" />
           <div className="mw-top-actions">
             <AuthButton />
