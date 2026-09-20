@@ -9,9 +9,13 @@ import {
   adminApprovePending,
   adminApprovePendingMany,
   adminHarvest,
+  adminLegalBotStatus,
   adminLegalImport,
   adminLegalLawIngest,
+  adminLegalLawRetry,
   adminLegalLaws,
+  adminLegalLawsFailed,
+  adminLegalLawSkip,
   adminLegalPreview,
   adminLexiconRemove,
   adminLexiconExport,
@@ -28,7 +32,9 @@ import {
   type AdminAddedWord,
   type AdminUser,
   type AdminUsersPage,
+  type FailedLawItem,
   type HunspellCandidate,
+  type LegalBotStatus,
   type LegalImportPreview,
   type LegalLawItem,
   type LexiconLetter,
@@ -36,6 +42,7 @@ import {
   type SiteOverview,
 } from "@/lib/api";
 import { BrandLogo } from "@/components/BrandLogo";
+import { AdminReviewPanel } from "@/components/AdminReviewPanel";
 
 type AdminSection =
   | "overview"
@@ -43,6 +50,7 @@ type AdminSection =
   | "hunspell"
   | "pending"
   | "added"
+  | "review"
   | "users"
   | "legal"
   | "health";
@@ -110,6 +118,9 @@ export function AdminApp() {
   const [lawsCatalogCount, setLawsCatalogCount] = useState(0);
   const [lawsIngestedCount, setLawsIngestedCount] = useState(0);
   const [lawsRemainingCount, setLawsRemainingCount] = useState(0);
+  const [lawsFailedCount, setLawsFailedCount] = useState(0);
+  const [failedLaws, setFailedLaws] = useState<FailedLawItem[]>([]);
+  const [legalBot, setLegalBot] = useState<LegalBotStatus | null>(null);
   const [lawsQuery, setLawsQuery] = useState("");
   const [lawsLoading, setLawsLoading] = useState(false);
   const [ingestingLawId, setIngestingLawId] = useState<string | null>(null);
@@ -230,17 +241,24 @@ export function AdminApp() {
     const offset = opts?.offset ?? lawsOffset;
     setLawsLoading(true);
     try {
-      const page = await adminLegalLaws({
-        q: q.trim() || undefined,
-        offset,
-        limit: LAWS_PAGE,
-      });
+      const [page, failed, bot] = await Promise.all([
+        adminLegalLaws({
+          q: q.trim() || undefined,
+          offset,
+          limit: LAWS_PAGE,
+        }),
+        adminLegalLawsFailed(80).catch(() => ({ items: [] as FailedLawItem[], count: 0 })),
+        adminLegalBotStatus().catch(() => null),
+      ]);
       setLaws(page.items);
       setLawsTotal(page.total);
       setLawsOffset(page.offset);
       setLawsCatalogCount(page.catalog_count);
       setLawsIngestedCount(page.ingested_count ?? 0);
       setLawsRemainingCount(page.remaining_count ?? page.total);
+      setLawsFailedCount(page.failed_count ?? failed.count);
+      setFailedLaws(failed.items);
+      setLegalBot(bot);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Хуулийн жагсаалт уншигдсангүй");
     } finally {
@@ -633,14 +651,51 @@ export function AdminApp() {
       );
       await loadLists();
       await loadLexicon({ offset: 0 });
-      // Keep page position when possible; drop empty trailing pages.
       const nextOffset = laws.length <= 1 ? Math.max(0, lawsOffset - LAWS_PAGE) : lawsOffset;
       setLawsOffset(nextOffset);
       await loadLaws({ offset: nextOffset, q: lawsQuery });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Хууль татаж чадсангүй");
+      // Failed ingest now auto-skips the law from the queue — refresh so it disappears.
+      setError(
+        err instanceof Error
+          ? `${err.message} · энэ хуулийг алдаатай жагсаалт руу шилжүүллээ`
+          : "Хууль татаж чадсангүй",
+      );
+      const nextOffset = laws.length <= 1 ? Math.max(0, lawsOffset - LAWS_PAGE) : lawsOffset;
+      setLawsOffset(nextOffset);
+      await loadLaws({ offset: nextOffset, q: lawsQuery });
     } finally {
       setIngestingLawId(null);
+    }
+  }
+
+  async function onLawSkip(lawId: string) {
+    if (acting) return;
+    setActing(`skip-${lawId}`);
+    setError(null);
+    try {
+      await adminLegalLawSkip(lawId);
+      setStatus(`Хууль #${lawId}-ийг жагсаалтаас хаслаа`);
+      await loadLaws({ offset: lawsOffset, q: lawsQuery });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Хасаж чадсангүй");
+    } finally {
+      setActing(null);
+    }
+  }
+
+  async function onLawRetry(lawId: string) {
+    if (acting) return;
+    setActing(`retry-${lawId}`);
+    setError(null);
+    try {
+      await adminLegalLawRetry(lawId);
+      setStatus(`Хууль #${lawId}-ийг дахин орууллаа`);
+      await loadLaws({ offset: 0, q: lawsQuery });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Дахин оруулж чадсангүй");
+    } finally {
+      setActing(null);
     }
   }
 
@@ -875,6 +930,7 @@ export function AdminApp() {
     { id: "hunspell", label: "Hunspell үгс", count: hunspellWords.length },
     { id: "pending", label: "Алгассан", count: pendingSkipped.length },
     { id: "added", label: "Нэмсэн", count: addedWords.length },
+    { id: "review", label: "Шалгах багц" },
     { id: "users", label: "Хэрэглэгчид", count: usersCounts.total },
     {
       id: "legal",
@@ -1167,11 +1223,31 @@ export function AdminApp() {
                 {lawsIngestedCount
                   ? ` · татсан ${lawsIngestedCount.toLocaleString("mn-MN")}`
                   : ""}
+                {lawsFailedCount
+                  ? ` · алдаатай/хассан ${lawsFailedCount.toLocaleString("mn-MN")}`
+                  : ""}
                 {lawsCatalogCount
                   ? ` / ${lawsCatalogCount.toLocaleString("mn-MN")}`
                   : ""}{" "}
-                · татаад санд нэмсэн хууль жагсаалтаас хасагдана
+                · татсан эсвэл алдаатай хууль жагсаалтаас автоматаар хасагдана
               </p>
+
+              {legalBot ? (
+                <div className="mw-legal-bulk" style={{ marginBottom: 14 }}>
+                  <h3>Автомат бот</h3>
+                  <p className="mw-muted mw-legal-hint">
+                    {legalBot.enabled
+                      ? `Идэвхтэй · ${Math.round(legalBot.min_interval_seconds / 60)}–${Math.round(legalBot.max_interval_seconds / 60)} мин тутамд 1 хууль`
+                      : "Идэвхгүй"}
+                    {legalBot.last_law_id
+                      ? ` · сүүлд #${legalBot.last_law_id}${legalBot.last_ok === false ? " (алдаа)" : ""}`
+                      : ""}
+                    {legalBot.last_error ? ` · ${legalBot.last_error}` : ""}
+                    {legalBot.cycles ? ` · ${legalBot.cycles} удаа ажилласан` : ""}
+                  </p>
+                </div>
+              ) : null}
+
               <form className="mw-admin-row" onSubmit={(event) => void onLawsSearch(event)}>
                 <input
                   type="search"
@@ -1213,6 +1289,15 @@ export function AdminApp() {
                               ? "Татаж шалгаж байна…"
                               : "Татаад санд нэмэх"}
                           </button>
+                          <button
+                            type="button"
+                            className="mw-btn"
+                            disabled={Boolean(acting)}
+                            onClick={() => void onLawSkip(law.law_id)}
+                            title="Алдаатай/хэрэггүй бол жагсаалтаас хасна"
+                          >
+                            Хасах
+                          </button>
                         </div>
                       </li>
                     ))}
@@ -1251,6 +1336,38 @@ export function AdminApp() {
                 </button>
               </div>
 
+              {failedLaws.length ? (
+                <div className="mw-legal-bulk" style={{ marginTop: 18 }}>
+                  <h3>Алдаатай / хассан хуулиуд · {lawsFailedCount || failedLaws.length}</h3>
+                  <p className="mw-muted mw-legal-hint">
+                    Татах үед алдаа гарсан эсвэл гараар хассан хуулиуд. Дахин оролдох эсвэл үлдээнэ.
+                  </p>
+                  <ul className="mw-admin-list">
+                    {failedLaws.map((law) => (
+                      <li key={`failed-${law.law_id}`}>
+                        <div className="mw-candidate-main">
+                          <strong>{law.title || `Хууль #${law.law_id}`}</strong>
+                          <span className="mw-muted">
+                            #{law.law_id} · {law.reason === "skipped" ? "хассан" : "алдаа"} ·{" "}
+                            {law.error || "—"}
+                          </span>
+                        </div>
+                        <div className="mw-admin-row">
+                          <button
+                            type="button"
+                            className="mw-btn"
+                            disabled={Boolean(acting)}
+                            onClick={() => void onLawRetry(law.law_id)}
+                          >
+                            Дахин оруулах
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+
               {legalPreview?.present ? (
                 <div className="mw-legal-bulk">
                   <h3>Бөөн импорт (файл)</h3>
@@ -1270,6 +1387,15 @@ export function AdminApp() {
                 </div>
               ) : null}
             </section>
+          ) : null}
+
+          {section === "review" ? (
+            <AdminReviewPanel
+              onDone={() => {
+                void loadLists();
+                void loadLexicon({ offset: 0 });
+              }}
+            />
           ) : null}
 
           {section === "pending" ? (

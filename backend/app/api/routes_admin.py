@@ -16,6 +16,7 @@ from app.core.auth import (
 from app.core.config import settings
 from app.core.plans import get_plan, list_plans
 from app.core.users import list_users, set_user_plan
+from app.engine.admin_review import collect_review_words, confirm_review, preview_keep_drop
 from app.engine.hunspell_candidates import (
     admin_lists_payload,
     approve_words,
@@ -24,12 +25,20 @@ from app.engine.hunspell_candidates import (
     list_admin_added,
     list_candidates,
     queue_doubt_words,
+    record_admin_added,
     record_from_text,
     reject_words,
 )
 from app.engine.learn import learn_accepted_words
+from app.engine.legal_bot import bot_status
 from app.engine.legal_import import apply_legal_lexicon, legal_import_preview
-from app.engine.legal_laws import ingest_law, list_laws
+from app.engine.legal_laws import (
+    clear_law_failed,
+    ingest_law,
+    list_failed_laws,
+    list_laws,
+    skip_law,
+)
 from app.engine.metrics import snapshot
 from app.engine.pending import list_pending, pop_pending, pop_pending_many
 from app.engine.runtime import get_engine
@@ -141,6 +150,7 @@ def pending_approve(body: WordAction, _: AdminDep) -> dict[str, Any]:
     added = dictionary.add_words([item["word"]])
     if not added:
         added = dictionary.ensure_curated([item["word"]])
+    record_admin_added([item["word"]], source="pending")
     return {"added": added, "added_count": len(added), "word": item["word"]}
 
 
@@ -157,6 +167,7 @@ def pending_approve_many(body: WordsAction, _: AdminDep) -> dict[str, Any]:
     if len(added) < len(surface):
         ensured = dictionary.ensure_curated(surface)
         added = sorted({*added, *ensured})
+    record_admin_added(surface, source="pending")
     return {
         "added": added,
         "added_count": len(added),
@@ -255,19 +266,95 @@ def legal_laws(
     return list_laws(q=q, offset=offset, limit=limit)
 
 
+@router.get("/legal/laws/failed")
+def legal_laws_failed(_: AdminDep, limit: int = 100) -> dict[str, Any]:
+    return list_failed_laws(limit=limit)
+
+
 @router.post("/legal/laws/{law_id}/ingest")
 def legal_law_ingest(law_id: str, _: AdminDep) -> dict[str, Any]:
-    """Fetch one law from legalinfo.mn, check it, add accepted words to the lexicon."""
+    """Fetch one law from legalinfo.mn, check it, add accepted words to the lexicon.
+
+    Broken pages are marked failed and removed from the pending queue so they
+    do not block the admin list forever.
+    """
     if not re.fullmatch(r"\d{1,16}", law_id.strip()):
         raise HTTPException(status_code=400, detail="Буруу lawId")
     try:
-        result = ingest_law(get_engine(), law_id.strip())
+        result = ingest_law(get_engine(), law_id.strip(), source="legal_law")
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except RuntimeError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     except httpx.HTTPError as exc:
         raise HTTPException(status_code=502, detail=f"legalinfo холбогдсонгүй: {exc}") from exc
+    return {**result, "counts": counts()}
+
+
+@router.post("/legal/laws/{law_id}/skip")
+def legal_law_skip(law_id: str, _: AdminDep) -> dict[str, Any]:
+    """Dismiss a broken/unwanted law from the pending queue without fetching."""
+    if not re.fullmatch(r"\d{1,16}", law_id.strip()):
+        raise HTTPException(status_code=400, detail="Буруу lawId")
+    row = skip_law(law_id.strip(), note="Админ жагсаалтаас хассан")
+    return {"skipped": row, "laws": list_laws(offset=0, limit=1)}
+
+
+@router.post("/legal/laws/{law_id}/retry")
+def legal_law_retry(law_id: str, _: AdminDep) -> dict[str, Any]:
+    """Clear a failed/skipped mark so the law reappears in the pending queue."""
+    if not re.fullmatch(r"\d{1,16}", law_id.strip()):
+        raise HTTPException(status_code=400, detail="Буруу lawId")
+    cleared = clear_law_failed(law_id.strip())
+    if not cleared:
+        raise HTTPException(status_code=404, detail="Алдаатай жагсаалтад олдсонгүй")
+    return {"retried": law_id.strip(), "failed": list_failed_laws()}
+
+
+@router.get("/legal/bot")
+def legal_bot_status(_: AdminDep) -> dict[str, Any]:
+    return bot_status()
+
+
+class ReviewPreviewRequest(BaseModel):
+    batch_words: list[str] = Field(default_factory=list, max_length=20_000)
+    approved_text: str = Field(default="", max_length=2_000_000)
+
+
+class ReviewConfirmRequest(BaseModel):
+    keep: list[str] = Field(default_factory=list, max_length=20_000)
+    remove_from_lexicon: list[str] = Field(default_factory=list, max_length=20_000)
+    do_not_add: list[str] = Field(default_factory=list, max_length=20_000)
+
+
+@router.get("/review")
+def review_words(
+    _: AdminDep,
+    since: str = "",
+    until: str = "",
+    q: str = "",
+) -> dict[str, Any]:
+    """Unified word list for a date range (pending, hunspell, legal, added)."""
+    return collect_review_words(since=since, until=until, q=q)
+
+
+@router.post("/review/preview")
+def review_preview(body: ReviewPreviewRequest, _: AdminDep) -> dict[str, Any]:
+    return preview_keep_drop(
+        batch_words=body.batch_words,
+        approved_text=body.approved_text,
+        dictionary=get_engine().dictionary,
+    )
+
+
+@router.post("/review/confirm")
+def review_confirm(body: ReviewConfirmRequest, _: AdminDep) -> dict[str, Any]:
+    result = confirm_review(
+        get_engine(),
+        keep=body.keep,
+        remove_from_lexicon=body.remove_from_lexicon,
+        do_not_add=body.do_not_add,
+    )
     return {**result, "counts": counts()}
 
 

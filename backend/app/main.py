@@ -51,15 +51,19 @@ def _frontend_dir() -> Path | None:
 async def lifespan(_app: FastAPI):
     import asyncio
 
+    from app.engine.legal_bot import legal_ingest_loop
+
     # Load Hunspell and run sample checks before traffic — no admin button needed.
     await asyncio.to_thread(warm_now)
     stop = asyncio.Event()
-    task = asyncio.create_task(keep_warm_loop(stop))
+    warm_task = asyncio.create_task(keep_warm_loop(stop))
+    legal_task = asyncio.create_task(legal_ingest_loop(stop))
     try:
         yield
     finally:
         stop.set()
-        await task
+        await warm_task
+        await legal_task
 
 
 app = FastAPI(title="MongolWrite AI", version="0.1.0", lifespan=lifespan)
