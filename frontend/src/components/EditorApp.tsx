@@ -909,8 +909,10 @@ export function EditorApp() {
                 </div>
               </div>
               {bichigText.trim() ? (
-                <div className="mw-bichig-body" lang="mn-Mong">
-                  {bichigText}
+                <div className="mw-bichig-scroll">
+                  <div className="mw-bichig-body" lang="mn-Mong">
+                    {bichigText}
+                  </div>
                 </div>
               ) : (
                 <div className="mw-bichig-empty" aria-hidden />

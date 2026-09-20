@@ -93,11 +93,12 @@ body {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 280px;
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
 }
 
 .mw-shell.is-bichig-open {
-  grid-template-columns: minmax(0, 1.2fr) 280px;
+  grid-template-columns: minmax(0, 1.35fr) 260px;
 }
 
 .mw-right {
@@ -108,6 +109,7 @@ body {
   flex-direction: column;
   gap: 12px;
   height: 100vh;
+  height: 100dvh;
   min-height: 0;
   overflow: hidden;
   backdrop-filter: blur(14px);
@@ -176,6 +178,7 @@ body {
   flex-direction: column;
   min-width: 0;
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
 }
 
@@ -611,7 +614,9 @@ body {
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 28px 32px 16px;
+  /* Extra bottom pad so the last line’s descenders aren’t clipped by the footer. */
+  padding: 28px 32px 40px;
+  scroll-padding-bottom: 32px;
 }
 
 .mw-editor-footer {
@@ -648,9 +653,9 @@ body {
 }
 
 .mw-bichig-panel {
-  flex: 0 1 260px;
-  min-width: 200px;
-  max-width: 300px;
+  flex: 0 1 300px;
+  min-width: 220px;
+  max-width: 360px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -660,7 +665,7 @@ body {
   color: #e8f0f8;
   border: 1px solid color-mix(in srgb, var(--gold) 38%, var(--accent-deep));
   border-radius: 14px;
-  padding: 14px 12px 16px;
+  padding: 14px 12px 12px;
   box-shadow:
     0 12px 36px rgba(13, 27, 42, 0.2),
     inset 0 1px 0 rgba(196, 160, 53, 0.18);
@@ -745,6 +750,18 @@ body {
   font-size: 12px;
 }
 
+/* Scrollport stays horizontal-tb; writing-mode lives on the inner body so
+   long vertical columns can scroll fully without clipping the last glyphs. */
+.mw-bichig-scroll {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding: 4px 2px 8px;
+}
+
 .mw-bichig-body {
   writing-mode: vertical-lr;
   text-orientation: mixed;
@@ -753,15 +770,18 @@ body {
   line-height: 2.05;
   letter-spacing: 0.01em;
   color: color-mix(in srgb, var(--gold) 52%, #fff);
-  overflow: auto;
-  flex: 1 1 auto;
-  min-height: 0;
-  max-height: none;
-  padding: 10px 6px;
+  overflow: visible;
+  display: inline-block;
+  min-block-size: 100%;
+  /* Physical bottom + trailing column space for full glyph visibility. */
+  padding-block: 12px 20px;
+  padding-inline: 8px 28px;
   outline: none;
   font-feature-settings: "ccmp" 1, "calt" 1;
   -webkit-font-feature-settings: "ccmp" 1, "calt" 1;
   text-rendering: optimizeLegibility;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .mw-top-actions .mw-btn-convert {
@@ -855,7 +875,7 @@ body {
 }
 
 .ProseMirror p:last-child {
-  margin-bottom: 0;
+  margin-bottom: 1.25em;
 }
 
 .mw-editor.is-empty .mw-prose > p:first-child::before {
@@ -1996,8 +2016,12 @@ body {
     flex: 1 1 auto;
     max-width: none;
     width: 100%;
-    min-height: 180px;
-    max-height: 36vh;
+    min-height: 220px;
+    max-height: min(55vh, 480px);
+  }
+
+  .mw-bichig-scroll {
+    min-height: 160px;
   }
 
   .mw-bichig-body,
@@ -2008,6 +2032,7 @@ body {
 
   .mw-bichig-body {
     font-size: 20px;
+    padding-inline-end: 24px;
   }
 
   .mw-editor {
