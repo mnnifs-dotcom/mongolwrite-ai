@@ -9,6 +9,8 @@ import {
   adminApprovePending,
   adminHarvest,
   adminLegalImport,
+  adminLegalLawIngest,
+  adminLegalLaws,
   adminLegalPreview,
   adminLexiconRemove,
   adminLexiconWords,
@@ -25,6 +27,7 @@ import {
   type AdminUsersPage,
   type HunspellCandidate,
   type LegalImportPreview,
+  type LegalLawItem,
   type LexiconLetter,
   type PendingSkippedWord,
   type SiteOverview,
@@ -43,6 +46,7 @@ type AdminSection =
 
 const PAGE_SIZE = 80;
 const USERS_PAGE = 50;
+const LAWS_PAGE = 40;
 
 function formatWhen(value: string): string {
   if (!value) return "—";
@@ -95,6 +99,13 @@ export function AdminApp() {
   const [busy, setBusy] = useState(false);
   const [acting, setActing] = useState<string | null>(null);
   const [legalPreview, setLegalPreview] = useState<LegalImportPreview | null>(null);
+  const [laws, setLaws] = useState<LegalLawItem[]>([]);
+  const [lawsTotal, setLawsTotal] = useState(0);
+  const [lawsOffset, setLawsOffset] = useState(0);
+  const [lawsCatalogCount, setLawsCatalogCount] = useState(0);
+  const [lawsQuery, setLawsQuery] = useState("");
+  const [lawsLoading, setLawsLoading] = useState(false);
+  const [ingestingLawId, setIngestingLawId] = useState<string | null>(null);
   const [section, setSection] = useState<AdminSection>("lexicon");
   const [lexQuery, setLexQuery] = useState("");
   const [lexLetter, setLexLetter] = useState("");
@@ -205,6 +216,27 @@ export function AdminApp() {
     }
   }, [usersQuery, usersPlan, usersOffset]);
 
+  const loadLaws = useCallback(async (opts?: { q?: string; offset?: number }) => {
+    const q = opts?.q ?? lawsQuery;
+    const offset = opts?.offset ?? lawsOffset;
+    setLawsLoading(true);
+    try {
+      const page = await adminLegalLaws({
+        q: q.trim() || undefined,
+        offset,
+        limit: LAWS_PAGE,
+      });
+      setLaws(page.items);
+      setLawsTotal(page.total);
+      setLawsOffset(page.offset);
+      setLawsCatalogCount(page.catalog_count);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Хуулийн жагсаалт уншигдсангүй");
+    } finally {
+      setLawsLoading(false);
+    }
+  }, [lawsQuery, lawsOffset]);
+
   const loadLists = useCallback(async () => {
     const nextOverview = await adminOverview();
     applyOverview(nextOverview);
@@ -224,6 +256,7 @@ export function AdminApp() {
           await loadLists();
           await loadLexicon({ offset: 0 });
           await loadUsers({ offset: 0 });
+          await loadLaws({ offset: 0 });
         }
       } catch {
         setAuthed(false);
@@ -239,6 +272,12 @@ export function AdminApp() {
     if (!authed || section !== "added") return;
     void loadAddedWords();
     // Reload when opening the section; filter fields apply via form submit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authed, section]);
+
+  useEffect(() => {
+    if (!authed || section !== "legal") return;
+    void loadLaws();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authed, section]);
 
@@ -455,6 +494,30 @@ export function AdminApp() {
     }
   }
 
+  async function onLawsSearch(event: FormEvent) {
+    event.preventDefault();
+    setLawsOffset(0);
+    await loadLaws({ offset: 0, q: lawsQuery });
+  }
+
+  async function onLawIngest(lawId: string) {
+    if (ingestingLawId || acting) return;
+    setIngestingLawId(lawId);
+    setError(null);
+    try {
+      const result = await adminLegalLawIngest(lawId);
+      setStatus(
+        `«${result.title}» (#${result.law_id}): санд ${result.added_to_lexicon} үг · Hunspell дараалалд ${result.queued_candidates} · ${result.char_count.toLocaleString("mn-MN")} тэмдэгт`,
+      );
+      await loadLists();
+      await loadLexicon({ offset: 0 });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Хууль татаж чадсангүй");
+    } finally {
+      setIngestingLawId(null);
+    }
+  }
+
   function toggleLexWord(word: string, enabled: boolean) {
     setLexSelected((current) => {
       const next = new Set(current);
@@ -656,8 +719,7 @@ export function AdminApp() {
     {
       id: "legal",
       label: "legalinfo.mn",
-      count: legalPreview?.trusted_count,
-      hide: !legalPreview?.present,
+      count: lawsCatalogCount || legalPreview?.trusted_count,
     },
     { id: "overview", label: "Тойм" },
     { id: "health", label: "Сайтын төлөв" },
@@ -885,41 +947,110 @@ export function AdminApp() {
             </section>
           ) : null}
 
-          {section === "legal" && legalPreview?.present ? (
-            <section className="mw-admin-card" id="legalinfo-import">
-              <h2>legalinfo.mn үгс</h2>
+          {section === "legal" ? (
+            <section className="mw-admin-card" id="legalinfo-laws">
+              <h2>legalinfo.mn хуулиуд</h2>
               <p className="mw-muted">
-                Шинэ найдвартай {legalPreview.trusted_count.toLocaleString("mn-MN")} · админ шалгах{" "}
-                {legalPreview.doubt_count.toLocaleString("mn-MN")}
+                {(lawsCatalogCount || lawsTotal).toLocaleString("mn-MN")} холбоос · линк дээр дарж
+                хуулийг татаж, алдаа шалгаад үгийн санд нэмнэ
               </p>
-              {legalPreview.corpus?.articles ? (
-                <p className="mw-muted">
-                  {(legalPreview.corpus.articles ?? 0).toLocaleString("mn-MN")} хуулийн өгүүллээс ·{" "}
-                  {(legalPreview.corpus.already_in_seed ?? 0).toLocaleString("mn-MN")} үг аль хэдийн
-                  тольд байсан
-                </p>
-              ) : null}
-              <p className="mw-muted mw-legal-hint">
-                «Админ шалгах» {legalPreview.doubt_count.toLocaleString("mn-MN")} үг одоо legalinfo
-                файлын жагсаалтад байна. <strong>Импортлох</strong> дарвал тэд{" "}
-                <strong>Hunspell үгс → Эргэлзээтэй</strong> рүү орно (автоматаар тольд нэмэгдэхгүй).
-              </p>
-              {legalPreview.doubt_sample?.length ? (
-                <p className="mw-muted mw-legal-sample">
-                  Жишээ: {legalPreview.doubt_sample.slice(0, 8).join(", ")}
-                  {legalPreview.doubt_count > 8 ? "…" : ""}
-                </p>
-              ) : null}
+              <form className="mw-admin-row" onSubmit={(event) => void onLawsSearch(event)}>
+                <input
+                  type="search"
+                  value={lawsQuery}
+                  onChange={(event) => setLawsQuery(event.target.value)}
+                  placeholder="Гарчиг эсвэл lawId (жишээ: 12701)"
+                  aria-label="Хууль хайх"
+                />
+                <button type="submit" className="mw-btn" disabled={lawsLoading}>
+                  Хайх
+                </button>
+              </form>
+              {lawsLoading && laws.length === 0 ? (
+                <p className="mw-muted">Уншиж байна…</p>
+              ) : laws.length === 0 ? (
+                <p className="mw-muted">Олдсонгүй</p>
+              ) : (
+                <div className="mw-admin-scroll mw-legal-laws-scroll">
+                  <ul className="mw-admin-list mw-legal-laws-list">
+                    {laws.map((law) => (
+                      <li key={law.law_id}>
+                        <div className="mw-candidate-main">
+                          <strong>{law.title}</strong>
+                          <span className="mw-muted">
+                            #{law.law_id} ·{" "}
+                            <a href={law.url} target="_blank" rel="noreferrer">
+                              legalinfo.mn
+                            </a>
+                          </span>
+                        </div>
+                        <div className="mw-admin-row">
+                          <button
+                            type="button"
+                            className="mw-btn-primary"
+                            disabled={ingestingLawId !== null}
+                            onClick={() => void onLawIngest(law.law_id)}
+                          >
+                            {ingestingLawId === law.law_id
+                              ? "Татаж шалгаж байна…"
+                              : "Татаад санд нэмэх"}
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <div className="mw-admin-row">
                 <button
                   type="button"
-                  className="mw-btn-primary"
-                  disabled={acting === "legal"}
-                  onClick={() => void onLegalImport()}
+                  className="mw-btn"
+                  disabled={lawsLoading || lawsOffset <= 0}
+                  onClick={() => {
+                    const next = Math.max(0, lawsOffset - LAWS_PAGE);
+                    setLawsOffset(next);
+                    void loadLaws({ offset: next });
+                  }}
                 >
-                  {acting === "legal" ? "Импортлож байна…" : "Импортлох"}
+                  Өмнөх
+                </button>
+                <span className="mw-muted">
+                  {lawsTotal
+                    ? `${lawsOffset + 1}–${Math.min(lawsOffset + laws.length, lawsTotal)} / ${lawsTotal.toLocaleString("mn-MN")}`
+                    : "—"}
+                </span>
+                <button
+                  type="button"
+                  className="mw-btn"
+                  disabled={lawsLoading || lawsOffset + laws.length >= lawsTotal}
+                  onClick={() => {
+                    const next = lawsOffset + LAWS_PAGE;
+                    setLawsOffset(next);
+                    void loadLaws({ offset: next });
+                  }}
+                >
+                  Дараах
                 </button>
               </div>
+
+              {legalPreview?.present ? (
+                <div className="mw-legal-bulk">
+                  <h3>Бөөн импорт (файл)</h3>
+                  <p className="mw-muted mw-legal-hint">
+                    Шинэ найдвартай {legalPreview.trusted_count.toLocaleString("mn-MN")} · админ
+                    шалгах {legalPreview.doubt_count.toLocaleString("mn-MN")}.{" "}
+                    <strong>Импортлох</strong> дарвал эргэлзээтэй үгс Hunspell дараалалд орно.
+                  </p>
+                  <button
+                    type="button"
+                    className="mw-btn"
+                    disabled={acting === "legal"}
+                    onClick={() => void onLegalImport()}
+                  >
+                    {acting === "legal" ? "Импортлож байна…" : "Файлын импорт"}
+                  </button>
+                </div>
+              ) : null}
             </section>
           ) : null}
 
