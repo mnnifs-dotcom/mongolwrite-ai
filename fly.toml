@@ -20,6 +20,6 @@ primary_region = "nrt"
   destination = "/app/data/persist"
 
 [[vm]]
-  memory = "1gb"
+  memory = "2gb"
   cpu_kind = "shared"
   cpus = 1

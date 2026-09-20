@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     secret_key: str = "change-me-in-production"
     frontend_origin: str = "http://localhost:3000"
     frontend_dir: str = ""
-    check_max_chars: int = 100_000
+    check_max_chars: int = 1_000_000
     admin_username: str = "Admin write"
     admin_password: str = "Ilove@00"
     google_client_id: str = ""

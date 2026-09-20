@@ -15,7 +15,7 @@ AdminDep = Annotated[None, Depends(require_admin)]
 
 
 class LearnRequest(BaseModel):
-    text: str = Field(default="", max_length=500_000)
+    text: str = Field(default="", max_length=1_000_000)
 
 
 class WordsRequest(BaseModel):

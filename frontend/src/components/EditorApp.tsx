@@ -223,7 +223,7 @@ export function EditorApp() {
   const [corrections, setCorrections] = useState<Correction[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [counts, setCounts] = useState({ words: 0, chars: 0 });
-  const [maxChars, setMaxChars] = useState(100_000);
+  const [maxChars, setMaxChars] = useState(1_000_000);
   const [error, setError] = useState<string | null>(null);
   const [aiEnabled, setAiEnabled] = useState(false);
   const [empty, setEmpty] = useState(true);

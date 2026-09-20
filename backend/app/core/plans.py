@@ -8,6 +8,8 @@ from typing import Any
 #   1) free — үнэгүй
 #   2) pro_3m — 3 сар · ₮6,000
 #   3) pro_year — 1 жил · ₮19,900
+#
+# Practical check ceiling is 1M chars (true unlimited risks OOM/timeouts).
 PLANS: dict[str, dict[str, Any]] = {
     "free": {
         "id": "free",
@@ -15,9 +17,9 @@ PLANS: dict[str, dict[str, Any]] = {
         "price_mnt": 0,
         "duration_days": None,
         "interval": "none",
-        "check_max_chars": 100_000,
+        "check_max_chars": 500_000,
         "checks_per_day": None,
-        "features": ["Зөв бичих", "Монгол бичиг"],
+        "features": ["Зөв бичих", "Монгол бичиг", "Нэг дор 500 мянган тэмдэгт"],
         "badge": "",
         "sort": 0,
     },
@@ -27,9 +29,15 @@ PLANS: dict[str, dict[str, Any]] = {
         "price_mnt": 6_000,
         "duration_days": 90,
         "interval": "quarter",
-        "check_max_chars": 100_000,
+        "check_max_chars": 1_000_000,
         "checks_per_day": None,
-        "features": ["Зөв бичих", "Монгол бичиг", "AI засах", "Бүрэн эрх · 3 сар"],
+        "features": [
+            "Зөв бичих",
+            "Монгол бичиг",
+            "AI засах",
+            "Нэг дор 1 сая тэмдэгт",
+            "Бүрэн эрх · 3 сар",
+        ],
         "badge": "сард ₮2,000",
         "sort": 1,
     },
@@ -39,9 +47,15 @@ PLANS: dict[str, dict[str, Any]] = {
         "price_mnt": 19_900,
         "duration_days": 365,
         "interval": "year",
-        "check_max_chars": 100_000,
+        "check_max_chars": 1_000_000,
         "checks_per_day": None,
-        "features": ["Зөв бичих", "Монгол бичиг", "AI засах", "Бүрэн эрх · 1 жил"],
+        "features": [
+            "Зөв бичих",
+            "Монгол бичиг",
+            "AI засах",
+            "Нэг дор 1 сая тэмдэгт",
+            "Бүрэн эрх · 1 жил",
+        ],
         "badge": "хамгийн ашигтай · сард ~₮1,658",
         "sort": 2,
     },

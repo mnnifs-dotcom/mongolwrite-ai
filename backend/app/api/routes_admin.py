@@ -49,11 +49,11 @@ class WordAction(BaseModel):
 
 
 class HarvestRequest(BaseModel):
-    text: str = Field(default="", max_length=500_000)
+    text: str = Field(default="", max_length=1_000_000)
 
 
 class IngestRequest(BaseModel):
-    text: str = Field(default="", max_length=500_000)
+    text: str = Field(default="", max_length=1_000_000)
 
 
 class LexiconRemoveRequest(BaseModel):

@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field
 
 router = APIRouter(prefix="/api/v1/export", tags=["export"])
 
-_MAX_CHARS = 200_000
+_MAX_CHARS = 1_000_000
 # Bolorsoft face used by KIMO (Mongolian Script) — embedded so Word matches the site.
 _PRIMARY_FONT = "MongolianScript"
 # Traditional Mongolian: top→bottom within a column, columns left→right.
