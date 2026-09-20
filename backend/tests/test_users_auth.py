@@ -9,8 +9,9 @@ from app.main import app
 
 def test_plans_catalog() -> None:
     plans = list_plans()
-    assert {row["id"] for row in plans} == {"free", "pro"}
-    assert get_plan("pro")["price_mnt"] == 9_900
+    assert {row["id"] for row in plans} == {"free", "pro_3m", "pro_year"}
+    assert get_plan("pro_year")["price_mnt"] == 19_900
+    assert get_plan("pro_3m")["price_mnt"] == 6_000
 
 
 def test_upsert_google_user(tmp_path, monkeypatch) -> None:
@@ -67,7 +68,7 @@ def test_admin_users_list_and_plan(monkeypatch, tmp_path) -> None:
 
     upsert_google_user(sub="u1", email="free@example.com", name="Free User")
     upsert_google_user(sub="u2", email="pro@example.com", name="Pro User")
-    set_user_plan("u2", "pro", plan_expires_at="2099-12-31")
+    set_user_plan("u2", "pro_year", plan_expires_at="2099-12-31")
 
     client = TestClient(app)
     assert client.get("/api/v1/admin/users").status_code == 401
@@ -92,8 +93,8 @@ def test_admin_users_list_and_plan(monkeypatch, tmp_path) -> None:
 
     patched = client.patch(
         "/api/v1/admin/users/u1/plan",
-        json={"plan": "pro", "plan_expires_at": "2099-01-15"},
+        json={"plan": "pro_3m", "plan_expires_at": "2099-01-15"},
     )
     assert patched.status_code == 200
     assert patched.json()["user"]["is_paid"] is True
-    assert patched.json()["user"]["status"] == "Төлбөртэй"
+    assert patched.json()["user"]["plan"] == "pro_3m"

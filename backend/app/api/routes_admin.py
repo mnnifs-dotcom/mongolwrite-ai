@@ -62,7 +62,7 @@ class LexiconRemoveRequest(BaseModel):
 
 
 class UserPlanUpdate(BaseModel):
-    plan: Literal["free", "pro"] = "free"
+    plan: Literal["free", "pro_3m", "pro_year", "pro"] = "free"
     plan_expires_at: str | None = Field(default=None, max_length=40)
 
 
@@ -264,7 +264,12 @@ def admin_user_set_plan(user_id: str, body: UserPlanUpdate, _: AdminDep) -> dict
         raise HTTPException(status_code=400, detail="Хэрэглэгч олдсонгүй")
     plan = get_plan(body.plan)
     try:
-        row = set_user_plan(user_id, plan["id"], plan_expires_at=body.plan_expires_at)
+        row = set_user_plan(
+            user_id,
+            plan["id"],
+            plan_expires_at=body.plan_expires_at,
+            auto_duration=True,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     if not row:

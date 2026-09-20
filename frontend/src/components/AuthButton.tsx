@@ -171,6 +171,9 @@ export function AuthButton() {
           <div className="mw-auth-menu">
             <p className="mw-auth-plan">{user.plan_name}</p>
             <p className="mw-auth-email">{user.email}</p>
+            <a href="/tolbor" className="mw-auth-upgrade">
+              Төлбөрийн багц
+            </a>
             <button type="button" className="mw-btn" onClick={() => void onLogout()} disabled={busy}>
               Гарах
             </button>

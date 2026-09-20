@@ -332,7 +332,14 @@ export type AdminUsersPage = {
   total: number;
   offset: number;
   limit: number;
-  counts: { total: number; free: number; paid: number; pro: number };
+  counts: {
+    total: number;
+    free: number;
+    paid: number;
+    pro: number;
+    pro_3m?: number;
+    pro_year?: number;
+  };
 };
 
 export async function adminLogin(username: string, password: string): Promise<void> {
@@ -596,7 +603,7 @@ export async function adminUsers(opts?: {
 
 export async function adminSetUserPlan(
   userId: string,
-  plan: "free" | "pro",
+  plan: "free" | "pro_3m" | "pro_year" | "pro",
   planExpiresAt?: string | null,
 ): Promise<{ ok: boolean; user: AdminUser }> {
   const response = await fetch(apiUrl(`/api/v1/admin/users/${encodeURIComponent(userId)}/plan`), {
@@ -613,4 +620,68 @@ export async function adminSetUserPlan(
     throw new Error(detail || "Төлөвлөгөө шинэчлэгдсэнгүй");
   }
   return response.json() as Promise<{ ok: boolean; user: AdminUser }>;
+}
+
+export type BillingPlan = {
+  id: string;
+  name: string;
+  price_mnt: number;
+  duration_days?: number | null;
+  interval?: string;
+  features: string[];
+  badge?: string;
+};
+
+export type BillingStatus = {
+  plans: BillingPlan[];
+  all_plans: BillingPlan[];
+  currency: string;
+  provider: string;
+  checkout_ready: boolean;
+  message: string;
+};
+
+export type BillingOrder = {
+  id: string;
+  sender_invoice_no: string;
+  plan_id: string;
+  plan_name: string;
+  amount_mnt: number;
+  currency: string;
+  status: string;
+  qpay_qr_text?: string | null;
+  qpay_urls?: unknown[];
+  created_at?: string;
+  expires_at?: string;
+  note?: string;
+};
+
+export async function fetchBillingPlans(): Promise<BillingStatus> {
+  const response = await fetch(apiUrl("/api/v1/billing/plans"));
+  if (!response.ok) throw new Error("Багц уншигдсангүй");
+  return response.json() as Promise<BillingStatus>;
+}
+
+export async function createBillingCheckout(
+  planId: "pro_3m" | "pro_year",
+): Promise<{ ok: boolean; order: BillingOrder; checkout_ready: boolean; provider: string }> {
+  const response = await fetch(apiUrl("/api/v1/billing/checkout"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ plan_id: planId }),
+  });
+  if (!response.ok) {
+    const detail =
+      response.status === 401 || response.status === 403
+        ? "Төлбөр хийхийн тулд нэвтэрнэ үү."
+        : "Захиалга үүсгэж чадсангүй.";
+    throw new Error(detail);
+  }
+  return response.json() as Promise<{
+    ok: boolean;
+    order: BillingOrder;
+    checkout_ready: boolean;
+    provider: string;
+  }>;
 }

@@ -95,12 +95,22 @@ const jsonLd = {
       operatingSystem: "Web",
       inLanguage: "mn",
       description: descriptionDefault,
-      offers: {
-        "@type": "Offer",
-        price: "19900",
-        priceCurrency: "MNT",
-        category: "нээлтийн урамшуулал — жилийн эрх",
-      },
+      offers: [
+        {
+          "@type": "Offer",
+          name: "3 сар",
+          price: "6000",
+          priceCurrency: "MNT",
+          category: "төлбөртэй эрх — 3 сар",
+        },
+        {
+          "@type": "Offer",
+          name: "1 жил",
+          price: "19900",
+          priceCurrency: "MNT",
+          category: "төлбөртэй эрх — жилийн эрх",
+        },
+      ],
       featureList: [
         "Үгийн алдаа шалгах",
         "Бичгийн алдаа засах",
