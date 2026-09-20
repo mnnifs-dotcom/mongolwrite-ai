@@ -126,11 +126,6 @@ export function PricingPlans() {
           </p>
         </div>
       ) : null}
-
-      <p className="mw-muted mw-pricing-note">
-        Spellcheck-тай харьцуулбал: тэдний ₮6,000 = 1 сар. Энд ₮6,000 = 3 сар. Жилийнх 4 удаа 3
-        сар авахаас ₮4,100 (~17%) хямд.
-      </p>
     </div>
   );
 }
