@@ -2288,6 +2288,15 @@ body {
   text-align: justify;
   text-justify: inter-word;
   text-align-last: left;
+  text-indent: 2em;
+}
+
+.mw-seo-article p.mw-seo-foot-cta,
+.mw-seo-article p.mw-report-note,
+.mw-seo-article p.mw-muted,
+.mw-seo-article p:has(> .mw-seo-cta),
+.mw-seo-article p:has(> a.mw-seo-cta) {
+  text-indent: 0;
 }
 
 .mw-seo-article ul,
@@ -2393,6 +2402,14 @@ label {
 
 .mw-legal-article p {
   margin: 8px 0;
+  text-indent: 2em;
+}
+
+.mw-legal-article p.mw-seo-lead,
+.mw-legal-article p.mw-seo-foot-cta,
+.mw-legal-article p:has(> .mw-seo-cta),
+.mw-legal-article p:has(> a.mw-seo-cta) {
+  text-indent: 0;
 }
 
 .mw-report-form {
