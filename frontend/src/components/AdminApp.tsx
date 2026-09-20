@@ -112,12 +112,14 @@ export function AdminApp() {
     free: 0,
     paid: 0,
     pro: 0,
+    pro_3m: 0,
+    pro_year: 0,
   });
   const [usersQuery, setUsersQuery] = useState("");
   const [usersPlan, setUsersPlan] = useState("");
   const [usersLoading, setUsersLoading] = useState(false);
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
-  const [editPlan, setEditPlan] = useState<"free" | "pro">("free");
+  const [editPlan, setEditPlan] = useState<"free" | "pro_3m" | "pro_year">("free");
   const [editExpiry, setEditExpiry] = useState("");
 
   const applyOverview = useCallback((next: SiteOverview) => {
@@ -1112,9 +1114,10 @@ export function AdminApp() {
             <section className="mw-admin-card" id="admin-users">
               <h2>Хэрэглэгчид{usersCounts.total ? ` · ${usersCounts.total}` : ""}</h2>
               <p className="mw-muted">
-                Үнэгүй {usersCounts.free.toLocaleString("mn-MN")} · Төлбөртэй{" "}
-                {usersCounts.paid.toLocaleString("mn-MN")} · Pro{" "}
-                {usersCounts.pro.toLocaleString("mn-MN")}
+                Үнэгүй {usersCounts.free.toLocaleString("mn-MN")} · 3 сар{" "}
+                {(usersCounts.pro_3m ?? 0).toLocaleString("mn-MN")} · 1 жил{" "}
+                {(usersCounts.pro_year ?? 0).toLocaleString("mn-MN")} · Төлбөртэй{" "}
+                {usersCounts.paid.toLocaleString("mn-MN")}
               </p>
               <form
                 className="mw-lex-search mw-users-toolbar"
@@ -1143,7 +1146,8 @@ export function AdminApp() {
                   <option value="">Бүгд</option>
                   <option value="free">Үнэгүй</option>
                   <option value="paid">Төлбөртэй</option>
-                  <option value="pro">Pro</option>
+                  <option value="pro_3m">3 сар</option>
+                  <option value="pro_year">1 жил</option>
                 </select>
                 <button type="submit" className="mw-btn" disabled={usersLoading}>
                   Хайх
@@ -1196,7 +1200,7 @@ export function AdminApp() {
                             <td>
                               {user.plan_expires_at
                                 ? formatWhen(user.plan_expires_at)
-                                : user.plan === "pro"
+                                : user.is_paid
                                   ? "Хугацаагүй"
                                   : "—"}
                             </td>
@@ -1207,7 +1211,13 @@ export function AdminApp() {
                                 className="mw-btn"
                                 onClick={() => {
                                   setEditingUser(user);
-                                  setEditPlan(user.plan === "pro" ? "pro" : "free");
+                                  const plan =
+                                    user.plan === "pro_3m" || user.plan === "pro_year"
+                                      ? user.plan
+                                      : user.plan === "pro"
+                                        ? "pro_year"
+                                        : "free";
+                                  setEditPlan(plan);
                                   setEditExpiry(
                                     user.plan_expires_at
                                       ? user.plan_expires_at.slice(0, 10)
@@ -1263,15 +1273,18 @@ export function AdminApp() {
                     Төлөвлөгөө
                     <select
                       value={editPlan}
-                      onChange={(event) => setEditPlan(event.target.value as "free" | "pro")}
+                      onChange={(event) =>
+                        setEditPlan(event.target.value as "free" | "pro_3m" | "pro_year")
+                      }
                     >
                       <option value="free">Үнэгүй</option>
-                      <option value="pro">Pro (төлбөртэй)</option>
+                      <option value="pro_3m">3 сар · ₮6,000</option>
+                      <option value="pro_year">1 жил · ₮19,900</option>
                     </select>
                   </label>
-                  {editPlan === "pro" ? (
+                  {editPlan !== "free" ? (
                     <label>
-                      Дуусах огноо
+                      Дуусах огноо (хоосон бол автоматаар)
                       <input
                         type="date"
                         value={editExpiry}

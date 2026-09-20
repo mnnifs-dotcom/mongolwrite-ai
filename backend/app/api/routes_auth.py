@@ -11,7 +11,6 @@ from app.core.plans import list_plans
 from app.core.user_auth import (
     clear_user_cookie,
     optional_user,
-    require_user,
     set_user_cookie,
 )
 from app.core.users import public_user, upsert_google_user
@@ -122,19 +121,3 @@ def me(user: Annotated[dict | None, Depends(optional_user)]) -> dict[str, Any]:
 def logout(response: Response) -> dict[str, bool]:
     clear_user_cookie(response)
     return {"ok": True}
-
-
-@router.get("/billing/plans")
-def billing_plans() -> dict[str, Any]:
-    return {"plans": list_plans(), "checkout_ready": False}
-
-
-@router.post("/billing/checkout")
-def billing_checkout(
-    _: Annotated[dict, Depends(require_user)],
-) -> dict[str, Any]:
-    # Placeholder until a payment provider is wired.
-    raise HTTPException(
-        status_code=501,
-        detail="Төлбөр тун удахгүй. Одоогоор Google-ээр нэвтэрч үнэгүй ашиглана.",
-    )

@@ -712,6 +712,9 @@ export function EditorApp() {
                   <a href="/aldaa-medegdeh" role="menuitem" onClick={closeMenu}>
                     Алдаа мэдэгдэх
                   </a>
+                  <a href="/tolbor" role="menuitem" onClick={closeMenu}>
+                    Төлбөр
+                  </a>
                   <a href="/uilchilgeenii-nokhtsol" role="menuitem" onClick={closeMenu}>
                     Үйлчилгээний нөхцөл
                   </a>
@@ -783,6 +786,7 @@ export function EditorApp() {
                 </strong>
               </div>
               <div className="mw-editor-legal">
+                <a href="/tolbor">Төлбөр</a>
                 <a href="/aldaa-medegdeh">Алдаа мэдэгдэх</a>
                 <a href="/uilchilgeenii-nokhtsol">Үйлчилгээний нөхцөл</a>
               </div>

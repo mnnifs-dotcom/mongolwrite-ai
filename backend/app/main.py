@@ -141,4 +141,12 @@ else:
         def report_error_page() -> FileResponse:
             return FileResponse(_report_html)
 
+    _tolbor_html = _frontend / "tolbor.html"
+    if _tolbor_html.is_file():
+
+        @app.get("/tolbor")
+        @app.get("/tolbor/")
+        def tolbor_page() -> FileResponse:
+            return FileResponse(_tolbor_html)
+
     app.mount("/", StaticFiles(directory=_frontend, html=True), name="frontend")
