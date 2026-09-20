@@ -1,3 +1,5 @@
+import { BrandWordmark } from "@/components/BrandWordmark";
+
 type BrandLogoProps = {
   /** Compact header mark vs login/hero size */
   size?: "sm" | "md" | "lg";
@@ -31,7 +33,7 @@ export function BrandLogo({
         className="mw-brand-logo"
         decoding="async"
       />
-      {withWordmark ? <span className="mw-brand-text">{wordmark}</span> : null}
+      {withWordmark ? <BrandWordmark label={wordmark} /> : null}
     </div>
   );
 }

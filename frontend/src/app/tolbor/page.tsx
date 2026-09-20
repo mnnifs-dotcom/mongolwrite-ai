@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { PricingPlans } from "@/components/PricingPlans";
+import { BrandWordmark } from "@/components/BrandWordmark";
 import { SiteFooter } from "@/components/SiteFooter";
 
 const SITE = "https://mongolwrite.com";
@@ -30,7 +31,7 @@ export default function PricingPage() {
         <Link href="/" className="mw-seo-brand">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo.png" alt="" width={36} height={33} />
-          <span>MongolWrite</span>
+          <BrandWordmark />
         </Link>
         <Link href="/" className="mw-seo-cta">
           Алдаа шалгах
