@@ -6,6 +6,8 @@ import gzip
 import json
 import logging
 import re
+import threading
+from datetime import datetime, timezone
 from functools import lru_cache
 from html import unescape
 from pathlib import Path
@@ -13,12 +15,13 @@ from typing import Any
 
 import httpx
 
-from app.engine.dictionary import _repo_root
+from app.engine.dictionary import persist_dir
 from app.engine.hunspell_candidates import record_admin_added, record_from_text
 from app.engine.learn import learn_accepted_words
 from app.engine.pipeline import LanguageEngine
 
 _log = logging.getLogger(__name__)
+_ingested_lock = threading.Lock()
 
 _LAW_ID_RE = re.compile(r"^\d{1,16}$")
 _LABEL_RE = re.compile(
@@ -55,12 +58,91 @@ _UI_JUNK = {
 }
 
 
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[3]
+
+
 def laws_index_path() -> Path:
     root = _repo_root() / "data"
     gz = root / "legal_laws_index.json.gz"
     if gz.is_file():
         return gz
     return root / "legal_laws_index.json"
+
+
+def ingested_laws_path() -> Path:
+    return persist_dir() / "legal_laws_ingested.json"
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _load_ingested_map() -> dict[str, dict[str, Any]]:
+    path = ingested_laws_path()
+    if not path.is_file():
+        return {}
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    if isinstance(raw, dict) and isinstance(raw.get("laws"), dict):
+        out: dict[str, dict[str, Any]] = {}
+        for key, row in raw["laws"].items():
+            lid = str(key).strip()
+            if not lid.isdigit():
+                continue
+            if isinstance(row, dict):
+                out[lid] = row
+            else:
+                out[lid] = {"law_id": lid}
+        return out
+    # Legacy: {"ids": ["10", …]}
+    if isinstance(raw, dict) and isinstance(raw.get("ids"), list):
+        return {
+            str(item).strip(): {"law_id": str(item).strip()}
+            for item in raw["ids"]
+            if str(item).strip().isdigit()
+        }
+    return {}
+
+
+def _save_ingested_map(rows: dict[str, dict[str, Any]]) -> None:
+    path = ingested_laws_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {"laws": rows, "count": len(rows)}
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def ingested_law_ids() -> set[str]:
+    with _ingested_lock:
+        return set(_load_ingested_map().keys())
+
+
+def mark_law_ingested(
+    law_id: str,
+    *,
+    title: str = "",
+    url: str = "",
+    added_to_lexicon: int = 0,
+    queued_candidates: int = 0,
+) -> None:
+    """Record a successful ingest so the law disappears from the admin list."""
+    lid = str(law_id).strip()
+    if not _LAW_ID_RE.match(lid):
+        return
+    with _ingested_lock:
+        rows = _load_ingested_map()
+        prev = rows.get(lid) or {}
+        rows[lid] = {
+            "law_id": lid,
+            "title": title or str(prev.get("title") or f"Хууль #{lid}"),
+            "url": url or str(prev.get("url") or law_url(lid)),
+            "added_to_lexicon": int(added_to_lexicon),
+            "queued_candidates": int(queued_candidates),
+            "ingested_at": _now(),
+        }
+        _save_ingested_map(rows)
 
 
 @lru_cache(maxsize=1)
@@ -98,9 +180,19 @@ def list_laws(
     offset: int = 0,
     limit: int = 50,
 ) -> dict[str, Any]:
-    """Paginated searchable catalog of legalinfo.mn law links."""
+    """Paginated searchable catalog of legalinfo.mn law links.
+
+    Already-ingested laws are omitted so the admin queue only shows work left.
+    """
     index = _load_index()
     laws = index.get("laws") or []
+    done = ingested_law_ids()
+    if done:
+        laws = [
+            row
+            for row in laws
+            if isinstance(row, dict) and str(row.get("law_id") or "") not in done
+        ]
     query = q.strip().casefold()
     if query:
         filtered: list[dict[str, Any]] = []
@@ -114,8 +206,9 @@ def list_laws(
                 exact.append(row)
             elif query in law_id.casefold() or query in title.casefold():
                 filtered.append(row)
-        # Exact law_id match: include even if missing from the shipped index.
-        if _LAW_ID_RE.match(query) and not exact:
+        # Exact law_id match: include even if missing from the shipped index,
+        # but never re-queue an already ingested law.
+        if _LAW_ID_RE.match(query) and not exact and query not in done:
             exact.append(
                 {
                     "law_id": query,
@@ -139,13 +232,17 @@ def list_laws(
         for row in page
         if isinstance(row, dict) and str(row.get("law_id") or "").isdigit()
     ]
+    catalog_count = int(index.get("count") or 0)
+    ingested_count = len(done)
     return {
         "items": items,
         "total": total,
         "offset": offset,
         "limit": limit,
         "source": index.get("source"),
-        "catalog_count": int(index.get("count") or 0),
+        "catalog_count": catalog_count,
+        "ingested_count": ingested_count,
+        "remaining_count": max(0, catalog_count - ingested_count),
     }
 
 
@@ -206,6 +303,7 @@ def ingest_law(engine: LanguageEngine, law_id: str) -> dict[str, Any]:
     """Fetch a law, run the checker, add accepted words to the lexicon.
 
     Also harvests missing forms into the Hunspell candidate queues for review.
+    Successful ingest removes the law from the admin pending list.
     """
     fetched = fetch_law_text(law_id)
     text = fetched["text"]
@@ -220,6 +318,14 @@ def ingest_law(engine: LanguageEngine, law_id: str) -> dict[str, Any]:
 
     queued = record_from_text(engine, text)
 
+    mark_law_ingested(
+        fetched["law_id"],
+        title=fetched["title"],
+        url=fetched["url"],
+        added_to_lexicon=len(added),
+        queued_candidates=queued,
+    )
+
     result = {
         "law_id": fetched["law_id"],
         "title": fetched["title"],
@@ -229,6 +335,7 @@ def ingest_law(engine: LanguageEngine, law_id: str) -> dict[str, Any]:
         "added_to_lexicon": len(added),
         "added_words": added[:80],
         "queued_candidates": queued,
+        "removed_from_list": True,
     }
     _log.info(
         "legalinfo ingest lawId=%s added=%s queued=%s chars=%s",

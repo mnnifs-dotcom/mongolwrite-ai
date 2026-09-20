@@ -103,6 +103,8 @@ export function AdminApp() {
   const [lawsTotal, setLawsTotal] = useState(0);
   const [lawsOffset, setLawsOffset] = useState(0);
   const [lawsCatalogCount, setLawsCatalogCount] = useState(0);
+  const [lawsIngestedCount, setLawsIngestedCount] = useState(0);
+  const [lawsRemainingCount, setLawsRemainingCount] = useState(0);
   const [lawsQuery, setLawsQuery] = useState("");
   const [lawsLoading, setLawsLoading] = useState(false);
   const [ingestingLawId, setIngestingLawId] = useState<string | null>(null);
@@ -230,6 +232,8 @@ export function AdminApp() {
       setLawsTotal(page.total);
       setLawsOffset(page.offset);
       setLawsCatalogCount(page.catalog_count);
+      setLawsIngestedCount(page.ingested_count ?? 0);
+      setLawsRemainingCount(page.remaining_count ?? page.total);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Хуулийн жагсаалт уншигдсангүй");
     } finally {
@@ -507,10 +511,14 @@ export function AdminApp() {
     try {
       const result = await adminLegalLawIngest(lawId);
       setStatus(
-        `«${result.title}» (#${result.law_id}): санд ${result.added_to_lexicon} үг · Hunspell дараалалд ${result.queued_candidates} · ${result.char_count.toLocaleString("mn-MN")} тэмдэгт`,
+        `«${result.title}» (#${result.law_id}): санд ${result.added_to_lexicon} үг · Hunspell дараалалд ${result.queued_candidates} · жагсаалтаас хаслаа`,
       );
       await loadLists();
       await loadLexicon({ offset: 0 });
+      // Keep page position when possible; drop empty trailing pages.
+      const nextOffset = laws.length <= 1 ? Math.max(0, lawsOffset - LAWS_PAGE) : lawsOffset;
+      setLawsOffset(nextOffset);
+      await loadLaws({ offset: nextOffset, q: lawsQuery });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Хууль татаж чадсангүй");
     } finally {
@@ -719,7 +727,7 @@ export function AdminApp() {
     {
       id: "legal",
       label: "legalinfo.mn",
-      count: lawsCatalogCount || legalPreview?.trusted_count,
+      count: lawsRemainingCount || lawsCatalogCount || legalPreview?.trusted_count,
     },
     { id: "overview", label: "Тойм" },
     { id: "health", label: "Сайтын төлөв" },
@@ -951,8 +959,14 @@ export function AdminApp() {
             <section className="mw-admin-card" id="legalinfo-laws">
               <h2>legalinfo.mn хуулиуд</h2>
               <p className="mw-muted">
-                {(lawsCatalogCount || lawsTotal).toLocaleString("mn-MN")} холбоос · линк дээр дарж
-                хуулийг татаж, алдаа шалгаад үгийн санд нэмнэ
+                Үлдсэн {(lawsRemainingCount || lawsTotal).toLocaleString("mn-MN")}
+                {lawsIngestedCount
+                  ? ` · татсан ${lawsIngestedCount.toLocaleString("mn-MN")}`
+                  : ""}
+                {lawsCatalogCount
+                  ? ` / ${lawsCatalogCount.toLocaleString("mn-MN")}`
+                  : ""}{" "}
+                · татаад санд нэмсэн хууль жагсаалтаас хасагдана
               </p>
               <form className="mw-admin-row" onSubmit={(event) => void onLawsSearch(event)}>
                 <input

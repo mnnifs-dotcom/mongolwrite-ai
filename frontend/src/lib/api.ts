@@ -524,6 +524,8 @@ export type LegalLawsPage = {
   limit: number;
   source?: string | null;
   catalog_count: number;
+  ingested_count?: number;
+  remaining_count?: number;
 };
 
 export async function adminLegalLaws(params: {
