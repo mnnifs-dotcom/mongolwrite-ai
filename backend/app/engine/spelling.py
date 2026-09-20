@@ -263,13 +263,36 @@ def _spelling_decision(
     alts: list[str] = []
     if len(word) >= 4:
         result = _suggest(word, dictionary)
+        # Harmony rules must propose an attested form — never invent junk like мөрийийн.
+        if (
+            result
+            and result[1] in _RULE_FIRST
+            and not (
+                dictionary.contains(result[0]) or dictionary.in_wordlist(result[0])
+            )
+        ):
+            result = None
         if result and result[1] in _RULE_FIRST:
             alts = [
                 item
                 for item in dictionary.suggest_many(word, preferred=preferred, limit=8)
                 if _usable_suggestion(word, item)
             ]
+            # Prefer dictionary neighbors when the rule form is weak/odd.
             alts = [result[0], *[item for item in alts if item != result[0]]]
+            if alts and alts[0] == result[0]:
+                better = next(
+                    (
+                        item
+                        for item in alts[1:]
+                        if dictionary.wiki_frequency(item)
+                        > dictionary.wiki_frequency(result[0])
+                    ),
+                    None,
+                )
+                if better:
+                    alts = [better, result[0], *[item for item in alts[1:] if item != better]]
+                    result = (better, result[1])
         elif not _is_implausible(word):
             alts = [
                 item
@@ -278,6 +301,9 @@ def _spelling_decision(
             ]
             if alts:
                 primary = alts[0]
+                # Frequent real forms (хүсч) must not lose to shorter neighbors (хүч).
+                if dictionary.prefers_established(word):
+                    return None
                 if dictionary.prefers_established(word, primary):
                     return None
                 doubled = any(
@@ -296,6 +322,8 @@ def _spelling_decision(
     ):
         return None
     if alts and not (result and result[0] == word.casefold()):
+        if result and result[1] == "nearby_spelling" and dictionary.prefers_established(word):
+            return None
         if not _is_implausible(word) or (result and result[1] != "nearby_spelling"):
             rule_id = result[1] if result else "nearby_spelling"
             return ("hit", alts[0], rule_id, alts[1:])
