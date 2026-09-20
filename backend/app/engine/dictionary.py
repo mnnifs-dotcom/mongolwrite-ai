@@ -404,6 +404,14 @@ class DictionaryProvider:
     def unseal_lookups(self) -> None:
         self._lookups_sealed = False
 
+    @property
+    def lookups_sealed(self) -> bool:
+        return self._lookups_sealed
+
+    def lookup_probed(self, word: str) -> bool:
+        """True when Hunspell membership for this form is already cached."""
+        return word.casefold() in self._lookup_cache
+
     def warm_document_lookups(
         self,
         words: Iterable[str],

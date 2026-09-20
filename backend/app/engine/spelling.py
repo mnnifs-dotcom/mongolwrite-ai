@@ -321,6 +321,10 @@ def _spelling_decision(
         return None
     if word.casefold() in OFFICIAL_REPLACEMENTS:
         return None
+    # Sealed long docs only trust the warm cache. Unprobed forms are unverified —
+    # never invent unknown_word / nearby_spelling errors for them (Hunspell would
+    # accept many legal inflections that simply missed the warm budget).
+    sealed_unverified = dictionary.lookups_sealed and not dictionary.lookup_probed(word)
     result = None
     alts: list[str] = []
     if len(word) >= 4:
@@ -343,6 +347,9 @@ def _spelling_decision(
         if result and result[1] in _RULE_FIRST:
             # Orthography rule is enough — skip expensive neighbor extras.
             alts = [result[0]]
+        elif sealed_unverified:
+            # Unverified under seal: only keep strong rule hits above; otherwise OK.
+            return None
         elif not _is_implausible(word):
             # Long sealed docs exhaust the nearby budget; still accept regular
             # / established forms instead of dumping them as unknown_word.
@@ -353,7 +360,8 @@ def _spelling_decision(
             ):
                 return None
             if budget is not None and budget.get("nearby", 0) <= 0:
-                return ("unknown",)
+                # Out of budget ≠ proven misspelling.
+                return None
             if budget is not None:
                 budget["nearby"] -= 1
             alts = [
@@ -397,7 +405,13 @@ def _spelling_decision(
             return ("hit", alts[0], rule_id, alts[1:])
     if dictionary.prefers_established(word):
         return None
-    if _is_implausible(word) or (
+    if _is_implausible(word):
+        return ("unknown",)
+    # Only mark unknown after a real Hunspell probe said no. Sealed misses are
+    # unverified and must not flood the editor with false positives.
+    if sealed_unverified:
+        return None
+    if (
         len(word) >= 3
         and dictionary.has_hunspell
         and not _looks_like_name(word)
