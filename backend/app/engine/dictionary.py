@@ -413,8 +413,6 @@ class DictionaryProvider:
         Hunspell lookup is expensive. Cap wall time and prioritize repeated forms
         so real legal inflections stay accepted while one-off junk is skipped.
         """
-        from collections import Counter
-
         counts = Counter(
             word.casefold()
             for word in words
@@ -443,8 +441,9 @@ class DictionaryProvider:
                 break
             self._lookup_cache[folded] = bool(self._hunspell.lookup(folded))
             looked += 1
-        for _, folded in pending[looked:]:
-            self._lookup_cache[folded] = False
+        # Leave the rest uncached. While lookups are sealed, contains() treats
+        # misses as unknown without writing False into the shared cache — so a
+        # later short check can still Hunspell-confirm rare legitimate forms.
 
     def contains(self, word: str) -> bool:
         folded = word.casefold()
