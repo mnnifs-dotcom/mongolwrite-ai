@@ -609,6 +609,14 @@ export async function adminLexiconWords(params: {
   return response.json() as Promise<LexiconPage>;
 }
 
+export async function adminLexiconExport(): Promise<{ words: string[]; count: number }> {
+  const response = await fetch(apiUrl("/api/v1/admin/lexicon/export"), {
+    credentials: "include",
+  });
+  if (!response.ok) throw new Error("Үгийн санг татаж чадсангүй");
+  return response.json() as Promise<{ words: string[]; count: number }>;
+}
+
 export async function adminLexiconRemove(
   words: string[],
   queueAsDoubt = true,

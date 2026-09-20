@@ -275,6 +275,12 @@ class DictionaryProvider:
             _append_user_words([item.strip().casefold() for item in words if item.strip()])
         return ensured
 
+    def curated_lemmas(self) -> list[str]:
+        """All curated lemmas (seed − removed), sorted — for export / copy-all."""
+        return sorted(
+            {item.casefold() for item in self._seed if item.casefold() not in self._removed}
+        )
+
     def list_lexicon(
         self,
         *,
@@ -286,7 +292,7 @@ class DictionaryProvider:
         """Paginated curated lemmas with optional search / starting-letter filter."""
         q = query.strip().casefold()
         letter_key = letter.strip().casefold()[:1]
-        lemmas = sorted({item.casefold() for item in self._seed if item.casefold() not in self._removed})
+        lemmas = self.curated_lemmas()
         if letter_key:
             lemmas = [word for word in lemmas if word[:1] == letter_key]
         if q:

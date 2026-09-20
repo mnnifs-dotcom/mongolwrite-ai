@@ -14,6 +14,7 @@ def test_list_lexicon_letter_and_search() -> None:
     assert page["words"] == ["ажил", "амьдрал"]
     found = dictionary.list_lexicon(query="рил", offset=0, limit=50)
     assert found["words"] == ["барилга"]
+    assert dictionary.curated_lemmas() == ["ажил", "амьдрал", "барилга", "бүтээл", "засаг"]
 
 
 def test_remove_words_blocks_contains(tmp_path, monkeypatch) -> None:

@@ -251,6 +251,13 @@ def lexicon_words(
     return dictionary.list_lexicon(query=q, letter=letter, offset=offset, limit=limit)
 
 
+@router.get("/lexicon/export")
+def lexicon_export(_: AdminDep) -> dict[str, Any]:
+    """Full curated lexicon as one list (for copy / offline review)."""
+    words = get_engine().dictionary.curated_lemmas()
+    return {"words": words, "count": len(words)}
+
+
 @router.post("/lexicon/remove")
 def lexicon_remove(body: LexiconRemoveRequest, _: AdminDep) -> dict[str, Any]:
     if not body.words:
