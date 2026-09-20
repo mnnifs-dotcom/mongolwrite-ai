@@ -85,14 +85,17 @@ def _is_implausible(word: str) -> bool:
     """Letter sequences that do not occur in Mongolian words."""
     folded = word.casefold()
     letters = [ch for ch in folded if ch.isalpha()]
-    if len(letters) < 3:
+    if len(letters) < 2:
         return False
     if letters[0] in _BAD_START:
         return True
     if any(seq in folded for seq in _BAD_SEQ):
         return True
+    # No vowel at all (рр, рш, …) — not a Mongolian word form.
     if not any(ch in _VOWELS for ch in letters):
         return True
+    if len(letters) < 3:
+        return False
     run = 0
     for ch in letters:
         if ch in _VOWELS:
