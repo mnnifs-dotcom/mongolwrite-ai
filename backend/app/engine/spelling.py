@@ -232,15 +232,15 @@ def check_spelling(tokens: list[Token], dictionary: DictionaryProvider) -> list[
     form_counts: dict[str, int] = {}
     _MAX_PER_FORM = 5
     _MAX_TOTAL = 800
-    # Neighbor search is the slow path. Budget unique calls so ~60k docs with
-    # many distinct typos still finish before the browser/proxy give up.
+    # Neighbor search is the slow path. Keep the budget tight on long docs so
+    # shared-CPU Fly hosts finish before browser/proxy limits (~60–80k chars).
     n_tokens = len(tokens)
     if n_tokens > 5_000:
-        nearby_budget = 60
+        nearby_budget = 15
     elif n_tokens > 2_000:
-        nearby_budget = 100
+        nearby_budget = 40
     else:
-        nearby_budget = 250
+        nearby_budget = 120
     budget = {"nearby": nearby_budget}
     for token in tokens:
         if len(corrections) >= _MAX_TOTAL:
@@ -284,7 +284,7 @@ def _spelling_decision(
                 budget["nearby"] -= 1
             extras = [
                 item
-                for item in dictionary.suggest_many(word, preferred=preferred, limit=5)
+                for item in dictionary.suggest_many(word, preferred=preferred, limit=3)
                 if item != misspelled and _usable_suggestion(word, item)
             ]
         return ("hit", misspelled, "common_misspelling", extras)
@@ -328,7 +328,7 @@ def _spelling_decision(
                 budget["nearby"] -= 1
             alts = [
                 item
-                for item in dictionary.suggest_many(word, preferred=preferred, limit=5)
+                for item in dictionary.suggest_many(word, preferred=preferred, limit=3)
                 if _usable_suggestion(word, item)
             ]
             if alts:
