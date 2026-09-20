@@ -31,7 +31,7 @@ from app.engine.learn import learn_accepted_words
 from app.engine.legal_import import apply_legal_lexicon, legal_import_preview
 from app.engine.legal_laws import ingest_law, list_laws
 from app.engine.metrics import snapshot
-from app.engine.pending import list_pending, pop_pending
+from app.engine.pending import list_pending, pop_pending, pop_pending_many
 from app.engine.runtime import get_engine
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
@@ -144,12 +144,44 @@ def pending_approve(body: WordAction, _: AdminDep) -> dict[str, Any]:
     return {"added": added, "added_count": len(added), "word": item["word"]}
 
 
+@router.post("/pending/approve-many")
+def pending_approve_many(body: WordsAction, _: AdminDep) -> dict[str, Any]:
+    if not body.words:
+        raise HTTPException(status_code=400, detail="Үг сонгоогүй")
+    popped = pop_pending_many(body.words)
+    if not popped:
+        raise HTTPException(status_code=404, detail="Сонгосон үг олдсонгүй")
+    dictionary = get_engine().dictionary
+    surface = [str(item["word"]) for item in popped]
+    added = dictionary.add_words(surface)
+    if len(added) < len(surface):
+        ensured = dictionary.ensure_curated(surface)
+        added = sorted({*added, *ensured})
+    return {
+        "added": added,
+        "added_count": len(added),
+        "removed_count": len(popped),
+        "words": surface,
+    }
+
+
 @router.post("/pending/reject")
 def pending_reject(body: WordAction, _: AdminDep) -> dict[str, str]:
     item = pop_pending(body.word)
     if item is None:
         raise HTTPException(status_code=404, detail="Энэ үг хүлээгдэж байхгүй")
     return {"word": item["word"]}
+
+
+@router.post("/pending/reject-many")
+def pending_reject_many(body: WordsAction, _: AdminDep) -> dict[str, Any]:
+    if not body.words:
+        raise HTTPException(status_code=400, detail="Үг сонгоогүй")
+    popped = pop_pending_many(body.words)
+    return {
+        "removed": [str(item["word"]) for item in popped],
+        "removed_count": len(popped),
+    }
 
 
 @router.post("/ingest")

@@ -7,6 +7,7 @@ import {
   adminAddedWords,
   adminApproveCandidates,
   adminApprovePending,
+  adminApprovePendingMany,
   adminHarvest,
   adminLegalImport,
   adminLegalLawIngest,
@@ -21,6 +22,7 @@ import {
   adminOverview,
   adminRejectCandidates,
   adminRejectPending,
+  adminRejectPendingMany,
   adminSetUserPlan,
   adminUsers,
   type AdminAddedWord,
@@ -93,6 +95,7 @@ export function AdminApp() {
   const [addedLoading, setAddedLoading] = useState(false);
   const [addedCopied, setAddedCopied] = useState(false);
   const [pendingSkipped, setPendingSkipped] = useState<PendingSkippedWord[]>([]);
+  const [pendingSelected, setPendingSelected] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [harvestText, setHarvestText] = useState("");
   const [status, setStatus] = useState("");
@@ -144,6 +147,7 @@ export function AdminApp() {
     const added = next.added_words ?? [];
     setAddedWords(added);
     setPendingSkipped(next.pending_skipped ?? []);
+    setPendingSelected(new Set());
   }, []);
 
   const loadAddedWords = useCallback(
@@ -352,6 +356,11 @@ export function AdminApp() {
       setStatus(
         result.added_count ? `«${result.word}» санд орлоо` : `«${result.word}» аль хэдийн санд байсан`,
       );
+      setPendingSelected((current) => {
+        const next = new Set(current);
+        next.delete(word.toLocaleLowerCase("mn"));
+        return next;
+      });
       await loadLists();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Нэмж чадсангүй");
@@ -367,6 +376,62 @@ export function AdminApp() {
     try {
       const result = await adminRejectPending(word);
       setStatus(`«${result.word}» татгалзлаа`);
+      setPendingSelected((current) => {
+        const next = new Set(current);
+        next.delete(word.toLocaleLowerCase("mn"));
+        return next;
+      });
+      await loadLists();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Татгалзаж чадсангүй");
+    } finally {
+      setActing(null);
+    }
+  }
+
+  function togglePendingWord(folded: string, enabled: boolean) {
+    setPendingSelected((current) => {
+      const next = new Set(current);
+      if (enabled) next.add(folded);
+      else next.delete(folded);
+      return next;
+    });
+  }
+
+  async function onPendingApproveMany() {
+    const words = pendingSkipped
+      .filter((item) => pendingSelected.has(item.folded))
+      .map((item) => item.word);
+    if (!words.length || acting) return;
+    setActing("pending-approve");
+    setError(null);
+    try {
+      const result = await adminApprovePendingMany(words);
+      setStatus(
+        result.added_count
+          ? `${result.added_count} үг санд орлоо`
+          : `${result.removed_count} үг жагсаалтаас хасагдлаа`,
+      );
+      setPendingSelected(new Set());
+      await loadLists();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Нэмж чадсангүй");
+    } finally {
+      setActing(null);
+    }
+  }
+
+  async function onPendingRejectMany() {
+    const words = pendingSkipped
+      .filter((item) => pendingSelected.has(item.folded))
+      .map((item) => item.word);
+    if (!words.length || acting) return;
+    setActing("pending-reject");
+    setError(null);
+    try {
+      const result = await adminRejectPendingMany(words);
+      setStatus(`${result.removed_count} үг татгалзлаа`);
+      setPendingSelected(new Set());
       await loadLists();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Татгалзаж чадсангүй");
@@ -1162,38 +1227,90 @@ export function AdminApp() {
               {pendingSkipped.length === 0 ? (
                 <p className="mw-muted">Хоосон</p>
               ) : (
-                <div className="mw-admin-scroll">
-                  <ul className="mw-admin-list">
-                    {pendingSkipped.map((item) => (
-                      <li key={item.folded}>
-                        <div className="mw-candidate-main">
-                          <strong>{item.word}</strong>
-                          <span className="mw-muted">
-                            {item.count}× · {formatWhen(item.updated_at)}
-                          </span>
-                        </div>
-                        <div className="mw-admin-row">
-                          <button
-                            type="button"
-                            className="mw-btn-primary"
-                            disabled={acting === `p-ok-${item.folded}`}
-                            onClick={() => void onPendingApprove(item.word)}
-                          >
-                            Санд нэмэх
-                          </button>
-                          <button
-                            type="button"
-                            className="mw-btn"
-                            disabled={acting === `p-no-${item.folded}`}
-                            onClick={() => void onPendingReject(item.word)}
-                          >
-                            Татгалзах
-                          </button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                <>
+                  <div className="mw-admin-row mw-lex-actions">
+                    <button
+                      type="button"
+                      className="mw-btn"
+                      onClick={() =>
+                        setPendingSelected(new Set(pendingSkipped.map((item) => item.folded)))
+                      }
+                    >
+                      Бүгдийг сонгох
+                    </button>
+                    <button
+                      type="button"
+                      className="mw-btn"
+                      disabled={!pendingSelected.size}
+                      onClick={() => setPendingSelected(new Set())}
+                    >
+                      Сонголт арилгах
+                    </button>
+                    <button
+                      type="button"
+                      className="mw-btn-primary"
+                      disabled={!pendingSelected.size || acting === "pending-approve"}
+                      onClick={() => void onPendingApproveMany()}
+                    >
+                      {acting === "pending-approve"
+                        ? "Нэмж байна…"
+                        : pendingSelected.size
+                          ? `Санд нэмэх · ${pendingSelected.size}`
+                          : "Санд нэмэх"}
+                    </button>
+                    <button
+                      type="button"
+                      className="mw-btn"
+                      disabled={!pendingSelected.size || acting === "pending-reject"}
+                      onClick={() => void onPendingRejectMany()}
+                    >
+                      {acting === "pending-reject"
+                        ? "Татгалзаж байна…"
+                        : pendingSelected.size
+                          ? `Татгалзах · ${pendingSelected.size}`
+                          : "Татгалзах"}
+                    </button>
+                  </div>
+                  <div className="mw-admin-scroll">
+                    <ul className="mw-admin-list">
+                      {pendingSkipped.map((item) => (
+                        <li key={item.folded}>
+                          <label className="mw-candidate-main">
+                            <input
+                              type="checkbox"
+                              checked={pendingSelected.has(item.folded)}
+                              onChange={(event) =>
+                                togglePendingWord(item.folded, event.target.checked)
+                              }
+                            />
+                            <strong>{item.word}</strong>
+                            <span className="mw-muted">
+                              {item.count}× · {formatWhen(item.updated_at)}
+                            </span>
+                          </label>
+                          <div className="mw-admin-row">
+                            <button
+                              type="button"
+                              className="mw-btn-primary"
+                              disabled={acting === `p-ok-${item.folded}`}
+                              onClick={() => void onPendingApprove(item.word)}
+                            >
+                              Санд нэмэх
+                            </button>
+                            <button
+                              type="button"
+                              className="mw-btn"
+                              disabled={acting === `p-no-${item.folded}`}
+                              onClick={() => void onPendingReject(item.word)}
+                            >
+                              Татгалзах
+                            </button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </>
               )}
             </section>
           ) : null}
