@@ -57,8 +57,8 @@ export function PricingPlans() {
   return (
     <div className="mw-pricing">
       <p className="mw-seo-lead">
-        Үнэгүй нэвтэрсэн хэрэглэгч 1,500 тэмдэгт. Төлбөртэй эрх: 3 сар ₮6,000 эсвэл 1 жил ₮19,900
-        · нэг дор 500 мянган тэмдэгт.
+        Үнэгүй: нэг удаа шалгахдаа 1500 хүртэл тэмдэгт. Төлбөртэй эрх: 3 сар ₮6,000 эсвэл 1 жил
+        ₮19,900 · нэг удаа шалгахдаа 500000 хүртэл тэмдэгт.
       </p>
 
       {error ? <p className="mw-report-error">{error}</p> : null}
@@ -71,7 +71,7 @@ export function PricingPlans() {
             </div>
             <h2>{free.name}</h2>
             <p className="mw-pricing-price">{formatPrice(0)}</p>
-            <p className="mw-muted">{free.blurb || "Туршиж үзэхэд тохиромжтой"} · 1,500 тэмдэгт</p>
+            <p className="mw-muted">{free.blurb || "Туршиж үзэхэд тохиромжтой"}</p>
             <ul>
               {(free.features || []).map((item) => (
                 <li key={item}>{item}</li>
