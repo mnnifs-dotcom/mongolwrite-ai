@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import time
+from collections import Counter
 from collections.abc import Callable, Iterable
 from functools import lru_cache
 from pathlib import Path
@@ -193,6 +195,8 @@ class DictionaryProvider:
         self._hunspell = load_hunspell() if (use_hunspell and words is None) else None
         self._suggest_cache: dict[tuple[str, int], list[str]] = {}
         self._lookup_cache: dict[str, bool] = {}
+        # When sealed, contains() never calls Hunspell for unseen forms (long-doc fast path).
+        self._lookups_sealed = False
         if frequency is not None:
             self._wiki_freq = {
                 key.casefold(): int(value)
@@ -368,7 +372,14 @@ class DictionaryProvider:
         if self._hunspell is None:
             return False
         folded = word.casefold()
-        return bool(self._hunspell.lookup(folded) or self._hunspell.lookup(word))
+        cached = self._lookup_cache.get(folded)
+        if cached is not None:
+            return cached
+        if self._lookups_sealed:
+            return False
+        ok = bool(self._hunspell.lookup(folded))
+        self._lookup_cache[folded] = ok
+        return ok
 
     def in_seed(self, word: str) -> bool:
         folded = word.casefold()
@@ -382,6 +393,59 @@ class DictionaryProvider:
             return False
         return word in self._words or folded in self._words
 
+    def seal_lookups(self) -> None:
+        """Stop Hunspell probes for forms not already in the lookup cache."""
+        self._lookups_sealed = True
+
+    def unseal_lookups(self) -> None:
+        self._lookups_sealed = False
+
+    def warm_document_lookups(
+        self,
+        words: Iterable[str],
+        *,
+        budget_seconds: float = 0.9,
+        skip: Callable[[str], bool] | None = None,
+    ) -> None:
+        """Prefetch Hunspell membership for document forms (frequent first).
+
+        Long typo-heavy docs create thousands of unique misspellings; each failed
+        Hunspell lookup is expensive. Cap wall time and prioritize repeated forms
+        so real legal inflections stay accepted while one-off junk is skipped.
+        """
+        from collections import Counter
+
+        counts = Counter(
+            word.casefold()
+            for word in words
+            if word and any(ch.isalpha() for ch in word)
+        )
+        pending: list[tuple[int, str]] = []
+        for folded, count in counts.items():
+            if folded in self._removed:
+                self._lookup_cache[folded] = False
+                continue
+            if folded in self._words or folded in self._lookup_cache:
+                continue
+            if skip is not None and skip(folded):
+                self._lookup_cache[folded] = False
+                continue
+            pending.append((count, folded))
+        pending.sort(reverse=True)
+        if self._hunspell is None:
+            for _, folded in pending:
+                self._lookup_cache[folded] = False
+            return
+        started = time.perf_counter()
+        looked = 0
+        for _, folded in pending:
+            if time.perf_counter() - started >= budget_seconds:
+                break
+            self._lookup_cache[folded] = bool(self._hunspell.lookup(folded))
+            looked += 1
+        for _, folded in pending[looked:]:
+            self._lookup_cache[folded] = False
+
     def contains(self, word: str) -> bool:
         folded = word.casefold()
         if folded in self._removed:
@@ -391,9 +455,13 @@ class DictionaryProvider:
         cached = self._lookup_cache.get(folded)
         if cached is not None:
             return cached
+        if self._lookups_sealed:
+            # Do not cache: stem probes during rules must not poison later checks.
+            return False
         ok = False
         if self._hunspell is not None:
-            ok = bool(self._hunspell.lookup(word) or self._hunspell.lookup(folded))
+            # Single folded lookup — double lookup nearly doubled long-doc cost.
+            ok = bool(self._hunspell.lookup(folded))
         self._lookup_cache[folded] = ok
         return ok
 

@@ -4,9 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-# Honest per-check ceiling measured on real legalinfo Civil Code text in the
-# editor: ~100k completes; ~200k+ leaves the UI spinning. Cap below that.
-PRACTICAL_CHECK_MAX_CHARS = 80_000
+# Honest per-check ceiling: engine finishes ~100k in a few seconds on Fly.
+PRACTICAL_CHECK_MAX_CHARS = 100_000
 
 # Three user classes:
 #   1) free — үнэгүй
@@ -21,7 +20,7 @@ PLANS: dict[str, dict[str, Any]] = {
         "interval": "none",
         "check_max_chars": PRACTICAL_CHECK_MAX_CHARS,
         "checks_per_day": None,
-        "features": ["Зөв бичих", "Монгол бичиг", "Нэг дор 80 мянган тэмдэгт"],
+        "features": ["Зөв бичих", "Монгол бичиг", "Нэг дор 100 мянган тэмдэгт"],
         "badge": "",
         "sort": 0,
     },
@@ -37,7 +36,7 @@ PLANS: dict[str, dict[str, Any]] = {
             "Зөв бичих",
             "Монгол бичиг",
             "AI засах",
-            "Нэг дор 80 мянган тэмдэгт",
+            "Нэг дор 100 мянган тэмдэгт",
             "Бүрэн эрх · 3 сар",
         ],
         "badge": "сард ₮2,000",
@@ -55,7 +54,7 @@ PLANS: dict[str, dict[str, Any]] = {
             "Зөв бичих",
             "Монгол бичиг",
             "AI засах",
-            "Нэг дор 80 мянган тэмдэгт",
+            "Нэг дор 100 мянган тэмдэгт",
             "Бүрэн эрх · 1 жил",
         ],
         "badge": "хамгийн ашигтай · сард ~₮1,658",

@@ -12,6 +12,24 @@ from app.engine.runtime import get_engine, run_engine_check
 from app.main import app
 
 
+def _diverse_legal_typos(size: int) -> str:
+    sample_path = Path("/tmp/irgenii_huuli.txt")
+    if sample_path.is_file():
+        raw = sample_path.read_text()[:size]
+    else:
+        unit = "Иргэний хуулийн дагуу гэрээ байгуулахдаа талууд эрх үүргээ тодорхой заана. "
+        raw = (unit * ((size // len(unit)) + 5))[:size]
+    parts: list[str] = []
+    for i, word in enumerate(raw.split()):
+        if len(word) >= 5 and i % 2 == 0:
+            parts.append(word[:-1] + "ы" + word[-1] if "ы" not in word else word + "г")
+        elif len(word) >= 4 and i % 3 == 0:
+            parts.append(word[:2] + "ө" + word[2:])
+        else:
+            parts.append(word)
+    return " ".join(parts)[:size]
+
+
 def test_repeated_misspellings_finish_quickly() -> None:
     get_engine()
     bases = [
@@ -36,27 +54,15 @@ def test_repeated_misspellings_finish_quickly() -> None:
     corrections = run_engine_check(text, "government_official")
     elapsed = time.perf_counter() - t0
 
-    assert elapsed < 15.0, f"large repeated check took {elapsed:.1f}s"
+    assert elapsed < 3.0, f"large repeated check took {elapsed:.1f}s"
     assert corrections, "expected some spelling marks"
     assert len(corrections) <= 900
 
 
-def test_diverse_typos_at_58k_finish_quickly() -> None:
-    """Many unique misspellings near the practical ceiling must not hang."""
+def test_diverse_typos_at_58k_finish_under_3s() -> None:
+    """Many unique misspellings near 58k must finish in ~3s."""
     get_engine()
-    sample_path = Path("/tmp/irgenii_huuli.txt")
-    if sample_path.is_file():
-        raw = sample_path.read_text()[:58_000]
-    else:
-        unit = "Иргэний хуулийн дагуу гэрээ байгуулахдаа талууд эрх үүргээ тодорхой заана. "
-        raw = (unit * 3_000)[:58_000]
-    parts: list[str] = []
-    for i, word in enumerate(raw.split()):
-        if len(word) >= 5 and i % 3 == 0:
-            parts.append(word[:-1] + "ы" + word[-1] if "ы" not in word else word + "г")
-        else:
-            parts.append(word)
-    text = " ".join(parts)[:58_000]
+    text = _diverse_legal_typos(58_000)
     assert len(text) >= 50_000
     assert len(set(text.split())) > 1_500
 
@@ -64,9 +70,22 @@ def test_diverse_typos_at_58k_finish_quickly() -> None:
     corrections = run_engine_check(text, "government_official")
     elapsed = time.perf_counter() - t0
 
-    assert elapsed < 20.0, f"58k diverse check took {elapsed:.1f}s"
+    assert elapsed < 3.0, f"58k diverse check took {elapsed:.1f}s"
     assert isinstance(corrections, list)
     assert len(corrections) <= 900
+
+
+def test_diverse_typos_at_80k_and_100k_finish_under_3s() -> None:
+    get_engine()
+    for size in (80_000, 100_000):
+        text = _diverse_legal_typos(size)
+        assert len(text) == size
+        t0 = time.perf_counter()
+        corrections = run_engine_check(text, "government_official")
+        elapsed = time.perf_counter() - t0
+        assert elapsed < 3.0, f"{size} diverse check took {elapsed:.1f}s"
+        assert isinstance(corrections, list)
+        assert len(corrections) <= 900
 
 
 def test_practical_ceiling_rejects_civil_code_size() -> None:
@@ -89,7 +108,7 @@ def test_practical_ceiling_rejects_civil_code_size() -> None:
     assert elapsed < 2.0, f"over-limit reject took {elapsed:.1f}s"
 
 
-def test_practical_ceiling_accepts_80k_legal_sample() -> None:
+def test_practical_ceiling_accepts_100k_legal_sample() -> None:
     sample_path = Path("/tmp/irgenii_huuli.txt")
     if sample_path.is_file():
         text = sample_path.read_text()[:PRACTICAL_CHECK_MAX_CHARS]
@@ -108,5 +127,5 @@ def test_practical_ceiling_accepts_80k_legal_sample() -> None:
     assert response.status_code == 200, response.text[:300]
     body = response.json()
     assert body["character_count"] == len(text)
-    assert elapsed < 30.0, f"80k API check took {elapsed:.1f}s"
+    assert elapsed < 3.0, f"100k API check took {elapsed:.1f}s"
     assert isinstance(body["corrections"], list)

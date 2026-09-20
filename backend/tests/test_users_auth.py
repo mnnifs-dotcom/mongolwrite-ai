@@ -22,7 +22,7 @@ def test_upsert_google_user(tmp_path, monkeypatch) -> None:
     assert second["name"] == "A2"
     pub = public_user(second)
     assert pub["email"] == "a@example.com"
-    assert pub["entitlements"]["check_max_chars"] == 80_000
+    assert pub["entitlements"]["check_max_chars"] == 100_000
 
 
 def test_google_login_requires_token(monkeypatch, tmp_path) -> None:
