@@ -332,7 +332,23 @@ def test_n_plural_not_guud() -> None:
 
 
 def test_x_reflexive_harmony() -> None:
-    local = LanguageEngine(DictionaryProvider(frozenset({"боловсруулах", "явах", "бичих", "ойлгох"})))
+    local = LanguageEngine(
+        DictionaryProvider(
+            frozenset(
+                {
+                    "боловсруулах",
+                    "явах",
+                    "бичих",
+                    "ойлгох",
+                    "тавих",
+                    "барих",
+                    "харах",
+                    "авах",
+                    "гарах",
+                }
+            )
+        )
+    )
     found = local.check("боловсруулахдоо")
     assert any(item.suggested_text == "боловсруулахдаа" for item in found)
     assert not any(item.original_text == "боловсруулахдаа" for item in local.check("боловсруулахдаа"))
@@ -340,6 +356,14 @@ def test_x_reflexive_harmony() -> None:
     assert any(item.suggested_text == "бичихдээ" for item in local.check("бичихдаа"))
     assert not any(item.original_text == "явахдаа" for item in local.check("явахдаа"))
     assert not any(item.original_text == "ойлгохдоо" for item in local.check("ойлгохдоо"))
+    # и is transparent: stem а/о… wins over final и → -хдаа/-хдоо, not -хдээ.
+    for correct in ("тавихдаа", "барихдаа", "харахдаа", "авахдаа", "гарахдаа"):
+        assert not any(item.original_text == correct for item in local.check(correct)), correct
+    assert any(item.suggested_text == "тавихдаа" for item in local.check("тавихдээ"))
+    assert any(item.suggested_text == "барихдаа" for item in local.check("барихдээ"))
+    assert any(item.suggested_text == "харахдаа" for item in local.check("харахдээ"))
+    assert any(item.suggested_text == "авахдаа" for item in local.check("авахдээ"))
+    assert any(item.suggested_text == "гарахдаа" for item in local.check("гарахдээ"))
 
 
 def test_n_stem_accusative_g() -> None:

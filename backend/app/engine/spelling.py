@@ -318,6 +318,10 @@ def _spelling_decision(
             reflexive = suggest_x_reflexive(word, dictionary)
             if reflexive:
                 return ("hit", reflexive, "reflexive_harmony", [])
+            # Case expansion / Hunspell may keep bare …хээр; school form needs a vowel.
+            before_x = suggest_vowel_before_x(word, dictionary)
+            if before_x and before_x.casefold() != word.casefold():
+                return ("hit", before_x, "vowel_before_x", [])
         return None
     if word.casefold() in OFFICIAL_REPLACEMENTS:
         return None
@@ -330,12 +334,12 @@ def _spelling_decision(
     if len(word) >= 4:
         result = _suggest(word, dictionary)
         # Harmony rules must propose an attested form — never invent junk like мөрийийн.
-        # sej_converb may derive багасаж from known багасах even if the converb
-        # itself is missing from a minimal test dictionary.
+        # Stem-derived school forms (sej, -хдаа, байгуулахаар) are valid from a known
+        # infinitive even when the surface form is absent from a minimal test dictionary.
         if (
             result
             and result[1] in _RULE_FIRST
-            and result[1] != "sej_converb"
+            and result[1] not in {"sej_converb", "reflexive_harmony", "vowel_before_x"}
             and not (
                 dictionary.contains(result[0]) or dictionary.in_wordlist(result[0])
             )

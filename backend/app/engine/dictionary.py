@@ -740,8 +740,14 @@ def _last_vowel(stem: str) -> str | None:
 
 
 def _drop_last_i(stem: str) -> str:
-    """School rule: last-syllable и drops before a vowel-initial suffix."""
+    """School rule: last-syllable и drops before a vowel-initial suffix.
+
+    Verb infinitives in -х keep the stem vowel (бичихээр, not бичхээр).
+    """
     if not stem or stem[-1] in "аэиоуөүяёеюыьъ":
+        return stem
+    # -х is the verb infinitive marker: never collapse …их + V → …хV.
+    if stem.endswith("х"):
         return stem
     i_at = stem.rfind("и")
     if i_at < 1:

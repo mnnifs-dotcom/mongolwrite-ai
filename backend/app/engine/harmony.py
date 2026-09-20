@@ -824,7 +824,9 @@ def suggest_vowel_before_x(word: str, dictionary: DictionaryProvider) -> str | N
                 infinitive = before + vowel + "х"
                 if not _known_stem(infinitive, dictionary):
                     continue
-                wanted = _X_REFLEXIVE.get(last_vowel(infinitive) or "")
+                wanted = _X_REFLEXIVE.get(
+                    last_harmony_vowel(infinitive) or last_vowel(infinitive) or ""
+                )
                 if not wanted:
                     continue
                 candidate = before + vowel + wanted
@@ -851,7 +853,9 @@ def suggest_vowel_before_x(word: str, dictionary: DictionaryProvider) -> str | N
             if mapping is None:
                 candidate = before + vowel + matched
             else:
-                ending = mapping.get(last_vowel(infinitive) or "")
+                ending = mapping.get(
+                    last_harmony_vowel(infinitive) or last_vowel(infinitive) or ""
+                )
                 if not ending:
                     continue
                 candidate = infinitive + ending
@@ -865,8 +869,9 @@ def suggest_vowel_before_x(word: str, dictionary: DictionaryProvider) -> str | N
 
 
 def _allowed_x_reflexive(infinitive: str) -> set[str]:
-    """-хдаа/-хдээ/-хдоо/-хдөө follows the last vowel of the infinitive."""
-    wanted = _X_REFLEXIVE.get(last_vowel(infinitive) or "")
+    """-хдаа/-хдээ/-хдоо/-хдөө follows stem harmony (и is transparent)."""
+    vowel = last_harmony_vowel(infinitive) or last_vowel(infinitive) or ""
+    wanted = _X_REFLEXIVE.get(vowel)
     return {wanted} if wanted else set()
 
 
@@ -886,7 +891,7 @@ def _kept_x_reflexive(folded: str, dictionary: DictionaryProvider) -> bool:
 
 
 def suggest_x_reflexive(word: str, dictionary: DictionaryProvider) -> str | None:
-    """When-doing -хдаа/-хдээ/-хдоо/-хдөө follows the infinitive vowel."""
+    """When-doing -хдаа/-хдээ/-хдоо/-хдөө follows stem harmony (и transparent)."""
     folded = word.casefold()
     matched = next(
         (
@@ -904,7 +909,8 @@ def suggest_x_reflexive(word: str, dictionary: DictionaryProvider) -> str | None
         return None
     if matched in _allowed_x_reflexive(infinitive):
         return None
-    wanted = _X_REFLEXIVE.get(last_vowel(infinitive) or "")
+    vowel = last_harmony_vowel(infinitive) or last_vowel(infinitive) or ""
+    wanted = _X_REFLEXIVE.get(vowel)
     if not wanted or wanted == matched:
         return None
     return stem + wanted
