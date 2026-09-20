@@ -9,129 +9,19 @@ const MN_DIGITS = "᠐᠑᠒᠓᠔᠕᠖᠗᠘᠙";
 
 const CONVERT_OPTS = { digits: "mongolian" as const, punctuation: "mongolian" as const };
 
-/** Cyrillic number words — converted to traditional script via convertWord. */
-const ONES = ["тэг", "нэг", "хоёр", "гурав", "дөрөв", "тав", "зургаа", "долоо", "найм", "ес"];
-/** Connecting tens (арван нэг). Index = tens digit. */
-const TENS_ATTR = [
-  "",
-  "арван",
-  "хорин",
-  "гучин",
-  "дөчин",
-  "тавин",
-  "жаран",
-  "далан",
-  "наян",
-  "ерэн",
-];
-/** Standalone tens (10, 20, …) — prefer lexicon-backed forms. */
-const TENS_ALONE = [
-  "",
-  "арав",
-  "хорь",
-  "гуч",
-  "дөчин",
-  "тавин",
-  "жаран",
-  "далан",
-  "наян",
-  "ерэн",
-];
-
-/**
- * Arabic integer → Mongolian Cyrillic number words (then → bichig).
- * Traditional Mongolian writes numbers as words; Mongolian digits (᠐–᠙) often
- * fall back to Latin-looking glyphs and look “unconverted”.
- */
-function arabicToCyrillicNumberWords(raw: string): string {
-  if (!/^\d+$/.test(raw)) return raw;
-  // Preserve leading zeros as spoken digits.
-  if (raw.length > 1 && raw.startsWith("0")) {
-    return [...raw].map((ch) => ONES[Number(ch)]).join(" ");
-  }
-  if (raw.length > 15) {
-    // Too large for word form — keep mongolian digit characters.
-    return [...raw]
-      .map((ch) => {
-        const n = ch.charCodeAt(0) - 48;
-        return n >= 0 && n <= 9 ? MN_DIGITS[n] : ch;
-      })
-      .join("");
-  }
-  const n = Number(raw);
-  if (!Number.isFinite(n)) return raw;
-  return integerToCyrillicWords(n);
-}
-
-function integerToCyrillicWords(n: number): string {
-  if (n < 0) return integerToCyrillicWords(-n);
-  if (n < 10) return ONES[n];
-  if (n < 100) return underHundred(n);
-  if (n < 1000) {
-    const h = Math.floor(n / 100);
-    const rest = n % 100;
-    const head = h === 1 ? "зуу" : `${ONES[h]} зуу`;
-    if (rest === 0) return head;
-    // Attributive hundred when followed: зуун …
-    const headAttr = h === 1 ? "зуун" : `${ONES[h]} зуун`;
-    return `${headAttr} ${underHundred(rest)}`;
-  }
-  if (n < 10_000) {
-    const th = Math.floor(n / 1000);
-    const rest = n % 1000;
-    const head = th === 1 ? "мянга" : `${integerToCyrillicWords(th)} мянга`;
-    if (rest === 0) return head;
-    return `${head} ${integerToCyrillicWords(rest)}`;
-  }
-  if (n < 100_000_000) {
-    const tum = Math.floor(n / 10_000);
-    const rest = n % 10_000;
-    const head = tum === 1 ? "түмэн" : `${integerToCyrillicWords(tum)} түмэн`;
-    if (rest === 0) return head;
-    return `${head} ${integerToCyrillicWords(rest)}`;
-  }
-  // Fallback for huge values: mongolian digits
-  return String(n)
-    .split("")
+/** Map Arabic digits 0–9 to Mongolian digits ᠐–᠙. */
+function convertDigits(token: string): string {
+  return [...token]
     .map((ch) => {
-      const d = Number(ch);
-      return Number.isFinite(d) ? MN_DIGITS[d] : ch;
+      const n = ch.charCodeAt(0) - 48;
+      return n >= 0 && n <= 9 ? MN_DIGITS[n] : ch;
     })
     .join("");
 }
 
-function underHundred(n: number): string {
-  if (n < 10) return ONES[n];
-  if (n === 10) return "арав";
-  if (n < 20) return `арван ${ONES[n - 10]}`;
-  const t = Math.floor(n / 10);
-  const o = n % 10;
-  if (o === 0) return TENS_ALONE[t];
-  return `${TENS_ATTR[t]} ${ONES[o]}`;
-}
-
-function convertDigits(token: string): string {
-  const words = arabicToCyrillicNumberWords(token);
-  // Already mongolian digits (very long / huge fallback)
-  if (/^[᠐-᠙]+$/.test(words)) return words;
-  return words
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((w) => convertWord(w))
-    .join(" ");
-}
-
 /** Remap any Arabic digit runs inside a mixed token (он100, 16.., №12). */
 function convertEmbeddedDigits(text: string): string {
-  return text.replace(/\d+/g, (digits, offset: number) => {
-    const words = convertDigits(digits);
-    const before = offset > 0 ? text[offset - 1] : "";
-    const after = text[offset + digits.length] ?? "";
-    const letter = /[\p{L}\p{M}\u1800-\u18AF\u2090-\u209C]/u;
-    const padBefore = before && letter.test(before) ? " " : "";
-    const padAfter = after && letter.test(after) ? " " : "";
-    return `${padBefore}${words}${padAfter}`;
-  });
+  return text.replace(/\d+/g, (digits) => convertDigits(digits));
 }
 
 /**
@@ -449,12 +339,7 @@ function convertToken(token: string): string {
       const trailOut = convertEmbeddedDigits(
         [...trail].map((ch) => PUNCT_MAP[ch] ?? ch).join(""),
       );
-      const coreOut = convertWord(core);
-      const left =
-        leadOut && /\d/.test(lead) ? `${leadOut} ` : leadOut;
-      const right =
-        trailOut && /\d/.test(trail) ? ` ${trailOut}` : trailOut;
-      return left + coreOut + right;
+      return leadOut + convertWord(core) + trailOut;
     }
     // No letter core (e.g. 16.. or 100%): convert digit runs + punct map.
     return convertEmbeddedDigits(
