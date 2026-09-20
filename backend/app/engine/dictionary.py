@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import threading
 import time
 from collections import Counter
 from collections.abc import Callable, Iterable
@@ -8,6 +9,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from app.core import shared_cache
 from app.engine.frequency import load_frequency
 from app.engine.misspellings import lookup_misspelling
 from app.engine.legal_lexicon import load_legal_auto_lexicon, load_legal_frequency
@@ -196,6 +198,7 @@ class DictionaryProvider:
         self._hunspell = load_hunspell() if (use_hunspell and words is None) else None
         self._suggest_cache: dict[tuple[str, int], list[str]] = {}
         self._lookup_cache: dict[str, bool] = {}
+        self._cache_lock = threading.RLock()
         # When sealed, contains() never calls Hunspell for unseen forms (long-doc fast path).
         self._lookups_sealed = False
         if frequency is not None:
@@ -382,13 +385,27 @@ class DictionaryProvider:
         if self._hunspell is None:
             return False
         folded = word.casefold()
-        cached = self._lookup_cache.get(folded)
+        with self._cache_lock:
+            cached = self._lookup_cache.get(folded)
         if cached is not None:
+            shared_cache.record_l1_hit()
             return cached
         if self._lookups_sealed:
             return False
-        ok = bool(self._hunspell.lookup(folded))
-        self._lookup_cache[folded] = ok
+        return self._probe_hunspell(folded)
+
+    def _probe_hunspell(self, folded: str) -> bool:
+        """L1 → Redis L2 → Hunspell; fill caches. Never called while sealed."""
+        shared = shared_cache.get_hunspell_membership(folded)
+        if shared is not None:
+            with self._cache_lock:
+                self._lookup_cache[folded] = shared
+            return shared
+        ok = bool(self._hunspell.lookup(folded)) if self._hunspell is not None else False
+        shared_cache.record_miss()
+        with self._cache_lock:
+            self._lookup_cache[folded] = ok
+        shared_cache.set_hunspell_membership(folded, ok)
         return ok
 
     def in_seed(self, word: str) -> bool:
@@ -416,7 +433,8 @@ class DictionaryProvider:
 
     def lookup_probed(self, word: str) -> bool:
         """True when Hunspell membership for this form is already cached."""
-        return word.casefold() in self._lookup_cache
+        with self._cache_lock:
+            return word.casefold() in self._lookup_cache
 
     def warm_document_lookups(
         self,
@@ -439,26 +457,39 @@ class DictionaryProvider:
         pending: list[tuple[int, str]] = []
         for folded, count in counts.items():
             if folded in self._removed:
-                self._lookup_cache[folded] = False
+                with self._cache_lock:
+                    self._lookup_cache[folded] = False
                 continue
-            if folded in self._words or folded in self._lookup_cache:
+            with self._cache_lock:
+                known = folded in self._words or folded in self._lookup_cache
+            if known:
                 continue
             if skip is not None and skip(folded):
-                self._lookup_cache[folded] = False
+                with self._cache_lock:
+                    self._lookup_cache[folded] = False
                 continue
             pending.append((count, folded))
         pending.sort(reverse=True)
         if self._hunspell is None:
-            for _, folded in pending:
-                self._lookup_cache[folded] = False
+            with self._cache_lock:
+                for _, folded in pending:
+                    self._lookup_cache[folded] = False
             return
         started = time.perf_counter()
-        looked = 0
         for _, folded in pending:
             if time.perf_counter() - started >= budget_seconds:
                 break
-            self._lookup_cache[folded] = bool(self._hunspell.lookup(folded))
-            looked += 1
+            # Prefer shared Redis before paying for Hunspell on every machine.
+            shared = shared_cache.get_hunspell_membership(folded)
+            if shared is not None:
+                with self._cache_lock:
+                    self._lookup_cache[folded] = shared
+                continue
+            ok = bool(self._hunspell.lookup(folded))
+            shared_cache.record_miss()
+            with self._cache_lock:
+                self._lookup_cache[folded] = ok
+            shared_cache.set_hunspell_membership(folded, ok)
         # Leave the rest uncached. While lookups are sealed, contains() treats
         # misses as unknown without writing False into the shared cache — so a
         # later short check can still Hunspell-confirm rare legitimate forms.
@@ -469,18 +500,15 @@ class DictionaryProvider:
             return False
         if word in self._words or folded in self._words:
             return True
-        cached = self._lookup_cache.get(folded)
+        with self._cache_lock:
+            cached = self._lookup_cache.get(folded)
         if cached is not None:
+            shared_cache.record_l1_hit()
             return cached
         if self._lookups_sealed:
             # Do not cache: stem probes during rules must not poison later checks.
             return False
-        ok = False
-        if self._hunspell is not None:
-            # Single folded lookup — double lookup nearly doubled long-doc cost.
-            ok = bool(self._hunspell.lookup(folded))
-        self._lookup_cache[folded] = ok
-        return ok
+        return self._probe_hunspell(folded)
 
     def is_removed(self, word: str) -> bool:
         return word.casefold() in self._removed

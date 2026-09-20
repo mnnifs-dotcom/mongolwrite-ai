@@ -70,17 +70,33 @@ Frontend contains no business language rules except debounce and offset mapping.
 
 ## 4. System architecture
 
+![MongolWrite target architecture — APP scale-out, shared cache, spell engine; LLM off](mongolwrite-architecture.png)
+
 ```
-Browser (Next.js + TipTap)
-        |
-        | HTTPS, cookie session
-        v
-FastAPI  -- PostgreSQL
-   |     -- Redis
-   |
-   +-- engine (in-process, no network)
-   +-- AIProvider (V2, outbound, explicit only)
+USERS
+  │
+  ▼
+APP 1 … APP N     (Fly.io · FastAPI + Next · CHECK_CONCURRENCY)
+  │
+  ├── Shared cache (optional Redis L2 · always memory L1)
+  │         │
+  │         ▼
+  └── SPELL ENGINE
+        ├── Hunspell (~621k stems)     ← acceptance
+        ├── Үгийн сан (curated seed)   ← suggestions / admin
+        └── Дүрэм (harmony, …)
+
+Admin ── legalinfo.mn / lexicon export
+
+AI Improve = optional later (LLM off by default)
 ```
+
+**Production today (single machine is fine):**
+
+- 1 Fly machine + persist volume; Redis optional (`REDIS_URL`)
+- Hunspell membership: process L1 cache → optional Redis → `.lookup()`
+- Concurrent checks via `CHECK_CONCURRENCY` (default 3) instead of a global lock
+- LLM is not on the hot path
 
 **Check flow:**
 
@@ -88,9 +104,14 @@ FastAPI  -- PostgreSQL
 2. `POST /api/v1/check/deterministic` with UTF-8 text.
 3. Engine returns `Correction[]` with Unicode code-point offsets.
 4. Frontend maps offsets onto TipTap decorations.
-5. V2: `POST /api/v1/check/ai` only from the Improve action.
+5. Optional later: Improve action may call AI — never the default spell path.
 6. Ranker drops AI suggestions that contradict high-confidence dictionary hits.
 
+**Scale-out when traffic grows:**
+
+1. Raise `min_machines_running` / add machines (note: Fly volume is single-writer — prefer Redis for shared Hunspell cache before multi-writer admin state).
+2. Set `REDIS_URL` (Upstash / Fly Redis) for cross-instance Hunspell membership.
+3. Watch admin «Сайтын төлөв» → cache hit% / p50.
 ## 5. Folder structure
 
 ```

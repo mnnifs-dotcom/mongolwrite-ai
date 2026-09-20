@@ -6,12 +6,17 @@ primary_region = "nrt"
 
 [env]
   APP_ENV = "production"
+  # Concurrent spell-checks per machine (Hunspell CPU). Raise with more RAM/CPU.
+  CHECK_CONCURRENCY = "3"
+  # Optional shared Hunspell cache across machines — leave unset for memory-only (no cost).
+  # REDIS_URL = "redis://default:...@...."
 
 [http_service]
   internal_port = 8080
   force_https = true
   auto_stop_machines = "off"
   auto_start_machines = true
+  # Start with 1. Raise when concurrent users need more APP instances.
   min_machines_running = 1
   processes = ["app"]
 
