@@ -3,6 +3,7 @@ from __future__ import annotations
 import threading
 import time
 
+from app.core.config import settings
 from app.engine.hunspell_candidates import harvest_safe
 from app.engine.metrics import record
 from app.engine.models import Correction
@@ -10,7 +11,9 @@ from app.engine.pipeline import LanguageEngine
 
 _engine: LanguageEngine | None = None
 _lock = threading.Lock()
-_check_lock = threading.Lock()
+# Allow a few concurrent checks so multi-user load does not queue behind one lock.
+# Cap via CHECK_CONCURRENCY (default 3) — Hunspell is CPU-heavy.
+_check_slots = threading.Semaphore(max(1, int(settings.check_concurrency or 3)))
 _harvest_lock = threading.Lock()
 
 
@@ -44,7 +47,7 @@ def _harvest_async(text: str) -> None:
 def run_engine_check(text: str, style: str) -> list[Correction]:
     engine = get_engine()
     t0 = time.perf_counter()
-    with _check_lock:
+    with _check_slots:
         result = engine.check(text, style=style)
     record((time.perf_counter() - t0) * 1000)
     _harvest_async(text)

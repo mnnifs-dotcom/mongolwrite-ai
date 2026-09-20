@@ -9,6 +9,11 @@ class Settings(BaseSettings):
     frontend_origin: str = "http://localhost:3000"
     frontend_dir: str = ""
     check_max_chars: int = 300_000
+    # How many spell-checks may run at once on one machine (Hunspell is CPU-heavy).
+    check_concurrency: int = 3
+    # Optional shared Hunspell membership cache across APP instances (Upstash/Fly Redis).
+    # Empty = memory-only L1 (default on single-machine Fly — no extra cost).
+    redis_url: str = ""
     admin_username: str = "Admin write"
     admin_password: str = "Ilove@00"
     google_client_id: str = ""

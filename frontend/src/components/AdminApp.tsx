@@ -822,10 +822,44 @@ export function AdminApp() {
                 </span>
               </div>
               <p className="mw-muted">
-                {overview.health.checks_24h} шалгалт ·{" "}
-                {overview.health.warm_p95_ms_24h || overview.health.p95_ms_24h}мс ·{" "}
+                {overview.health.checks_24h} шалгалт · p50{" "}
+                {overview.health.p50_ms_24h ??
+                  overview.health.warm_p95_ms_24h ??
+                  overview.health.p95_ms_24h}
+                мс · p95 {overview.health.warm_p95_ms_24h || overview.health.p95_ms_24h}мс ·{" "}
                 {formatUptime(overview.health.uptime_seconds)}
               </p>
+              <div className="mw-overview-grid" style={{ marginTop: "1rem" }}>
+                <div className="mw-overview-tile">
+                  <span>Зэрэг шалгалт</span>
+                  <strong>{overview.health.check_concurrency ?? 3}</strong>
+                  <em>CHECK_CONCURRENCY</em>
+                </div>
+                <div className="mw-overview-tile">
+                  <span>Cache hit</span>
+                  <strong>
+                    {(overview.health.cache?.hit_pct ?? 0).toLocaleString("mn-MN")}%
+                  </strong>
+                  <em>
+                    {overview.health.cache?.connected
+                      ? "Redis + memory"
+                      : overview.health.cache?.enabled
+                        ? "Redis тохируулсан, холбогдоогүй"
+                        : "Зөвхөн memory (Redis байхгүй)"}
+                  </em>
+                </div>
+                <div className="mw-overview-tile">
+                  <span>Lookups</span>
+                  <strong>
+                    {(overview.health.cache?.lookups ?? 0).toLocaleString("mn-MN")}
+                  </strong>
+                  <em>
+                    L1 {overview.health.cache?.l1_hits ?? 0} · Redis{" "}
+                    {overview.health.cache?.redis_hits ?? 0} · miss{" "}
+                    {overview.health.cache?.misses ?? 0}
+                  </em>
+                </div>
+              </div>
             </section>
           ) : null}
 

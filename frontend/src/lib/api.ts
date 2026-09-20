@@ -323,11 +323,23 @@ export type SiteHealth = {
   advice: string;
   checks_24h: number;
   warm_p95_ms_24h: number;
+  p50_ms_24h?: number;
   p95_ms_24h: number;
   slow_24h: number;
   outlier_24h: number;
   warmup_ms: number;
   uptime_seconds: number;
+  check_concurrency?: number;
+  cache?: {
+    enabled: boolean;
+    connected: boolean;
+    hit_pct: number;
+    lookups: number;
+    l1_hits: number;
+    redis_hits: number;
+    misses: number;
+    backend: string;
+  };
 };
 
 export type SiteOverview = {

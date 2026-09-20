@@ -6,6 +6,9 @@ import time
 from collections import deque
 from typing import Any, Callable
 
+from app.core import shared_cache
+from app.core.config import settings
+
 _log = logging.getLogger(__name__)
 _lock = threading.Lock()
 _started = time.monotonic()
@@ -109,6 +112,7 @@ def snapshot() -> dict[str, Any]:
         "advice": advice,
         "checks_24h": len(normal),
         "warm_p95_ms_24h": round(_percentile(normal, 95)),
+        "p50_ms_24h": round(_percentile(normal, 50)),
         "p95_ms_24h": round(_percentile(normal, 95)),
         "slow_24h": slow,
         "outlier_24h": spikes,
@@ -116,4 +120,6 @@ def snapshot() -> dict[str, Any]:
         "uptime_seconds": int(now - _started),
         "seconds_since_warm": int(now - last_warm) if last_warm else None,
         "auto_heals": True,
+        "cache": shared_cache.cache_stats(),
+        "check_concurrency": max(1, int(settings.check_concurrency or 3)),
     }
