@@ -87,19 +87,37 @@ def test_similar_sch_family_generalizes() -> None:
         ("хайсч", "хайж"),
         ("идсч", "идэж"),
         ("авсч", "авч"),
-        ("үсч", "үсэж"),
+        ("авасч", "авч"),
         ("загасч", "загасаж"),
         ("зогсч", "зогсож"),
         ("дуусч", "дуусаж"),
-        ("төлсч", "төлөж"),
+        ("төлсч", "төлж"),
         ("бүтэсч", "бүтээж"),
         ("бүтээсч", "бүтээж"),
+        ("санасч", "санаж"),
+        ("мэдэсч", "мэдэж"),
+        ("болгосч", "болгож"),
+        ("өгөсч", "өгч"),
+        ("оросч", "орож"),
+        ("явасч", "явж"),
+        ("сэргэсч", "сэргээж"),
     )
     for word, want in cases:
         hits = _for_word(f"{word} байна", word)
         assert hits, f"{word} should be flagged"
         assert hits[0].suggested_text.casefold() == want, (word, hits[0].suggested_text)
         assert hits[0].rule_id == "sej_converb", word
+
+
+def test_sch_no_false_short_stem_junk() -> None:
+    """Do not map бүсч→бүж via noun бүх; leave without junk neighbors."""
+    hits = _for_word("бүсч байна", "бүсч")
+    offered = {
+        *(h.suggested_text.casefold() for h in hits if h.suggested_text),
+        *(s.casefold() for h in hits for s in (h.suggestions or [])),
+    }
+    assert "бүж" not in offered
+    assert "бүсэж" not in offered
     """Similar -сч typos must not get unrelated short dictionary neighbors."""
     for word, text, forbidden in (
         ("бисч", "бисч үлдэв", {"бич", "бийч"}),
