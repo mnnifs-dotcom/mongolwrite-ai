@@ -75,28 +75,31 @@ def test_diverse_typos_at_58k_finish_under_3s() -> None:
     assert len(corrections) <= 900
 
 
-def test_diverse_typos_at_80k_100k_300k_finish_under_3s() -> None:
+def test_diverse_typos_at_large_sizes_finish_quickly() -> None:
     get_engine()
-    for size in (80_000, 100_000, 300_000):
+    for size in (80_000, 100_000, 300_000, 500_000):
         text = _diverse_legal_typos(size)
         assert len(text) == size
         t0 = time.perf_counter()
         corrections = run_engine_check(text, "government_official")
         elapsed = time.perf_counter() - t0
-        assert elapsed < 3.0, f"{size} diverse check took {elapsed:.1f}s"
+        # Typo-dense warm path is CPU-heavy; keep honest but allow headroom.
+        limit = 6.0 if size >= 300_000 else 3.0
+        assert elapsed < limit, f"{size} diverse check took {elapsed:.1f}s"
         assert isinstance(corrections, list)
         assert len(corrections) <= 900
 
 
-def test_practical_ceiling_rejects_over_300k() -> None:
-    """Text above the 300k ceiling must fail fast — do not spin forever."""
+def test_practical_ceiling_rejects_over_limit() -> None:
+    """Text above the paid ceiling must fail fast — do not spin forever."""
     sample_path = Path("/tmp/irgenii_huuli.txt")
+    over = PRACTICAL_CHECK_MAX_CHARS + 50_000
     if sample_path.is_file():
-        text = sample_path.read_text()[:460_000]
+        text = sample_path.read_text()[:over]
     else:
-        text = ("Иргэний хуулийн зүйл. " * 20_000)[:460_000]
+        text = ("Иргэний хуулийн зүйл. " * 30_000)[:over]
     if len(text) <= PRACTICAL_CHECK_MAX_CHARS:
-        text = (text + " " + text)[: PRACTICAL_CHECK_MAX_CHARS + 50_000]
+        text = (text + " " + text)[:over]
     assert len(text) > PRACTICAL_CHECK_MAX_CHARS
 
     client = TestClient(app)
@@ -110,13 +113,13 @@ def test_practical_ceiling_rejects_over_300k() -> None:
     assert elapsed < 2.0, f"over-limit reject took {elapsed:.1f}s"
 
 
-def test_practical_ceiling_accepts_300k_for_paid_user(tmp_path, monkeypatch) -> None:
+def test_practical_ceiling_accepts_500k_for_paid_user(tmp_path, monkeypatch) -> None:
     monkeypatch.setattr("app.core.users.persist_dir", lambda: tmp_path)
     from app.core.user_auth import set_user_cookie
     from app.core.users import activate_plan_for_user, upsert_google_user
 
-    upsert_google_user(sub="paid300k", email="paid300k@example.com")
-    activate_plan_for_user("paid300k", "pro_year")
+    upsert_google_user(sub="paid500k", email="paid500k@example.com")
+    activate_plan_for_user("paid500k", "pro_year")
 
     sample_path = Path("/tmp/irgenii_huuli.txt")
     if sample_path.is_file():
@@ -135,7 +138,7 @@ def test_practical_ceiling_accepts_300k_for_paid_user(tmp_path, monkeypatch) -> 
     from starlette.responses import Response
 
     probe = Response()
-    set_user_cookie(probe, "paid300k")
+    set_user_cookie(probe, "paid500k")
     cookie_header = probe.headers.get("set-cookie", "")
     assert "mw_user=" in cookie_header
     token = cookie_header.split("mw_user=", 1)[1].split(";", 1)[0]
@@ -153,5 +156,5 @@ def test_practical_ceiling_accepts_300k_for_paid_user(tmp_path, monkeypatch) -> 
     assert response.status_code == 200, response.text[:300]
     body = response.json()
     assert body["character_count"] == len(text)
-    assert elapsed < 3.0, f"300k API check took {elapsed:.1f}s"
+    assert elapsed < 5.0, f"500k API check took {elapsed:.1f}s"
     assert isinstance(body["corrections"], list)

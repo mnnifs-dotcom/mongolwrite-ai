@@ -652,6 +652,14 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+.mw-count strong.is-over-limit {
+  color: var(--ink);
+}
+
+.mw-count-over {
+  color: #c62828;
+}
+
 .mw-bichig-panel {
   flex: 0 1 300px;
   min-width: 220px;

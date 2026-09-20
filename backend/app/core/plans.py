@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 # Paid / practical engine ceiling (long docs finish in a few seconds).
-PRACTICAL_CHECK_MAX_CHARS = 300_000
+PRACTICAL_CHECK_MAX_CHARS = 500_000
 # Not signed in — try the product briefly.
 GUEST_CHECK_MAX_CHARS = 500
 # Signed in on the free plan.
@@ -45,7 +45,7 @@ PLANS: dict[str, dict[str, Any]] = {
             "Зөв бичих",
             "Монгол бичиг",
             "AI засах",
-            "Нэг дор 300 мянган тэмдэгт",
+            "Нэг дор 500 мянган тэмдэгт",
             "Бүрэн эрх · 3 сар",
         ],
         "badge": "сард ₮2,000",
@@ -64,7 +64,7 @@ PLANS: dict[str, dict[str, Any]] = {
             "Зөв бичих",
             "Монгол бичиг",
             "AI засах",
-            "Нэг дор 300 мянган тэмдэгт",
+            "Нэг дор 500 мянган тэмдэгт",
             "Бүрэн эрх · 1 жил",
         ],
         "badge": "хамгийн ашигтай · сард ~₮1,658",
@@ -104,12 +104,17 @@ def is_paid_plan(plan_id: str) -> bool:
 
 
 def effective_check_max_chars(user: dict[str, Any] | None = None) -> int:
-    """Guest 500 · free 1,500 · paid 300,000 (capped by settings)."""
+    """Guest 500 · free 1,500 · paid 500,000 (capped by settings)."""
     from app.core.config import settings
 
     hard_cap = min(int(settings.check_max_chars), PRACTICAL_CHECK_MAX_CHARS)
     if not user:
         return min(GUEST_CHECK_MAX_CHARS, hard_cap)
+    plan_id = str(user.get("plan") or DEFAULT_PLAN)
+    # Paid plans always use the current catalog ceiling so raising PRACTICAL
+    # immediately applies (stored entitlements may still say 300k).
+    if is_paid_plan(plan_id) or bool(user.get("is_paid")):
+        return min(int(get_plan(plan_id)["check_max_chars"]), hard_cap)
     entitlements = user.get("entitlements") or {}
     raw = entitlements.get("check_max_chars")
     if raw is not None:
@@ -117,5 +122,4 @@ def effective_check_max_chars(user: dict[str, Any] | None = None) -> int:
             return min(int(raw), hard_cap)
         except (TypeError, ValueError):
             pass
-    plan_id = str(user.get("plan") or DEFAULT_PLAN)
     return min(int(get_plan(plan_id)["check_max_chars"]), hard_cap)
