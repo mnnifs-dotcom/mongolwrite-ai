@@ -790,6 +790,7 @@ export type BillingPlan = {
   interval?: string;
   features: string[];
   badge?: string;
+  blurb?: string;
 };
 
 export type BillingStatus = {

@@ -604,7 +604,8 @@ body {
   box-shadow:
     0 1px 2px rgba(13, 27, 42, 0.04),
     0 12px 40px rgba(19, 78, 122, 0.06);
-  max-width: 760px;
+  max-width: none;
+  width: 100%;
   overflow: hidden;
   animation: mw-fade-rise 0.45s ease both;
 }
@@ -868,10 +869,16 @@ body {
   min-height: 100%;
   font-size: 18px;
   line-height: 1.8;
-  max-width: 680px;
+  max-width: none;
+  width: 100%;
   font-family: var(--font-sans);
   text-align: justify;
   text-justify: inter-word;
+}
+
+/* When bichig panel is open, keep readable line length inside the narrowed editor. */
+.mw-shell.is-bichig-open .mw-prose {
+  max-width: 100%;
 }
 
 .mw-prose p,
@@ -2381,6 +2388,18 @@ label {
   text-align: left;
 }
 
+.mw-pricing-icon {
+  width: 44px;
+  height: 44px;
+  margin-bottom: 10px;
+}
+
+.mw-pricing-icon svg {
+  width: 40px;
+  height: 40px;
+  display: block;
+}
+
 .mw-pricing-card.is-featured {
   border-color: color-mix(in srgb, var(--accent) 45%, transparent);
   box-shadow: 0 10px 28px color-mix(in srgb, var(--accent) 16%, transparent);
@@ -2478,6 +2497,21 @@ label {
   max-width: 34rem;
 }
 
+.mw-upgrade-kicker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 0 10px;
+  padding: 8px 18px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .mw-upgrade-header h2 {
   margin: 0 0 6px;
   font-size: 1.35rem;
@@ -2530,28 +2564,17 @@ label {
 }
 
 .mw-upgrade-icon {
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
-  border-radius: 999px;
-  font-size: 14px;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
-.mw-upgrade-icon-free {
-  background: #e8f6ee;
-  color: #1f8a4c;
-}
-
-.mw-upgrade-icon-quarter {
-  background: color-mix(in srgb, var(--accent) 12%, #fff);
-  color: var(--accent-deep);
-}
-
-.mw-upgrade-icon-year {
-  background: color-mix(in srgb, var(--accent) 16%, #fff);
-  color: var(--accent);
+.mw-upgrade-icon svg {
+  width: 40px;
+  height: 40px;
+  display: block;
 }
 
 .mw-upgrade-card h3 {

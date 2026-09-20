@@ -25,8 +25,7 @@ PLANS: dict[str, dict[str, Any]] = {
         "check_max_chars": FREE_CHECK_MAX_CHARS,
         "checks_per_day": None,
         "features": [
-            "Зөв бичих",
-            "Монгол бичиг",
+            "Үгийн алдаа шалгах",
             "Нэг дор 1,500 тэмдэгт",
         ],
         "badge": "",
@@ -42,9 +41,8 @@ PLANS: dict[str, dict[str, Any]] = {
         "check_max_chars": PRACTICAL_CHECK_MAX_CHARS,
         "checks_per_day": None,
         "features": [
-            "Зөв бичих",
-            "Монгол бичиг",
-            "AI засах",
+            "Үгийн алдаа шалгах",
+            "Монгол бичиг хөрвүүлэх",
             "Нэг дор 500 мянган тэмдэгт",
             "Бүрэн эрх · 3 сар",
         ],
@@ -61,9 +59,8 @@ PLANS: dict[str, dict[str, Any]] = {
         "check_max_chars": PRACTICAL_CHECK_MAX_CHARS,
         "checks_per_day": None,
         "features": [
-            "Зөв бичих",
-            "Монгол бичиг",
-            "AI засах",
+            "Үгийн алдаа шалгах",
+            "Монгол бичиг хөрвүүлэх",
             "Нэг дор 500 мянган тэмдэгт",
             "Бүрэн эрх · 1 жил",
         ],

@@ -562,6 +562,12 @@ export function EditorApp() {
   }, []);
 
   useEffect(() => {
+    if (!isPaid && showBichig) {
+      setShowBichig(false);
+    }
+  }, [isPaid, showBichig]);
+
+  useEffect(() => {
     const onSelect = (event: Event) => {
       const id = (event as CustomEvent<string>).detail;
       setActiveId((current) => (current === id ? null : id));
@@ -737,6 +743,11 @@ export function EditorApp() {
 
   function convertToBichig() {
     if (!editor) return;
+    if (!isPaid) {
+      setUpgradeOpen(true);
+      setShowBichig(false);
+      return;
+    }
     const text = plainTextFromDoc(editor.state.doc);
     if (!text.trim()) return;
     setBichigBusy(true);
