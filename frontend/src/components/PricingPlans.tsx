@@ -56,11 +56,6 @@ export function PricingPlans() {
 
   return (
     <div className="mw-pricing">
-      <p className="mw-seo-lead">
-        Үнэгүй: нэг удаа шалгахдаа 1500 хүртэл тэмдэгт. Төлбөртэй эрх: 3 сар ₮6,000 эсвэл 1 жил
-        ₮19,900 · нэг удаа шалгахдаа 500000 хүртэл тэмдэгт.
-      </p>
-
       {error ? <p className="mw-report-error">{error}</p> : null}
 
       <div className="mw-pricing-grid">
