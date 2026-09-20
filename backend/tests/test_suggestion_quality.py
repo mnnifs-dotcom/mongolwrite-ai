@@ -34,9 +34,13 @@ def test_morini_suggests_dictionary_form_not_junk() -> None:
     }
 
 
-def test_khusch_not_replaced_with_khuch() -> None:
+def test_khusch_suggests_khusezh_not_khuch() -> None:
     hits = _for_word("хүсч өргөдөл гаргасан байв", "хүсч")
-    assert hits == [], [f"{c.suggested_text}/{c.rule_id}" for c in hits]
+    assert hits, "хүсч should be flagged"
+    assert hits[0].suggested_text.casefold() == "хүсэж"
+    assert hits[0].rule_id == "sej_converb"
+    bad = {"хүч", "хүрч", *(s.casefold() for s in (hits[0].suggestions or []))}
+    assert "хүч" not in {hits[0].suggested_text.casefold(), *(s.casefold() for s in (hits[0].suggestions or []))}
 
 
 def test_real_glued_words_still_flagged() -> None:

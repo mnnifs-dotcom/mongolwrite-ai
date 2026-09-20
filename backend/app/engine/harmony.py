@@ -441,6 +441,65 @@ def _kept_sch_converb(folded: str, dictionary: DictionaryProvider) -> bool:
     return bool(infinitive and _known_stem(infinitive, dictionary))
 
 
+# Converb after с: school form is -аж/-эж/-ож/-өж, not bare -ч (хүсч → хүсэж).
+_SEJ_CONVERB = {
+    "а": "аж",
+    "я": "аж",
+    "у": "аж",
+    "ы": "аж",
+    "ю": "аж",
+    "о": "ож",
+    "ё": "ож",
+    "э": "эж",
+    "е": "эж",
+    "и": "эж",
+    "ү": "эж",
+    "ө": "өж",
+}
+
+_SEJ_INFINITIVE = {
+    "а": "ах",
+    "я": "ах",
+    "у": "ах",
+    "ы": "ах",
+    "ю": "ах",
+    "о": "ох",
+    "ё": "ох",
+    "э": "эх",
+    "е": "эх",
+    "и": "эх",
+    "ү": "эх",
+    "ө": "өх",
+}
+
+
+def suggest_sej_converb(word: str, dictionary: DictionaryProvider) -> str | None:
+    """хүсч → хүсэж when -сч is not the legitimate -сах verb shortening."""
+    folded = word.casefold()
+    if not folded.endswith("сч") or len(folded) < 4:
+        return None
+    # багасч ← багасах stays as-is.
+    if _kept_sch_converb(folded, dictionary):
+        return None
+    stem = folded[:-1]  # хүсч → хүс (drop ч)
+    if not stem.endswith("с") or len(stem) < 2:
+        return None
+    base = stem[:-1]
+    vowel = last_harmony_vowel(base) or last_vowel(base)
+    sej = _SEJ_CONVERB.get(vowel or "")
+    if not sej:
+        return None
+    candidate = stem + sej  # хүс + эж
+    if candidate == folded:
+        return None
+    if dictionary.contains(candidate) or dictionary.in_wordlist(candidate):
+        return candidate
+    inf = _SEJ_INFINITIVE.get(vowel or "")
+    if inf and _known_stem(stem + inf, dictionary):
+        return candidate
+    return None
+
+
 def suggest_niy_genitive(word: str, dictionary: DictionaryProvider) -> str | None:
     """Vowel/consonant stem genitive is -ийн/-ын, not -ний/-ны."""
     folded = word.casefold()

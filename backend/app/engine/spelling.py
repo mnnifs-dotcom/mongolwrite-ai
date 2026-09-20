@@ -19,6 +19,7 @@ from app.engine.harmony import (
     suggest_n_plural_g,
     suggest_negative_gui,
     suggest_niy_genitive,
+    suggest_sej_converb,
     suggest_palatal_case,
     suggest_plural_harmony,
     suggest_short_case_suffix,
@@ -49,6 +50,7 @@ _EXPLANATIONS = {
     "reflexive_harmony": "Үйл үгийн -хдаа/-хдээ/-хдоо/-хдөө эгшгийн эв нэгдлийг дагана.",
     "i_drop": "Нөхцөл нэмэгдэхэд үндэсний и эгшиг орхигдоно.",
     "n_genitive": "Эгшгээр төгссөн үгийн харьяалах -ийн/-ын гэж бичигдэнэ.",
+    "sej_converb": "С-ийн дараа үйл үгийн хэв нь -аж/-эж гэж бичигдэнэ (хүсч → хүсэж).",
     "lah_verb": "Үйл үгийн -лах нөхцөлд л болон эгшгийн байр солигдоно (туслах → тусалдаг).",
     "vowel_before_x": "Үйл үгийн х-ийн өмнө эгшиг бичигдэнэ (байгуулах → байгуулахаар).",
     "soft_sign_dative": "Ь-ийн дараа өгөх тийн ялгал -д гэж бичигдэнэ.",
@@ -162,6 +164,7 @@ _RULE_FIRST = frozenset(
         "reflexive_harmony",
         "i_drop",
         "n_genitive",
+        "sej_converb",
         "lah_verb",
         "vowel_before_x",
         "extra_suffix",
@@ -278,21 +281,11 @@ def _spelling_decision(
                 for item in dictionary.suggest_many(word, preferred=preferred, limit=8)
                 if _usable_suggestion(word, item)
             ]
-            # Prefer dictionary neighbors when the rule form is weak/odd.
+            # Keep the orthography-rule form first; neighbors are extras only.
             alts = [result[0], *[item for item in alts if item != result[0]]]
-            if alts and alts[0] == result[0]:
-                better = next(
-                    (
-                        item
-                        for item in alts[1:]
-                        if dictionary.wiki_frequency(item)
-                        > dictionary.wiki_frequency(result[0])
-                    ),
-                    None,
-                )
-                if better:
-                    alts = [better, result[0], *[item for item in alts[1:] if item != better]]
-                    result = (better, result[1])
+            if result[1] == "sej_converb":
+                # School converb fix only — do not bury хүсэж under хүч/хүрч.
+                alts = [result[0]]
         elif not _is_implausible(word):
             alts = [
                 item
@@ -449,6 +442,9 @@ def _suggest(word: str, dictionary: DictionaryProvider) -> tuple[str, str] | Non
     niy = suggest_niy_genitive(word, dictionary)
     if niy:
         return niy, "n_genitive"
+    sej = suggest_sej_converb(word, dictionary)
+    if sej:
+        return sej, "sej_converb"
     lah = suggest_lah_verb(word, dictionary)
     if lah:
         return lah, "lah_verb"
