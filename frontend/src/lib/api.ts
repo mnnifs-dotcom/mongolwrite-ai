@@ -510,6 +510,68 @@ export async function adminLegalImport(): Promise<{
   }>;
 }
 
+export type LegalLawItem = {
+  law_id: string;
+  title: string;
+  url: string;
+  article_count?: number;
+};
+
+export type LegalLawsPage = {
+  items: LegalLawItem[];
+  total: number;
+  offset: number;
+  limit: number;
+  source?: string | null;
+  catalog_count: number;
+};
+
+export async function adminLegalLaws(params: {
+  q?: string;
+  offset?: number;
+  limit?: number;
+}): Promise<LegalLawsPage> {
+  const search = new URLSearchParams();
+  if (params.q) search.set("q", params.q);
+  if (params.offset != null) search.set("offset", String(params.offset));
+  if (params.limit != null) search.set("limit", String(params.limit));
+  const query = search.toString();
+  const response = await fetch(apiUrl(`/api/v1/admin/legal/laws${query ? `?${query}` : ""}`), {
+    credentials: "include",
+  });
+  if (!response.ok) throw new Error("Хуулийн жагсаалт уншигдсангүй");
+  return response.json() as Promise<LegalLawsPage>;
+}
+
+export type LegalLawIngestResult = {
+  law_id: string;
+  title: string;
+  url: string;
+  char_count: number;
+  line_count: number;
+  added_to_lexicon: number;
+  added_words: string[];
+  queued_candidates: number;
+};
+
+export async function adminLegalLawIngest(lawId: string): Promise<LegalLawIngestResult> {
+  const response = await fetch(apiUrl(`/api/v1/admin/legal/laws/${encodeURIComponent(lawId)}/ingest`), {
+    method: "POST",
+    credentials: "include",
+  });
+  if (!response.ok) {
+    let message = "Хууль татаж чадсангүй";
+    try {
+      const body = (await response.json()) as { detail?: string };
+      if (typeof body.detail === "string" && body.detail.trim()) message = body.detail;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(message);
+  }
+  return response.json() as Promise<LegalLawIngestResult>;
+}
+
 export type LexiconLetter = {
   letter: string;
   folded: string;

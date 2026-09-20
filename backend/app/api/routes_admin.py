@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import re
 from typing import Annotated, Any, Literal
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, Field
 
@@ -27,6 +29,7 @@ from app.engine.hunspell_candidates import (
 )
 from app.engine.learn import learn_accepted_words
 from app.engine.legal_import import apply_legal_lexicon, legal_import_preview
+from app.engine.legal_laws import ingest_law, list_laws
 from app.engine.metrics import snapshot
 from app.engine.pending import list_pending, pop_pending
 from app.engine.runtime import get_engine
@@ -207,6 +210,33 @@ def lexicon_legal_import(_: AdminDep) -> dict[str, Any]:
     """Import legalinfo trusted lemmas into curated lexicon; queue doubt for review."""
     result = apply_legal_lexicon(get_engine())
     return {**result, "counts": counts(), "preview": legal_import_preview()}
+
+
+@router.get("/legal/laws")
+def legal_laws(
+    _: AdminDep,
+    q: str = "",
+    offset: int = 0,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """Paginated list of legalinfo.mn law links (from shipped sitemap index)."""
+    return list_laws(q=q, offset=offset, limit=limit)
+
+
+@router.post("/legal/laws/{law_id}/ingest")
+def legal_law_ingest(law_id: str, _: AdminDep) -> dict[str, Any]:
+    """Fetch one law from legalinfo.mn, check it, add accepted words to the lexicon."""
+    if not re.fullmatch(r"\d{1,16}", law_id.strip()):
+        raise HTTPException(status_code=400, detail="Буруу lawId")
+    try:
+        result = ingest_law(get_engine(), law_id.strip())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"legalinfo холбогдсонгүй: {exc}") from exc
+    return {**result, "counts": counts()}
 
 
 @router.get("/lexicon/words")
