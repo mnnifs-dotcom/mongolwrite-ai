@@ -39,8 +39,47 @@ def test_khusch_suggests_khusezh_not_khuch() -> None:
     assert hits, "хүсч should be flagged"
     assert hits[0].suggested_text.casefold() == "хүсэж"
     assert hits[0].rule_id == "sej_converb"
-    bad = {"хүч", "хүрч", *(s.casefold() for s in (hits[0].suggestions or []))}
-    assert "хүч" not in {hits[0].suggested_text.casefold(), *(s.casefold() for s in (hits[0].suggestions or []))}
+    assert "хүч" not in {
+        hits[0].suggested_text.casefold(),
+        *(s.casefold() for s in (hits[0].suggestions or [])),
+    }
+
+
+def test_sergesc_suggests_sergeezh_not_sergeen() -> None:
+    hits = _for_word("сэргэсч ирэв", "сэргэсч")
+    assert hits, "сэргэсч should be flagged"
+    assert hits[0].suggested_text.casefold() == "сэргээж"
+    assert hits[0].rule_id == "sej_converb"
+    assert "сэргээн" not in {
+        hits[0].suggested_text.casefold(),
+        *(s.casefold() for s in (hits[0].suggestions or [])),
+    }
+
+
+def test_sch_junk_neighbors_not_offered() -> None:
+    """Similar -сч typos must not get unrelated short dictionary neighbors."""
+    for word, text, forbidden in (
+        ("бисч", "бисч үлдэв", {"бич", "бийч"}),
+        ("гасч", "гасч унтарлаа", {"гарч", "галч"}),
+        ("тааласч", "тааласч байна", {"таалал", "таарч"}),
+    ):
+        hits = _for_word(text, word)
+        offered = {
+            *(h.suggested_text.casefold() for h in hits if h.suggested_text),
+            *(s.casefold() for h in hits for s in (h.suggestions or [])),
+        }
+        assert not (offered & forbidden), f"{word}: {offered}"
+
+
+def test_legitimate_sch_verbs_untouched() -> None:
+    for word, text in (
+        ("багасч", "багасч байна"),
+        ("босч", "босч ирэв"),
+        ("хасч", "хасч байна"),
+        ("өсч", "өсч байна"),
+    ):
+        hits = _for_word(text, word)
+        assert hits == [], f"{word}: {[f'{c.suggested_text}/{c.rule_id}' for c in hits]}"
 
 
 def test_real_glued_words_still_flagged() -> None:

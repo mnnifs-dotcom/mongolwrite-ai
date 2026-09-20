@@ -50,7 +50,7 @@ _EXPLANATIONS = {
     "reflexive_harmony": "Үйл үгийн -хдаа/-хдээ/-хдоо/-хдөө эгшгийн эв нэгдлийг дагана.",
     "i_drop": "Нөхцөл нэмэгдэхэд үндэсний и эгшиг орхигдоно.",
     "n_genitive": "Эгшгээр төгссөн үгийн харьяалах -ийн/-ын гэж бичигдэнэ.",
-    "sej_converb": "С-ийн дараа үйл үгийн хэв нь -аж/-эж гэж бичигдэнэ (хүсч → хүсэж).",
+    "sej_converb": "С-ийн дараа үйл үгийн хэв нь -аж/-эж/-ээж гэж бичигдэнэ (хүсч → хүсэж).",
     "lah_verb": "Үйл үгийн -лах нөхцөлд л болон эгшгийн байр солигдоно (туслах → тусалдаг).",
     "vowel_before_x": "Үйл үгийн х-ийн өмнө эгшиг бичигдэнэ (байгуулах → байгуулахаар).",
     "soft_sign_dative": "Ь-ийн дараа өгөх тийн ялгал -д гэж бичигдэнэ.",
@@ -191,7 +191,27 @@ def _usable_suggestion(original: str, item: str) -> bool:
         not lookup_misspelling(item)
         and not is_broken_case_form(item)
         and not drops_stem_i_before_cluster(original, item)
+        and not _bad_sch_neighbor(original, item)
     )
+
+
+def _bad_sch_neighbor(original: str, suggestion: str) -> bool:
+    """Reject junk neighbors for -сч forms (хүсч→хүч, гасч→гарч, тааласч→таалал).
+
+    Legitimate fixes keep the stem and end in a converb -*ж (хүсэж, сэргээж).
+    """
+    folded = original.casefold()
+    other = suggestion.casefold()
+    if not folded.endswith("сч") or len(folded) < 4:
+        return False
+    stem_sc = folded[:-1]  # хүс
+    stem = folded[:-2]  # хү / сэргэ
+    converb_tails = ("ааж", "ээж", "оож", "өөж", "аж", "эж", "ож", "өж")
+    if other.endswith(converb_tails) and (
+        other.startswith(stem_sc) or (len(stem) >= 3 and other.startswith(stem))
+    ):
+        return False
+    return True
 
 
 def check_spelling(tokens: list[Token], dictionary: DictionaryProvider) -> list[Correction]:

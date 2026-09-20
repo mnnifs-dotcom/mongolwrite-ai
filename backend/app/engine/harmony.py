@@ -472,9 +472,26 @@ _SEJ_INFINITIVE = {
     "ө": "өх",
 }
 
+# Mistaken -сч on long-vowel verbs: сэргэсч → сэргээж (сэргээх).
+# Base already ends in the stem vowel; lengthen by one more, then ж/х.
+_LONG_SEJ_LENGTHEN = {
+    "а": "а",
+    "я": "а",
+    "у": "а",
+    "ы": "а",
+    "ю": "а",
+    "о": "о",
+    "ё": "о",
+    "э": "э",
+    "е": "э",
+    "и": "э",
+    "ү": "э",
+    "ө": "ө",
+}
+
 
 def suggest_sej_converb(word: str, dictionary: DictionaryProvider) -> str | None:
-    """хүсч → хүсэж when -сч is not the legitimate -сах verb shortening."""
+    """хүсч → хүсэж / сэргэсч → сэргээж when -сч is not a legitimate -сах shortening."""
     folded = word.casefold()
     if not folded.endswith("сч") or len(folded) < 4:
         return None
@@ -487,16 +504,29 @@ def suggest_sej_converb(word: str, dictionary: DictionaryProvider) -> str | None
     base = stem[:-1]
     vowel = last_harmony_vowel(base) or last_vowel(base)
     sej = _SEJ_CONVERB.get(vowel or "")
-    if not sej:
-        return None
-    candidate = stem + sej  # хүс + эж
-    if candidate == folded:
-        return None
-    if dictionary.contains(candidate) or dictionary.in_wordlist(candidate):
-        return candidate
-    inf = _SEJ_INFINITIVE.get(vowel or "")
-    if inf and _known_stem(stem + inf, dictionary):
-        return candidate
+    if sej:
+        candidate = stem + sej  # хүс + эж
+        if candidate != folded:
+            inf = _SEJ_INFINITIVE.get(vowel or "")
+            if (
+                dictionary.contains(candidate)
+                or dictionary.in_wordlist(candidate)
+                or (inf and _known_stem(stem + inf, dictionary))
+            ):
+                return candidate
+    # Long-vowel verbs wrongly given -сч: сэргэсч → сэргээж.
+    if len(base) >= 3:
+        extra = _LONG_SEJ_LENGTHEN.get(vowel or "")
+        if extra:
+            long_stem = base + extra  # сэргэ + э
+            long_candidate = long_stem + "ж"
+            long_inf = long_stem + "х"
+            if long_candidate != folded and (
+                dictionary.contains(long_candidate)
+                or dictionary.in_wordlist(long_candidate)
+                or _known_stem(long_inf, dictionary)
+            ):
+                return long_candidate
     return None
 
 
