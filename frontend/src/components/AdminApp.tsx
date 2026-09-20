@@ -1316,8 +1316,7 @@ export function AdminApp() {
                 </button>
               </form>
               <p className="mw-muted mw-hunspell-hint">
-                Зөвхөн эргэлзээтэй үгс. Дүрмийн тодорхой алдаа (зай дутуу, нөхцөл гэх мэт) энд
-                орногүй.
+                Зөвхөн эргэлзээтэй үгс. Илт алдаатай / дүрмийн тодорхой алдаа энд орногүй.
               </p>
 
               {hunspellWords.length === 0 ? (

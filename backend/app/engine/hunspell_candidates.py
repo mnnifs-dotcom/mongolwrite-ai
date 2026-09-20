@@ -28,6 +28,11 @@ _CLEAR_RULES = _RULE_FIRST | {
     "separate_particle",
 }
 
+# Back vs front rounded vowels — mixing in one token is almost always junk/OCR mash.
+_BACK_ROUNDED = frozenset("аоу")
+_FRONT_ROUNDED = frozenset("өү")
+_VOWELS = frozenset("аэиоуөүяёеюы")
+
 _log = logging.getLogger(__name__)
 _lock = threading.Lock()
 _MAX_CANDIDATES = 5_000
@@ -81,6 +86,86 @@ def _load_rejected() -> set[str]:
 
 def _save_rejected(words: set[str]) -> None:
     _save_json(rejected_path(), {"words": sorted(words)})
+
+
+def is_obvious_junk(word: str) -> bool:
+    """True for gibberish / OCR mash that should never enter the admin queue.
+
+    Three-way split conceptually:
+      reliable → show (approve)
+      doubt → show (admin decides)
+      obvious junk / clear error → discard (never show)
+    """
+    cleaned = word.strip()
+    folded = cleaned.casefold()
+    letters = [ch for ch in folded if ch.isalpha()]
+    if len(letters) < 2:
+        return True
+    if _is_implausible(cleaned):
+        return True
+
+    vowels = [ch for ch in letters if ch in _VOWELS]
+    if not vowels:
+        return True
+
+    # ррүү, тт… — consonant doubled at the start is not a Mongolian lemma.
+    if letters[0] == letters[1] and letters[0] not in _VOWELS:
+        return True
+
+    # Same letter three+ times in a row.
+    run_ch = letters[0]
+    run_n = 1
+    for ch in letters[1:]:
+        if ch == run_ch:
+            run_n += 1
+            if run_n >= 3:
+                return True
+        else:
+            run_ch = ch
+            run_n = 1
+
+    # Front/back rounded vowel clash — strong signal for keyboard/OCR mash (үоүо…).
+    # A single stray clash can appear in compounds/names; require repeated mixing.
+    back_n = sum(1 for ch in letters if ch in _BACK_ROUNDED)
+    front_n = sum(1 for ch in letters if ch in _FRONT_ROUNDED)
+    if back_n and front_n:
+        if back_n >= 2 and front_n >= 2:
+            return True
+        clashes = 0
+        prev = ""
+        for ch in letters:
+            if ch in _BACK_ROUNDED:
+                group = "b"
+            elif ch in _FRONT_ROUNDED:
+                group = "f"
+            else:
+                continue
+            if prev and prev != group:
+                clashes += 1
+            prev = group
+        if clashes >= 2:
+            return True
+
+    # Long consonant clusters — OCR / keyboard mash.
+    run = 0
+    max_run = 0
+    for ch in letters:
+        if ch in _VOWELS:
+            run = 0
+            continue
+        run += 1
+        max_run = max(max_run, run)
+    if max_run >= 4:
+        return True
+    # Short tokens with a CCC… cluster are almost never real lemmas.
+    if max_run >= 3 and len(letters) <= 5:
+        return True
+
+    # Too few vowels for the length.
+    if len(letters) >= 6 and len(vowels) / len(letters) < 0.22:
+        return True
+
+    return False
 
 
 def _load_admin_added() -> list[dict[str, Any]]:
@@ -322,8 +407,10 @@ def is_clear_orthography_error(dictionary: DictionaryProvider, word: str) -> boo
 def classify_candidate(dictionary: DictionaryProvider, word: str) -> dict[str, Any] | None:
     """Return reliable/doubt item, or None when the word should not be listed.
 
-    Only uncertain lexicon gaps belong here — clear rule/grammar errors are excluded
-    so admins are not asked to re-judge every obvious misspelling.
+    Three buckets:
+      - reliable — likely good, show for quick approve
+      - doubt — uncertain, show for admin judgment
+      - obvious junk / clear error — discard, never show
     """
     cleaned = word.strip()
     folded = cleaned.casefold()
@@ -331,7 +418,7 @@ def classify_candidate(dictionary: DictionaryProvider, word: str) -> dict[str, A
         return None
     if lookup_misspelling(cleaned):
         return None
-    if _is_implausible(cleaned):
+    if is_obvious_junk(cleaned):
         return None
     if in_curated_lexicon(dictionary, cleaned):
         return None
@@ -494,24 +581,28 @@ def list_candidates(tier: Tier | str | None = None) -> list[dict[str, Any]]:
 
 
 def prune_clear_error_candidates(dictionary: DictionaryProvider | None = None) -> int:
-    """Drop queued words that are clear orthography/grammar errors (one-shot cleanup)."""
+    """Drop queued words that are clear errors or obvious junk (one-shot cleanup)."""
     from app.engine.runtime import get_engine
 
     dict_provider = dictionary or get_engine().dictionary
     removed = 0
     with _lock:
         rows = _load_rows()
+        rejected = _load_rejected()
         drop = [
             folded
             for folded, row in rows.items()
-            if is_clear_orthography_error(dict_provider, str(row.get("word") or folded))
+            if is_obvious_junk(str(row.get("word") or folded))
+            or is_clear_orthography_error(dict_provider, str(row.get("word") or folded))
         ]
         if not drop:
             return 0
         for folded in drop:
             rows.pop(folded, None)
+            rejected.add(folded)
             removed += 1
         _save_rows(rows)
+        _save_rejected(rejected)
     return removed
 
 
