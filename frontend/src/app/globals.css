@@ -656,8 +656,11 @@ body {
   color: var(--ink);
 }
 
-.mw-count-over {
+/* Must beat `.mw-count span` (muted label styles) so over-limit digits stay red. */
+.mw-count span.mw-count-over {
   color: #c62828;
+  font-size: inherit;
+  font-weight: inherit;
 }
 
 .mw-bichig-panel {
