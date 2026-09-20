@@ -40,12 +40,16 @@ async function postCheck(
   let lastError: Error | null = null;
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
+      const timeout = AbortSignal.timeout(45_000);
+      const signal = options?.signal
+        ? AbortSignal.any([options.signal, timeout])
+        : timeout;
       const response = await fetch(apiUrl(path), {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body,
-        signal: options?.signal,
+        signal,
       });
       if (response.ok) {
         return response.json() as Promise<CheckResponse>;
@@ -59,8 +63,23 @@ async function postCheck(
       );
       if (response.status < 500) break;
     } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") throw err;
-      if (err instanceof Error && err.name === "AbortError") throw err;
+      if (err instanceof DOMException && err.name === "AbortError") {
+        if (options?.signal?.aborted) throw err;
+        throw new Error(
+          "Шалгалт хэт удаан байна. Бичвэрийг хэсэгчлэн (жишээ нь бүлгээр) шалгана уу.",
+        );
+      }
+      if (err instanceof Error && err.name === "AbortError") {
+        if (options?.signal?.aborted) throw err;
+        throw new Error(
+          "Шалгалт хэт удаан байна. Бичвэрийг хэсэгчлэн (жишээ нь бүлгээр) шалгана уу.",
+        );
+      }
+      if (err instanceof Error && err.name === "TimeoutError") {
+        throw new Error(
+          "Шалгалт хэт удаан байна. Бичвэрийг хэсэгчлэн (жишээ нь бүлгээр) шалгана уу.",
+        );
+      }
       lastError = err instanceof Error ? err : new Error("Холбогдсонгүй");
     }
     if (options?.signal?.aborted) throw new DOMException("Aborted", "AbortError");

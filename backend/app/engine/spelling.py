@@ -192,83 +192,123 @@ def _usable_suggestion(original: str, item: str) -> bool:
 
 
 def check_spelling(tokens: list[Token], dictionary: DictionaryProvider) -> list[Correction]:
+    """Spell-check tokens, caching decisions by folded form.
+
+    Long legal documents repeat the same word thousands of times; without a
+    cache each occurrence re-runs expensive suggest_many and hangs the UI.
+    Cap how many times each unique misspelling is marked so the editor stays
+    usable on ~400k-character statutes.
+    """
     corrections: list[Correction] = []
     preferred = {
         token.text.casefold() for token in tokens if dictionary.in_wordlist(token.text)
     }
+    # folded -> None (no mark) | ("hit", suggested, rule_id, extras) | ("unknown",)
+    cache: dict[str, tuple | None] = {}
+    form_counts: dict[str, int] = {}
+    _MAX_PER_FORM = 5
+    _MAX_TOTAL = 800
     for token in tokens:
+        if len(corrections) >= _MAX_TOTAL:
+            break
         if not _is_cyrillic_word(token.text):
             continue
-        misspelled = lookup_misspelling(token.text)
-        if misspelled:
-            extras = [
-                item
-                for item in dictionary.suggest_many(token.text, preferred=preferred, limit=8)
-                if item != misspelled and _usable_suggestion(token.text, item)
-            ]
-            corrections.append(_hit(token, misspelled, "common_misspelling", extras))
+        folded = token.text.casefold()
+        # Names depend on capitalization — do not reuse a lowercase decision.
+        cache_key = folded if not _looks_like_name(token.text) else f"^{token.text}"
+        if cache_key in cache:
+            decision = cache[cache_key]
+        else:
+            decision = _spelling_decision(token.text, dictionary, preferred)
+            cache[cache_key] = decision
+        if decision is None:
             continue
-        if "-" in token.text:
+        seen = form_counts.get(folded, 0)
+        if seen >= _MAX_PER_FORM:
             continue
-        if dictionary.contains(token.text):
-            if len(token.text) >= 4:
-                reflexive = suggest_x_reflexive(token.text, dictionary)
-                if reflexive:
-                    corrections.append(_hit(token, reflexive, "reflexive_harmony", []))
-            continue
-        if token.text.casefold() in OFFICIAL_REPLACEMENTS:
-            continue
-        result = None
-        alts: list[str] = []
-        if len(token.text) >= 4:
-            result = _suggest(token.text, dictionary)
-            if result and result[1] in _RULE_FIRST:
-                alts = [
-                    item
-                    for item in dictionary.suggest_many(token.text, preferred=preferred, limit=8)
-                    if _usable_suggestion(token.text, item)
-                ]
-                alts = [result[0], *[item for item in alts if item != result[0]]]
-            elif not _is_implausible(token.text):
-                alts = [
-                    item
-                    for item in dictionary.suggest_many(token.text, preferred=preferred, limit=8)
-                    if _usable_suggestion(token.text, item)
-                ]
-                if alts:
-                    primary = alts[0]
-                    if dictionary.prefers_established(token.text, primary):
-                        continue
-                    doubled = any(
-                        primary in (variant, variant.casefold())
-                        for variant in _collapse_duplicate_letters(token.text.casefold())
-                    )
-                    result = (primary, "doubled_letter" if doubled else "nearby_spelling")
-                    alts = _confident_alts(token.text, alts, result, dictionary)
-        if (
-            not (result and result[1] in _RULE_FIRST)
-            and len(token.text) >= 3
-            and (
-                is_regular_inflection(token.text, dictionary)
-                or dictionary.is_frequent_inflection(token.text)
-            )
-        ):
-            continue
-        if alts and not (result and result[0] == token.text.casefold()):
-            if not _is_implausible(token.text) or (result and result[1] != "nearby_spelling"):
-                rule_id = result[1] if result else "nearby_spelling"
-                corrections.append(_hit(token, alts[0], rule_id, alts[1:]))
-                continue
-        if dictionary.prefers_established(token.text):
-            continue
-        if _is_implausible(token.text) or (
-            len(token.text) >= 3
-            and dictionary.has_hunspell
-            and not _looks_like_name(token.text)
-            and not _has_wordlist_stem(token.text, dictionary)
-        ):
+        form_counts[folded] = seen + 1
+        kind = decision[0]
+        if kind == "unknown":
             corrections.append(_unknown(token))
+        elif kind == "hit":
+            _, suggested, rule_id, extras = decision
+            corrections.append(_hit(token, suggested, rule_id, extras))
     return corrections
+
+
+def _spelling_decision(
+    word: str,
+    dictionary: DictionaryProvider,
+    preferred: set[str],
+) -> tuple | None:
+    misspelled = lookup_misspelling(word)
+    if misspelled:
+        extras = [
+            item
+            for item in dictionary.suggest_many(word, preferred=preferred, limit=8)
+            if item != misspelled and _usable_suggestion(word, item)
+        ]
+        return ("hit", misspelled, "common_misspelling", extras)
+    if "-" in word:
+        return None
+    if dictionary.contains(word):
+        if len(word) >= 4:
+            reflexive = suggest_x_reflexive(word, dictionary)
+            if reflexive:
+                return ("hit", reflexive, "reflexive_harmony", [])
+        return None
+    if word.casefold() in OFFICIAL_REPLACEMENTS:
+        return None
+    result = None
+    alts: list[str] = []
+    if len(word) >= 4:
+        result = _suggest(word, dictionary)
+        if result and result[1] in _RULE_FIRST:
+            alts = [
+                item
+                for item in dictionary.suggest_many(word, preferred=preferred, limit=8)
+                if _usable_suggestion(word, item)
+            ]
+            alts = [result[0], *[item for item in alts if item != result[0]]]
+        elif not _is_implausible(word):
+            alts = [
+                item
+                for item in dictionary.suggest_many(word, preferred=preferred, limit=8)
+                if _usable_suggestion(word, item)
+            ]
+            if alts:
+                primary = alts[0]
+                if dictionary.prefers_established(word, primary):
+                    return None
+                doubled = any(
+                    primary in (variant, variant.casefold())
+                    for variant in _collapse_duplicate_letters(word.casefold())
+                )
+                result = (primary, "doubled_letter" if doubled else "nearby_spelling")
+                alts = _confident_alts(word, alts, result, dictionary)
+    if (
+        not (result and result[1] in _RULE_FIRST)
+        and len(word) >= 3
+        and (
+            is_regular_inflection(word, dictionary)
+            or dictionary.is_frequent_inflection(word)
+        )
+    ):
+        return None
+    if alts and not (result and result[0] == word.casefold()):
+        if not _is_implausible(word) or (result and result[1] != "nearby_spelling"):
+            rule_id = result[1] if result else "nearby_spelling"
+            return ("hit", alts[0], rule_id, alts[1:])
+    if dictionary.prefers_established(word):
+        return None
+    if _is_implausible(word) or (
+        len(word) >= 3
+        and dictionary.has_hunspell
+        and not _looks_like_name(word)
+        and not _has_wordlist_stem(word, dictionary)
+    ):
+        return ("unknown",)
+    return None
 
 
 def _confident_alts(

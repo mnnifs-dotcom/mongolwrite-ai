@@ -191,6 +191,7 @@ class DictionaryProvider:
         self._near: dict[tuple[str, int], list[str]] = {}
         self._index_near()
         self._hunspell = load_hunspell() if (use_hunspell and words is None) else None
+        self._suggest_cache: dict[tuple[str, int], list[str]] = {}
         self._lookup_cache: dict[str, bool] = {}
         if frequency is not None:
             self._wiki_freq = {
@@ -480,6 +481,15 @@ class DictionaryProvider:
         folded = word.casefold()
         if self.contains(folded):
             return []
+        cache_key = (folded, limit)
+        cached = self._suggest_cache.get(cache_key)
+        if cached is not None:
+            if not preferred:
+                return list(cached)
+            # Re-rank cached hits with document-preferred forms first.
+            preferred_hits = [item for item in cached if item in preferred]
+            rest = [item for item in cached if item not in preferred]
+            return [*preferred_hits, *rest][:limit]
         found: list[str] = []
         seen = {folded}
         phases = [
@@ -553,10 +563,8 @@ class DictionaryProvider:
         ]
         if trusted:
             pool = trusted
-        liked = {item.casefold() for item in preferred or set()}
         pool.sort(
             key=lambda item: (
-                0 if item in liked else 1,
                 0 if _is_adjacent_swap(folded, item) else 1,
                 _edit_distance(folded, item),
                 0 if _keeps_ending(folded, item) else 1,
@@ -584,6 +592,14 @@ class DictionaryProvider:
             chosen.append(item)
             if len(chosen) >= limit:
                 break
+        if len(self._suggest_cache) > 50_000:
+            self._suggest_cache.clear()
+        self._suggest_cache[cache_key] = list(chosen)
+        if preferred:
+            liked = {item.casefold() for item in preferred}
+            preferred_hits = [item for item in chosen if item in liked]
+            rest = [item for item in chosen if item not in liked]
+            return [*preferred_hits, *rest][:limit]
         return chosen
 
     def _accept_suggestion(self, original: str, candidate: str) -> bool:
