@@ -96,6 +96,7 @@ export function AdminApp() {
   const [addedCopied, setAddedCopied] = useState(false);
   const [pendingSkipped, setPendingSkipped] = useState<PendingSkippedWord[]>([]);
   const [pendingSelected, setPendingSelected] = useState<Set<string>>(new Set());
+  const [pendingCopied, setPendingCopied] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [harvestText, setHarvestText] = useState("");
   const [status, setStatus] = useState("");
@@ -396,6 +397,56 @@ export function AdminApp() {
       else next.delete(folded);
       return next;
     });
+  }
+
+  function pendingSelectedText(): string {
+    return pendingSkipped
+      .filter((item) => pendingSelected.has(item.folded))
+      .map((item) => item.word)
+      .join("\n");
+  }
+
+  function applyPendingSelectedText(text: string) {
+    const tokens = text
+      .split(/[\s,;]+/)
+      .map((part) => part.trim())
+      .filter(Boolean);
+    if (!tokens.length) {
+      setPendingSelected(new Set());
+      return;
+    }
+    const byFold = new Map(pendingSkipped.map((item) => [item.folded, item] as const));
+    const byWord = new Map(
+      pendingSkipped.map((item) => [item.word.toLocaleLowerCase("mn"), item] as const),
+    );
+    const next = new Set<string>();
+    for (const token of tokens) {
+      const folded = token.toLocaleLowerCase("mn");
+      const match = byFold.get(folded) ?? byWord.get(folded);
+      if (match) next.add(match.folded);
+    }
+    setPendingSelected(next);
+  }
+
+  async function copyPendingSelected() {
+    const text = pendingSelectedText();
+    if (!text.trim()) return;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const area = document.createElement("textarea");
+      area.value = text;
+      area.setAttribute("readonly", "");
+      area.style.position = "fixed";
+      area.style.left = "-9999px";
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand("copy");
+      area.remove();
+    }
+    setPendingCopied(true);
+    window.setTimeout(() => setPendingCopied(false), 2000);
+    setStatus(`${pendingSelected.size} үг хууллаа`);
   }
 
   async function onPendingApproveMany() {
@@ -1224,52 +1275,78 @@ export function AdminApp() {
           {section === "pending" ? (
             <section className="mw-admin-card" id="pending-skipped">
               <h2>Алгассан үгс{pendingSkipped.length ? ` · ${pendingSkipped.length}` : ""}</h2>
+              <p className="mw-muted">
+                Чекбоксоор сонгосон үгс дээрх хүснэгтэд орно — хуулж аваад өөр газар шалгана.
+              </p>
               {pendingSkipped.length === 0 ? (
                 <p className="mw-muted">Хоосон</p>
               ) : (
                 <>
-                  <div className="mw-admin-row mw-lex-actions">
-                    <button
-                      type="button"
-                      className="mw-btn"
-                      onClick={() =>
-                        setPendingSelected(new Set(pendingSkipped.map((item) => item.folded)))
-                      }
-                    >
-                      Бүгдийг сонгох
-                    </button>
-                    <button
-                      type="button"
-                      className="mw-btn"
-                      disabled={!pendingSelected.size}
-                      onClick={() => setPendingSelected(new Set())}
-                    >
-                      Сонголт арилгах
-                    </button>
-                    <button
-                      type="button"
-                      className="mw-btn-primary"
-                      disabled={!pendingSelected.size || acting === "pending-approve"}
-                      onClick={() => void onPendingApproveMany()}
-                    >
-                      {acting === "pending-approve"
-                        ? "Нэмж байна…"
-                        : pendingSelected.size
-                          ? `Санд нэмэх · ${pendingSelected.size}`
-                          : "Санд нэмэх"}
-                    </button>
-                    <button
-                      type="button"
-                      className="mw-btn"
-                      disabled={!pendingSelected.size || acting === "pending-reject"}
-                      onClick={() => void onPendingRejectMany()}
-                    >
-                      {acting === "pending-reject"
-                        ? "Татгалзаж байна…"
-                        : pendingSelected.size
-                          ? `Татгалзах · ${pendingSelected.size}`
-                          : "Татгалзах"}
-                    </button>
+                  <div className="mw-select-box">
+                    <label className="mw-select-box-label" htmlFor="mw-pending-selected-words">
+                      Сонгосон үгс
+                      {pendingSelected.size ? ` · ${pendingSelected.size}` : ""}
+                    </label>
+                    <textarea
+                      id="mw-pending-selected-words"
+                      className="mw-selected-words"
+                      value={pendingSelectedText()}
+                      onChange={(event) => applyPendingSelectedText(event.target.value)}
+                      rows={Math.min(12, Math.max(4, pendingSelected.size || 4))}
+                      spellCheck={false}
+                      placeholder="Сонгосон үгс энд гарна — хуулж аваад өөр газар шалгана"
+                    />
+                    <div className="mw-admin-row mw-lex-actions">
+                      <button
+                        type="button"
+                        className="mw-btn"
+                        onClick={() =>
+                          setPendingSelected(new Set(pendingSkipped.map((item) => item.folded)))
+                        }
+                      >
+                        Бүгдийг сонгох
+                      </button>
+                      <button
+                        type="button"
+                        className="mw-btn"
+                        disabled={!pendingSelected.size}
+                        onClick={() => setPendingSelected(new Set())}
+                      >
+                        Сонголт арилгах
+                      </button>
+                      <button
+                        type="button"
+                        className="mw-btn"
+                        disabled={!pendingSelected.size}
+                        onClick={() => void copyPendingSelected()}
+                      >
+                        {pendingCopied ? "Хуулсан" : "Хуулах"}
+                      </button>
+                      <button
+                        type="button"
+                        className="mw-btn-primary"
+                        disabled={!pendingSelected.size || acting === "pending-approve"}
+                        onClick={() => void onPendingApproveMany()}
+                      >
+                        {acting === "pending-approve"
+                          ? "Нэмж байна…"
+                          : pendingSelected.size
+                            ? `Санд нэмэх · ${pendingSelected.size}`
+                            : "Санд нэмэх"}
+                      </button>
+                      <button
+                        type="button"
+                        className="mw-btn"
+                        disabled={!pendingSelected.size || acting === "pending-reject"}
+                        onClick={() => void onPendingRejectMany()}
+                      >
+                        {acting === "pending-reject"
+                          ? "Татгалзаж байна…"
+                          : pendingSelected.size
+                            ? `Татгалзах · ${pendingSelected.size}`
+                            : "Татгалзах"}
+                      </button>
+                    </div>
                   </div>
                   <div className="mw-admin-scroll">
                     <ul className="mw-admin-list">
