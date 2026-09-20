@@ -386,10 +386,19 @@ def test_established_loanwords_are_kept() -> None:
     assert not any(item.suggested_text == "офис" for item in engine.check("оффис"))
 
 
-def test_sch_converb_not_replaced_by_unrelated_word() -> None:
+def test_sch_converb_suggests_school_vowel_zh() -> None:
     engine = LanguageEngine()
-    for word in ("багасч", "босч", "хасч", "өсч"):
-        assert not any(item.original_text == word for item in engine.check(word)), word
+    expected = {
+        "багасч": "багасаж",
+        "босч": "босож",
+        "хасч": "хасаж",
+        "өсч": "өсөж",
+    }
+    for word, want in expected.items():
+        found = engine.check(word)
+        item = next(row for row in found if row.original_text == word)
+        assert item.suggested_text == want, word
+        assert item.rule_id == "sej_converb", word
     assert not any(item.suggested_text == "балгас" for item in engine.check("багасч"))
 
 

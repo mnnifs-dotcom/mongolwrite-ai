@@ -71,15 +71,21 @@ def test_sch_junk_neighbors_not_offered() -> None:
         assert not (offered & forbidden), f"{word}: {offered}"
 
 
-def test_legitimate_sch_verbs_untouched() -> None:
-    for word, text in (
-        ("багасч", "багасч байна"),
-        ("босч", "босч ирэв"),
-        ("хасч", "хасч байна"),
-        ("өсч", "өсч байна"),
-    ):
+def test_sch_school_converbs_suggest_vowel_zh() -> None:
+    """багасч/босч/хасч/өсч → багасаж/босож/хасаж/өсөж (never leave -сч)."""
+    cases = (
+        ("багасч", "багасч, босч", "багасаж"),
+        ("босч", "багасч, босч, хасч, өсч", "босож"),
+        ("хасч", "хасч байна", "хасаж"),
+        ("өсч", "өсч байна", "өсөж"),
+    )
+    for word, text, want in cases:
         hits = _for_word(text, word)
-        assert hits == [], f"{word}: {[f'{c.suggested_text}/{c.rule_id}' for c in hits]}"
+        assert hits, f"{word} should be flagged"
+        assert hits[0].suggested_text.casefold() == want, word
+        assert hits[0].rule_id == "sej_converb", word
+        assert hits[0].suggested_text.casefold().endswith("ж")
+        assert not hits[0].suggested_text.casefold().endswith("сч")
 
 
 def test_real_glued_words_still_flagged() -> None:

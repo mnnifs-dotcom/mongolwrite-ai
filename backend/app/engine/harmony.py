@@ -390,8 +390,6 @@ def is_regular_inflection(word: str, dictionary: DictionaryProvider) -> bool:
         return True
     if _kept_x_reflexive(folded, dictionary):
         return True
-    if _kept_sch_converb(folded, dictionary):
-        return True
     remaining = folded
     peeled = False
     for _ in range(3):
@@ -407,41 +405,8 @@ def is_regular_inflection(word: str, dictionary: DictionaryProvider) -> bool:
     )
 
 
-_SCH_INFINITIVE = {
-    "а": "ах",
-    "я": "ах",
-    "у": "ах",
-    "ы": "ах",
-    "ю": "ах",
-    "э": "эх",
-    "е": "эх",
-    "и": "эх",
-    "о": "ох",
-    "ё": "ох",
-    "ө": "өх",
-    "ү": "өх",
-}
-
-
-def _sch_infinitive(folded: str) -> str | None:
-    """багасч ← багасах: connecting vowel drops and ж is written ч after с."""
-    if not folded.endswith("сч") or len(folded) < 3:
-        return None
-    stem = folded[:-2]
-    if not stem or not stem[-1:].isalpha():
-        return None
-    tail = _SCH_INFINITIVE.get(last_vowel(stem) or "")
-    if not tail:
-        return None
-    return stem + "с" + tail
-
-
-def _kept_sch_converb(folded: str, dictionary: DictionaryProvider) -> bool:
-    infinitive = _sch_infinitive(folded)
-    return bool(infinitive and _known_stem(infinitive, dictionary))
-
-
-# Converb after с: school form is -аж/-эж/-ож/-өж, not bare -ч (хүсч → хүсэж).
+# Converb after с: school form is -аж/-эж/-ож/-өж, never bare -ч
+# (хүсч → хүсэж, багасч → багасаж, босч → босож).
 _SEJ_CONVERB = {
     "а": "аж",
     "я": "аж",
@@ -491,12 +456,10 @@ _LONG_SEJ_LENGTHEN = {
 
 
 def suggest_sej_converb(word: str, dictionary: DictionaryProvider) -> str | None:
-    """хүсч → хүсэж / сэргэсч → сэргээж when -сч is not a legitimate -сах shortening."""
+    """сч → с + эгшиг + ж: хүсч→хүсэж, багасч→багасаж, босч→босож, өсч→өсөж."""
     folded = word.casefold()
-    if not folded.endswith("сч") or len(folded) < 4:
-        return None
-    # багасч ← багасах stays as-is.
-    if _kept_sch_converb(folded, dictionary):
+    # өсч is only 3 letters; still a full verb stem + -ч.
+    if not folded.endswith("сч") or len(folded) < 3:
         return None
     stem = folded[:-1]  # хүсч → хүс (drop ч)
     if not stem.endswith("с") or len(stem) < 2:
@@ -505,7 +468,7 @@ def suggest_sej_converb(word: str, dictionary: DictionaryProvider) -> str | None
     vowel = last_harmony_vowel(base) or last_vowel(base)
     sej = _SEJ_CONVERB.get(vowel or "")
     if sej:
-        candidate = stem + sej  # хүс + эж
+        candidate = stem + sej  # хүс + эж / багас + аж
         if candidate != folded:
             inf = _SEJ_INFINITIVE.get(vowel or "")
             if (

@@ -253,15 +253,36 @@ def test_long_vowel_genitive_is_ny() -> None:
     assert not any(item.original_text == "судалгааны" for item in local.check("судалгааны"))
 
 
-def test_sch_converb_of_known_verb_is_kept() -> None:
-    from app.engine.harmony import is_regular_inflection
+def test_sch_converb_of_known_verb_suggests_vowel_zh() -> None:
+    from app.engine.harmony import is_regular_inflection, suggest_sej_converb
 
-    dictionary = DictionaryProvider(frozenset({"багасах", "босох", "хасах", "өсөх"}))
+    dictionary = DictionaryProvider(
+        frozenset(
+            {
+                "багасах",
+                "багасаж",
+                "босох",
+                "босож",
+                "хасах",
+                "хасаж",
+                "өсөх",
+                "өсөж",
+            }
+        )
+    )
     local = LanguageEngine(dictionary)
-    for word in ("багасч", "босч", "хасч", "өсч"):
-        assert is_regular_inflection(word, dictionary), word
-        assert not any(item.original_text == word for item in local.check(word)), word
-    assert not is_regular_inflection("фысч", dictionary)
+    expected = {
+        "багасч": "багасаж",
+        "босч": "босож",
+        "хасч": "хасаж",
+        "өсч": "өсөж",
+    }
+    for word, want in expected.items():
+        assert not is_regular_inflection(word, dictionary), word
+        assert suggest_sej_converb(word, dictionary) == want, word
+        found = local.check(word)
+        assert any(item.suggested_text == want for item in found), (word, found)
+    assert suggest_sej_converb("фысч", dictionary) is None
 
 
 def test_drop_soft_sign_from_known_stem() -> None:

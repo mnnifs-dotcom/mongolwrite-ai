@@ -50,7 +50,7 @@ _EXPLANATIONS = {
     "reflexive_harmony": "Үйл үгийн -хдаа/-хдээ/-хдоо/-хдөө эгшгийн эв нэгдлийг дагана.",
     "i_drop": "Нөхцөл нэмэгдэхэд үндэсний и эгшиг орхигдоно.",
     "n_genitive": "Эгшгээр төгссөн үгийн харьяалах -ийн/-ын гэж бичигдэнэ.",
-    "sej_converb": "С-ийн дараа үйл үгийн хэв нь -аж/-эж/-ээж гэж бичигдэнэ (хүсч → хүсэж).",
+    "sej_converb": "С-ийн дараа үйл үгийн хэв нь -аж/-эж/-ож/-өж гэж бичигдэнэ (багасч → багасаж).",
     "lah_verb": "Үйл үгийн -лах нөхцөлд л болон эгшгийн байр солигдоно (туслах → тусалдаг).",
     "vowel_before_x": "Үйл үгийн х-ийн өмнө эгшиг бичигдэнэ (байгуулах → байгуулахаар).",
     "soft_sign_dative": "Ь-ийн дараа өгөх тийн ялгал -д гэж бичигдэнэ.",
@@ -198,17 +198,17 @@ def _usable_suggestion(original: str, item: str) -> bool:
 def _bad_sch_neighbor(original: str, suggestion: str) -> bool:
     """Reject junk neighbors for -сч forms (хүсч→хүч, гасч→гарч, тааласч→таалал).
 
-    Legitimate fixes keep the stem and end in a converb -*ж (хүсэж, сэргээж).
+    Legitimate fixes keep the stem and end in a converb -*ж (хүсэж, багасаж).
     """
     folded = original.casefold()
     other = suggestion.casefold()
-    if not folded.endswith("сч") or len(folded) < 4:
+    if not folded.endswith("сч") or len(folded) < 3:
         return False
-    stem_sc = folded[:-1]  # хүс
-    stem = folded[:-2]  # хү / сэргэ
+    stem_sc = folded[:-1]  # хүс / багас
+    stem = folded[:-2]  # хү / бага
     converb_tails = ("ааж", "ээж", "оож", "өөж", "аж", "эж", "ож", "өж")
     if other.endswith(converb_tails) and (
-        other.startswith(stem_sc) or (len(stem) >= 3 and other.startswith(stem))
+        other.startswith(stem_sc) or (len(stem) >= 2 and other.startswith(stem))
     ):
         return False
     return True
@@ -287,9 +287,12 @@ def _spelling_decision(
     if len(word) >= 4:
         result = _suggest(word, dictionary)
         # Harmony rules must propose an attested form — never invent junk like мөрийийн.
+        # sej_converb may derive багасаж from known багасах even if the converb
+        # itself is missing from a minimal test dictionary.
         if (
             result
             and result[1] in _RULE_FIRST
+            and result[1] != "sej_converb"
             and not (
                 dictionary.contains(result[0]) or dictionary.in_wordlist(result[0])
             )
@@ -325,6 +328,12 @@ def _spelling_decision(
                 )
                 result = (primary, "doubled_letter" if doubled else "nearby_spelling")
                 alts = _confident_alts(word, alts, result, dictionary)
+    elif word.casefold().endswith("сч"):
+        # өсч (3 letters) still needs the school converb fix.
+        sej = suggest_sej_converb(word, dictionary)
+        if sej:
+            result = (sej, "sej_converb")
+            alts = [sej]
     if (
         not (result and result[1] in _RULE_FIRST)
         and len(word) >= 3
