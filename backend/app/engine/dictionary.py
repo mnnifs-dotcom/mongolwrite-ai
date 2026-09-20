@@ -764,13 +764,13 @@ def _case_forms(stem: str) -> set[str]:
             suffixes = ("г", "ны", "нд", "наас", "тай")
         return {stem + suffix for suffix in suffixes}
     if vowel in "өү":
-        suffixes = ("өөс", "ийн", "ийг", "тэй", "д", "өө")
+        suffixes = ("өөс", "өөр", "ийн", "ийг", "тэй", "д", "өө")
     elif vowel in "эеи":
-        suffixes = ("ээс", "ийн", "ийг", "тэй", "д", "ээ")
+        suffixes = ("ээс", "ээр", "ийн", "ийг", "тэй", "д", "ээ")
     elif vowel in "оё":
-        suffixes = ("оос", "ын", "ыг", "той", "д", "оо")
+        suffixes = ("оос", "оор", "ын", "ыг", "той", "д", "оо")
     else:
-        suffixes = ("аас", "ын", "ыг", "тай", "д", "аа")
+        suffixes = ("аас", "аар", "ын", "ыг", "тай", "д", "аа")
     if stem[-1] in "гжшч":
         suffixes = tuple(
             "ийн" if item == "ын" else "ийг" if item == "ыг" else item for item in suffixes

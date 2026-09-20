@@ -71,11 +71,16 @@ def _is_cyrillic_word(word: str) -> bool:
 
 
 def _apply_case(original: str, suggested: str) -> str:
-    if not original[:1].isupper():
+    if not suggested:
         return suggested
-    head, sep, tail = suggested.partition(" ")
-    cased = head[:1].upper() + head[1:]
-    return cased + sep + tail
+    letters = [ch for ch in original if ch.isalpha()]
+    if letters and all(ch.isupper() for ch in letters):
+        return suggested.upper()
+    if original[:1].isupper():
+        head, sep, tail = suggested.partition(" ")
+        cased = head[:1].upper() + head[1:]
+        return cased + sep + tail
+    return suggested
 
 
 _VOWELS = frozenset("аэиоуөүяёеюы")
@@ -277,6 +282,9 @@ def check_spelling(tokens: list[Token], dictionary: DictionaryProvider) -> list[
             corrections.append(_unknown(token))
         elif kind == "hit":
             _, suggested, rule_id, extras = decision
+            # Never flag case-only differences (Үндэсний ↔ үндэсний).
+            if suggested.casefold() == token.text.casefold():
+                continue
             corrections.append(_hit(token, suggested, rule_id, extras))
     return corrections
 
@@ -336,6 +344,14 @@ def _spelling_decision(
             # Orthography rule is enough — skip expensive neighbor extras.
             alts = [result[0]]
         elif not _is_implausible(word):
+            # Long sealed docs exhaust the nearby budget; still accept regular
+            # / established forms instead of dumping them as unknown_word.
+            if len(word) >= 3 and (
+                is_regular_inflection(word, dictionary)
+                or dictionary.is_frequent_inflection(word)
+                or dictionary.prefers_established(word)
+            ):
+                return None
             if budget is not None and budget.get("nearby", 0) <= 0:
                 return ("unknown",)
             if budget is not None:
