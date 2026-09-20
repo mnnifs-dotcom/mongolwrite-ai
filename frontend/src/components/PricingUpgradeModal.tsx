@@ -11,6 +11,7 @@ import {
   type BillingOrder,
   type BillingPlan,
 } from "@/lib/api";
+import { PlanIconFree, PlanIconQuarter, PlanIconYear } from "@/components/PlanIcons";
 
 function formatPrice(mnt: number): string {
   return `₮${mnt.toLocaleString("mn-MN")}`;
@@ -105,11 +106,13 @@ export function PricingUpgradeModal({ open, onClose, limit }: PricingUpgradeModa
           ×
         </button>
         <header className="mw-upgrade-header">
-          <h2 id={titleId}>Багц сонгох</h2>
+          <p className="mw-upgrade-kicker" id={titleId}>
+            Багц сонгох
+          </p>
           <p>
             {limit
-              ? `Таны хязгаар ${limit.toLocaleString("mn-MN")} тэмдэгт. Илүү урт бичвэр шалгахын тулд эрхээ өргөжүүлнэ үү.`
-              : "Илүү урт бичвэр шалгахын тулд тохирох багцаа сонгоно уу."}
+              ? `Таны хязгаар ${limit.toLocaleString("mn-MN")} тэмдэгт. Илүү урт бичвэр шалгах эсвэл монгол бичиг рүү хөрвүүлэхийн тулд эрхээ өргөжүүлнэ үү.`
+              : "Илүү урт бичвэр шалгах эсвэл монгол бичиг рүү хөрвүүлэхийн тулд тохирох багцаа сонгоно уу."}
           </p>
         </header>
 
@@ -118,13 +121,12 @@ export function PricingUpgradeModal({ open, onClose, limit }: PricingUpgradeModa
         <div className="mw-upgrade-grid">
           {free ? (
             <article className="mw-upgrade-card">
-              <div className="mw-upgrade-icon mw-upgrade-icon-free" aria-hidden>
-                ✿
+              <div className="mw-upgrade-icon" aria-hidden>
+                <PlanIconFree />
               </div>
               <h3>{free.name}</h3>
-              <p className="mw-upgrade-blurb">Туршиж үзэхэд тохиромжтой</p>
+              <p className="mw-upgrade-blurb">{free.blurb || "Туршиж үзэхэд тохиромжтой"}</p>
               <p className="mw-upgrade-price">{formatPrice(0)}</p>
-              <p className="mw-upgrade-meta">Үндсэн хэрэглээ</p>
               <ul>
                 {(free.features || []).map((item) => (
                   <li key={item}>{item}</li>
@@ -152,27 +154,19 @@ export function PricingUpgradeModal({ open, onClose, limit }: PricingUpgradeModa
                 {featured ? (
                   <span className="mw-upgrade-ribbon">Хамгийн ашигтай</span>
                 ) : null}
-                <div
-                  className={
-                    featured
-                      ? "mw-upgrade-icon mw-upgrade-icon-year"
-                      : "mw-upgrade-icon mw-upgrade-icon-quarter"
-                  }
-                  aria-hidden
-                >
-                  {featured ? "◆" : "▣"}
+                <div className="mw-upgrade-icon" aria-hidden>
+                  {featured ? <PlanIconYear /> : <PlanIconQuarter />}
                 </div>
                 <h3>{plan.name}</h3>
                 <p className="mw-upgrade-blurb">
-                  {plan.id === "pro_3m"
-                    ? "Богино хугацаанд хэрэглэхэд"
-                    : "Урт хугацаанд илүү хэмнэлттэй"}
+                  {plan.blurb ||
+                    (plan.id === "pro_3m"
+                      ? "Богино хугацаанд хэрэглэхэд"
+                      : "Урт хугацаанд илүү хэмнэлттэй")}
                 </p>
                 <p className="mw-upgrade-price">{formatPrice(plan.price_mnt)}</p>
+                {featured ? <p className="mw-upgrade-save">17%-ийн хэмнэлт</p> : null}
                 {plan.badge ? <p className="mw-upgrade-pill">{plan.badge}</p> : null}
-                {featured ? (
-                  <p className="mw-upgrade-save">₮4,100 хэмнэнэ</p>
-                ) : null}
                 <ul>
                   {(plan.features || []).map((item) => (
                     <li key={item}>{item}</li>
