@@ -37,10 +37,11 @@ async function postCheck(
     document_type: options?.document_type ?? "official_letter",
     style: options?.style ?? "government_official",
   });
-  // Shared Fly CPU + many unique typos need more than 30s near the 80k ceiling.
+  // Shared Fly CPU + cold start + typo-heavy ~60–80k docs need headroom.
+  // Scale with length; keep a high floor so first request after idle still works.
   const timeoutMs = Math.min(
-    120_000,
-    Math.max(45_000, 25_000 + Math.floor(text.length * 1.2)),
+    180_000,
+    Math.max(60_000, 40_000 + Math.floor(text.length * 1.5)),
   );
   let lastError: Error | null = null;
   for (let attempt = 0; attempt < 2; attempt += 1) {
