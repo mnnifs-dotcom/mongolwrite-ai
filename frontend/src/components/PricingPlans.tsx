@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import {
@@ -55,7 +56,8 @@ export function PricingPlans() {
   return (
     <div className="mw-pricing">
       <p className="mw-seo-lead">
-        Үнэгүй туршина. Төлбөртэй эрх хоёр сонголттой: 3 сар ₮6,000, эсвэл 1 жил ₮19,900.
+        Үнэгүй нэвтэрсэн хэрэглэгч 1,500 тэмдэгт. Төлбөртэй эрх: 3 сар ₮6,000 эсвэл 1 жил ₮19,900
+        · нэг дор 300 мянган тэмдэгт.
       </p>
 
       {error ? <p className="mw-report-error">{error}</p> : null}
@@ -65,12 +67,17 @@ export function PricingPlans() {
           <article className="mw-pricing-card">
             <h2>{free.name}</h2>
             <p className="mw-pricing-price">{formatPrice(0)}</p>
-            <p className="mw-muted">Үндсэн хэрэглээ</p>
+            <p className="mw-muted">Туршиж үзэхэд тохиромжтой · 1,500 тэмдэгт</p>
             <ul>
               {(free.features || []).map((item) => (
                 <li key={item}>{item}</li>
               ))}
             </ul>
+            {!authed ? (
+              <Link className="mw-seo-cta mw-seo-cta-inline" href="/">
+                Нэвтэрч турших
+              </Link>
+            ) : null}
           </article>
         ) : null}
 
