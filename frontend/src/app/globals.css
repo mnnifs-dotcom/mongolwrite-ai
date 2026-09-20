@@ -843,9 +843,19 @@ body {
   text-justify: inter-word;
 }
 
-.mw-prose p {
+.mw-prose p,
+.mw-prose .ProseMirror,
+.ProseMirror,
+.ProseMirror p {
   margin: 0 0 1em;
   text-align: justify;
+  text-justify: inter-word;
+  text-align-last: left;
+  font-family: var(--font-sans);
+}
+
+.ProseMirror p:last-child {
+  margin-bottom: 0;
 }
 
 .mw-editor.is-empty .mw-prose > p:first-child::before {
@@ -2113,6 +2123,7 @@ body {
 .mw-seo-article p {
   text-align: justify;
   text-justify: inter-word;
+  text-align-last: left;
 }
 
 .mw-seo-article ul,
