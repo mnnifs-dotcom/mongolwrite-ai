@@ -456,7 +456,7 @@ _LONG_SEJ_LENGTHEN = {
 
 
 def suggest_sej_converb(word: str, dictionary: DictionaryProvider) -> str | None:
-    """сч → с + эгшиг + ж: хүсч→хүсэж, багасч→багасаж, сэргээсч→сэргээж."""
+    """сч → school converb: хүсч→хүсэж, бэлдэсч→бэлдэж, уншсч→уншиж."""
     folded = word.casefold()
     # өсч is only 3 letters; still a full verb stem + -ч.
     if not folded.endswith("сч") or len(folded) < 3:
@@ -480,11 +480,7 @@ def suggest_sej_converb(word: str, dictionary: DictionaryProvider) -> str | None
     # Long vowel already on the stem: сэргээсч → сэргээж (not сэргээсэж).
     if len(base) >= 4 and base.endswith(("аа", "ээ", "оо", "өө")):
         long_ready = base + "ж"
-        if long_ready != folded and (
-            dictionary.contains(long_ready)
-            or dictionary.in_wordlist(long_ready)
-            or _known_stem(base + "х", dictionary)
-        ):
+        if long_ready != folded and _sej_attested(long_ready, base + "х", dictionary):
             return long_ready
     # Short stem lengthened: сэргэсч → сэргээж.
     if len(base) >= 3:
@@ -492,14 +488,76 @@ def suggest_sej_converb(word: str, dictionary: DictionaryProvider) -> str | None
         if extra:
             long_stem = base + extra  # сэргэ + э
             long_candidate = long_stem + "ж"
-            long_inf = long_stem + "х"
-            if long_candidate != folded and (
-                dictionary.contains(long_candidate)
-                or dictionary.in_wordlist(long_candidate)
-                or _known_stem(long_inf, dictionary)
+            if long_candidate != folded and _sej_attested(
+                long_candidate, long_stem + "х", dictionary
             ):
                 return long_candidate
+    # Vowel-final stem + mistaken -сч: бэлдэсч → бэлдэж (require known infinitive).
+    if len(base) >= 3 and base[-1:] in "аэиоуөүяёеюы":
+        vowel_zh = base + "ж"
+        if vowel_zh != folded and _known_stem(base + "х", dictionary):
+            return vowel_zh
+    # Soft-sign stem: ярьсч → ярьж (infinitive ярих drops ь).
+    if len(base) >= 3 and base.endswith("ь"):
+        hard = base[:-1]
+        if any(
+            _known_stem(hard + tail, dictionary)
+            for tail in ("их", "эх", "ах", "ох", "өх", "х")
+        ):
+            for candidate in (base + "ж", hard + "иж", hard + "ж"):
+                if candidate != folded and (
+                    dictionary.contains(candidate) or dictionary.in_wordlist(candidate)
+                ):
+                    return candidate
+            return base + "ж"
+    # Consonant-final stem + mistaken -сч: уншсч→уншиж, явсч→явж, авсч→авч.
+    if base and len(base) >= 2 and base[-1:] not in "аэиоуөүяёеюыь":
+        has_inf = any(
+            _known_stem(base + tail, dictionary)
+            for tail in ("их", "эх", "ах", "ох", "өх", "х")
+        )
+        if has_inf:
+            for candidate in (
+                base + "иж",
+                base + "эж",
+                base + "аж",
+                base + "ож",
+                base + "өж",
+                base + "ж",
+                base + "ч",
+            ):
+                if candidate != folded and (
+                    dictionary.contains(candidate) or dictionary.in_wordlist(candidate)
+                ):
+                    return candidate
+            for inf_tail, conv_tail in (
+                ("их", "иж"),
+                ("эх", "эж"),
+                ("ах", "аж"),
+                ("ох", "ож"),
+                ("өх", "өж"),
+                ("х", "ж"),
+            ):
+                if _known_stem(base + inf_tail, dictionary):
+                    candidate = base + conv_tail
+                    if candidate != folded:
+                        # авч, өгч: after в/л school form often uses ч.
+                        if base[-1:] in "вл":
+                            alt = base + "ч"
+                            if dictionary.contains(alt) or dictionary.in_wordlist(alt):
+                                return alt
+                        return candidate
     return None
+
+
+def _sej_attested(
+    candidate: str, infinitive: str, dictionary: DictionaryProvider
+) -> bool:
+    return bool(
+        dictionary.contains(candidate)
+        or dictionary.in_wordlist(candidate)
+        or _known_stem(infinitive, dictionary)
+    )
 
 
 def suggest_niy_genitive(word: str, dictionary: DictionaryProvider) -> str | None:

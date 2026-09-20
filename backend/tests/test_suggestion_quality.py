@@ -76,7 +76,30 @@ def test_sergesc_short_stem_also_sergeezh() -> None:
     assert hits[0].rule_id == "sej_converb"
 
 
-def test_sch_junk_neighbors_not_offered() -> None:
+def test_similar_sch_family_generalizes() -> None:
+    """Not only screenshot words — same -сч family across stems."""
+    cases = (
+        ("бэлдэсч", "бэлдэж"),
+        ("уншсч", "уншиж"),
+        ("явсч", "явж"),
+        ("бичсч", "бичиж"),
+        ("ярьсч", "ярьж"),
+        ("хайсч", "хайж"),
+        ("идсч", "идэж"),
+        ("авсч", "авч"),
+        ("үсч", "үсэж"),
+        ("загасч", "загасаж"),
+        ("зогсч", "зогсож"),
+        ("дуусч", "дуусаж"),
+        ("төлсч", "төлөж"),
+        ("бүтэсч", "бүтээж"),
+        ("бүтээсч", "бүтээж"),
+    )
+    for word, want in cases:
+        hits = _for_word(f"{word} байна", word)
+        assert hits, f"{word} should be flagged"
+        assert hits[0].suggested_text.casefold() == want, (word, hits[0].suggested_text)
+        assert hits[0].rule_id == "sej_converb", word
     """Similar -сч typos must not get unrelated short dictionary neighbors."""
     for word, text, forbidden in (
         ("бисч", "бисч үлдэв", {"бич", "бийч"}),

@@ -198,17 +198,18 @@ def _usable_suggestion(original: str, item: str) -> bool:
 def _bad_sch_neighbor(original: str, suggestion: str) -> bool:
     """Reject junk neighbors for -сч forms (хүсч→хүч, гасч→гарч, тааласч→таалал).
 
-    Legitimate fixes keep the stem and end in a converb -*ж (хүсэж, багасаж).
+    Legitimate fixes keep the stem and end in a converb -*ж (хүсэж, багасаж, уншиж).
     """
     folded = original.casefold()
     other = suggestion.casefold()
     if not folded.endswith("сч") or len(folded) < 3:
         return False
     stem_sc = folded[:-1]  # хүс / багас
-    stem = folded[:-2]  # хү / бага
-    converb_tails = ("ааж", "ээж", "оож", "өөж", "аж", "эж", "ож", "өж")
+    stem = folded[:-2]  # хү / бага / унш
+    converb_tails = ("ааж", "ээж", "оож", "өөж", "аж", "эж", "ож", "өж", "иж", "ж")
     if other.endswith(converb_tails) and (
-        other.startswith(stem_sc) or (len(stem) >= 2 and other.startswith(stem))
+        other.startswith(stem_sc)
+        or (len(stem) >= 2 and other.startswith(stem))
     ):
         return False
     return True
@@ -275,6 +276,10 @@ def _spelling_decision(
     if "-" in word:
         return None
     if dictionary.contains(word):
+        # Hunspell sometimes accepts wrong -сч school forms (үсч, загасч).
+        sej = suggest_sej_converb(word, dictionary)
+        if sej and sej.casefold() != word.casefold():
+            return ("hit", sej, "sej_converb", [])
         if len(word) >= 4:
             reflexive = suggest_x_reflexive(word, dictionary)
             if reflexive:
