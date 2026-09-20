@@ -131,9 +131,9 @@ export function PricingUpgradeModal({ open, onClose, limit }: PricingUpgradeModa
                 ))}
               </ul>
               {!authed ? (
-                <a className="mw-upgrade-btn mw-upgrade-btn-ghost" href="/">
+                <Link className="mw-upgrade-btn mw-upgrade-btn-ghost" href="/">
                   Нэвтэрч турших →
-                </a>
+                </Link>
               ) : (
                 <button type="button" className="mw-upgrade-btn mw-upgrade-btn-ghost" onClick={onClose}>
                   Үргэлжлүүлэх →
