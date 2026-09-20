@@ -27,6 +27,35 @@ import { PricingUpgradeModal } from "@/components/PricingUpgradeModal";
 const STYLE = "government_official";
 const DOC_TYPE = "official_letter";
 
+/** Keep in sync with backend app.core.plans */
+const GUEST_CHECK_MAX_CHARS = 500;
+const FREE_CHECK_MAX_CHARS = 1_500;
+const PAID_CHECK_MAX_CHARS = 300_000;
+
+function resolveCheckMaxChars(me: {
+  authenticated: boolean;
+  user: {
+    is_paid?: boolean;
+    plan?: string;
+    entitlements?: { check_max_chars?: number };
+  } | null;
+}): number {
+  if (!me.authenticated || !me.user) {
+    return GUEST_CHECK_MAX_CHARS;
+  }
+  const fromEntitlement = me.user.entitlements?.check_max_chars;
+  if (me.user.is_paid || me.user.plan === "pro_3m" || me.user.plan === "pro_year" || me.user.plan === "pro") {
+    if (fromEntitlement && fromEntitlement > 0) {
+      return Math.min(fromEntitlement, PAID_CHECK_MAX_CHARS);
+    }
+    return PAID_CHECK_MAX_CHARS;
+  }
+  if (fromEntitlement && fromEntitlement > 0) {
+    return Math.min(fromEntitlement, FREE_CHECK_MAX_CHARS);
+  }
+  return FREE_CHECK_MAX_CHARS;
+}
+
 const SAMPLE =
   "Манай байгууллагаас ирүүлсэн хүсэлтийг хүлээн авч, танилцан холбогдох арга хэмжээ авч ажиллана уу.\n\nШинжилгээний хариу  одөр ирүүлсэн болно. байгууллагаaс дахин хүсэлт хүсэлт ирүүлнэ үү.\n\nЯгаад өдрээс хойш хариу ирүүлээгүй байна үү. Гэхмэт ажиллажбайна.";
 
@@ -492,17 +521,11 @@ export function EditorApp() {
         try {
           const [settings, me] = await Promise.all([getSettings(), authMe()]);
           if (typeof settings.ai_enabled === "boolean") setAiEnabled(settings.ai_enabled);
-          const fromUser = me.user?.entitlements?.check_max_chars;
-          const fromSettings = settings.check_max_chars;
-          const next =
-            fromUser && fromUser > 0
-              ? fromUser
-              : fromSettings && fromSettings > 0
-                ? fromSettings
-                : 500;
-          setMaxChars(next);
+          // Auth tier wins — never trust a guest settings value of 80k/300k from an
+          // older API build (that used one ceiling for everyone).
+          setMaxChars(resolveCheckMaxChars(me));
         } catch {
-          /* keep current limit */
+          setMaxChars(GUEST_CHECK_MAX_CHARS);
         }
       })();
     };
