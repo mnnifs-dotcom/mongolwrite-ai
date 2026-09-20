@@ -31,7 +31,7 @@ def _harvest_async(text: str) -> None:
     """
     if not text.strip():
         return
-    sample = text if len(text) <= 80_000 else text[:80_000]
+    sample = text if len(text) <= 300_000 else text[:300_000]
     engine = get_engine()
 
     def _run() -> None:

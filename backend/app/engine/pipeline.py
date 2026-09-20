@@ -9,7 +9,7 @@ from app.engine.homoglyphs import check_homoglyphs
 from app.engine.models import Category, Correction
 from app.engine.ranker import rank_corrections
 from app.engine.repeats import check_repeated_words
-from app.engine.spelling import check_spelling
+from app.engine.spelling import _is_implausible, check_spelling
 from app.engine.text import to_nfc, tokenize
 
 _log = logging.getLogger(__name__)
@@ -17,6 +17,10 @@ _log = logging.getLogger(__name__)
 # Product surface: зөв бичих only (no word-choice / official-style noise).
 # Glued-word grammar hits are remapped to SPELLING below.
 _KEEP = {Category.SPELLING, Category.REDUNDANCY}
+
+# Above this size, prefetch + seal Hunspell so 58–100k checks finish in a few seconds.
+_LONG_DOC_CHARS = 20_000
+_LONG_DOC_HUNSPELL_BUDGET_S = 0.9
 
 
 class LanguageEngine:
@@ -29,19 +33,31 @@ class LanguageEngine:
             return []
         _ = to_nfc(text)
         tokens = tokenize(text)
+        long_doc = len(text) >= _LONG_DOC_CHARS
+        if long_doc:
+            self.dictionary.warm_document_lookups(
+                (token.text for token in tokens),
+                budget_seconds=_LONG_DOC_HUNSPELL_BUDGET_S,
+                skip=_is_implausible,
+            )
+            self.dictionary.seal_lookups()
         raw: list[Correction] = []
-        for checker in (
-            lambda: check_repeated_words(tokens, text),
-            lambda: check_homoglyphs(tokens, self.dictionary),
-            lambda: check_confusables(tokens, self.dictionary),
-            # Missing spaces: ажиллажбайна → ажиллаж байна, байнауу → байна уу, …
-            lambda: _glued_forms(tokens, self.dictionary),
-            lambda: check_spelling(tokens, self.dictionary),
-        ):
-            try:
-                raw.extend(checker())
-            except Exception:
-                _log.exception("checker failed")
+        try:
+            for checker in (
+                lambda: check_repeated_words(tokens, text),
+                lambda: check_homoglyphs(tokens, self.dictionary),
+                lambda: check_confusables(tokens, self.dictionary),
+                # Missing spaces: ажиллажбайна → ажиллаж байна, байнауу → байна уу, …
+                lambda: _glued_forms(tokens, self.dictionary),
+                lambda: check_spelling(tokens, self.dictionary),
+            ):
+                try:
+                    raw.extend(checker())
+                except Exception:
+                    _log.exception("checker failed")
+        finally:
+            if long_doc:
+                self.dictionary.unseal_lookups()
         # Prefer glued-split marks over a later unknown_word on the same span.
         spanned = {(item.start, item.end) for item in raw if item.rule_id != "unknown_word"}
         kept: list[Correction] = []

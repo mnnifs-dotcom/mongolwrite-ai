@@ -232,13 +232,13 @@ def check_spelling(tokens: list[Token], dictionary: DictionaryProvider) -> list[
     form_counts: dict[str, int] = {}
     _MAX_PER_FORM = 5
     _MAX_TOTAL = 800
-    # Neighbor search is the slow path. Keep the budget tight on long docs so
-    # shared-CPU Fly hosts finish before browser/proxy limits (~60–80k chars).
+    # Neighbor search is the slow path. On long docs skip it entirely — orthography
+    # rules + unknown marks are enough, and suggest_many was dominating wall time.
     n_tokens = len(tokens)
-    if n_tokens > 5_000:
-        nearby_budget = 15
+    if n_tokens > 3_000:
+        nearby_budget = 0
     elif n_tokens > 2_000:
-        nearby_budget = 40
+        nearby_budget = 20
     else:
         nearby_budget = 120
     budget = {"nearby": nearby_budget}
