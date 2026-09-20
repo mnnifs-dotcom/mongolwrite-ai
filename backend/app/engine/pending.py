@@ -116,3 +116,25 @@ def pop_pending(folded: str) -> dict[str, Any] | None:
         if found is not None:
             _save(path, kept)
         return found
+
+
+def pop_pending_many(words: list[str]) -> list[dict[str, Any]]:
+    """Remove and return matching pending rows (preserves first match per folded form)."""
+    wanted = {str(word).casefold().strip() for word in words if str(word).strip()}
+    if not wanted:
+        return []
+    path = pending_path()
+    with _lock:
+        items = _load(path)
+        found: list[dict[str, Any]] = []
+        kept: list[dict[str, Any]] = []
+        for item in items:
+            folded = item["folded"]
+            if folded in wanted:
+                found.append(item)
+                wanted.discard(folded)
+            else:
+                kept.append(item)
+        if found:
+            _save(path, kept)
+        return found

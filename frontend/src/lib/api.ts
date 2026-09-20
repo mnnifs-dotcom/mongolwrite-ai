@@ -700,6 +700,24 @@ export async function adminApprovePending(
   return response.json() as Promise<{ added: string[]; added_count: number; word: string }>;
 }
 
+export async function adminApprovePendingMany(
+  words: string[],
+): Promise<{ added: string[]; added_count: number; removed_count: number; words: string[] }> {
+  const response = await fetch(apiUrl("/api/v1/admin/pending/approve-many"), {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ words }),
+  });
+  if (!response.ok) throw new Error("Үгс нэмж чадсангүй");
+  return response.json() as Promise<{
+    added: string[];
+    added_count: number;
+    removed_count: number;
+    words: string[];
+  }>;
+}
+
 export async function adminRejectPending(word: string): Promise<{ word: string }> {
   const response = await fetch(apiUrl("/api/v1/admin/pending/reject"), {
     method: "POST",
@@ -709,6 +727,19 @@ export async function adminRejectPending(word: string): Promise<{ word: string }
   });
   if (!response.ok) throw new Error("Үг хасаж чадсангүй");
   return response.json() as Promise<{ word: string }>;
+}
+
+export async function adminRejectPendingMany(
+  words: string[],
+): Promise<{ removed: string[]; removed_count: number }> {
+  const response = await fetch(apiUrl("/api/v1/admin/pending/reject-many"), {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ words }),
+  });
+  if (!response.ok) throw new Error("Үгс хасаж чадсангүй");
+  return response.json() as Promise<{ removed: string[]; removed_count: number }>;
 }
 
 export async function adminUsers(opts?: {
