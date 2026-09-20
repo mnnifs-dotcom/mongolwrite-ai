@@ -110,68 +110,69 @@ def _particle_harmony(
 
 def _glued_forms(tokens: list[Token], dictionary: DictionaryProvider) -> list[Correction]:
     corrections: list[Correction] = []
+    # folded -> None | (suggested_stem_template, explanation, rule_id)
+    cache: dict[str, tuple[str, str, str] | None] = {}
+    form_counts: dict[str, int] = {}
+    _MAX_PER_FORM = 5
+    _MAX_TOTAL = 400
     for token in tokens:
+        if len(corrections) >= _MAX_TOTAL:
+            break
         folded = token.text.casefold()
-        aux = _GLUED_AUX.match(folded)
-        if aux:
-            corrections.append(
-                _glued(
-                    token,
-                    f"{_keep_case(token.text, aux.group(1))} {aux.group(2)}",
-                    "Туслах үйл үг «байна/болно»-г тусад нь бичнэ.",
-                    "glued_auxiliary",
-                )
-            )
+        if folded in cache:
+            decision = cache[folded]
+        else:
+            decision = _glued_decision(folded, dictionary)
+            cache[folded] = decision
+        if decision is None:
             continue
-        question = _GLUED_QUESTION.match(folded)
-        if question and _looks_like_finite_verb(question.group(1)):
-            particle = question_particle(question.group(1)) or question.group(2).casefold()
-            corrections.append(
-                _glued(
-                    token,
-                    f"{_keep_case(token.text, question.group(1))} {particle}",
-                    "Асуух «уу/үү»-г тусад нь бичнэ.",
-                    "glued_question_particle",
-                )
-            )
+        seen = form_counts.get(folded, 0)
+        if seen >= _MAX_PER_FORM:
             continue
-        direction = _GLUED_DIRECTION.match(folded)
-        stem = direction.group(1) if direction else ""
-        if direction and len(stem) >= 3 and dictionary.contains(stem):
-            particle = _directive(stem) or direction.group(2).casefold()
-            corrections.append(
-                _glued(
-                    token,
-                    f"{_keep_case(token.text, stem)} {particle}",
-                    "Чиглэлийн «руу/рүү»-г тусад нь бичнэ.",
-                    "glued_directive",
-                )
-            )
-            continue
-        if dictionary.contains(folded):
-            continue
-        particle = _suggest_separate_particle(folded, dictionary)
-        if particle:
-            corrections.append(
-                _glued(
-                    token,
-                    _keep_case(token.text, particle),
-                    "Энэ нөхцөл, өгүүлэхүүнийг тусад нь бичнэ.",
-                    "separate_particle",
-                )
-            )
-            continue
-        split = _suggest_glued_split(folded, dictionary)
-        if split:
-            corrections.append(
-                _glued(
-                    token,
-                    _keep_case(token.text, split),
-                    "Хоёр үг наалдсан байна. Зай эсвэл таслал дутуу.",
-                    "glued_words",
-                )
-            )
+        form_counts[folded] = seen + 1
+        suggested, explanation, rule_id = decision
+        corrections.append(
+            _glued(token, _keep_case(token.text, suggested), explanation, rule_id)
+        )
     return corrections
+
+
+def _glued_decision(
+    folded: str, dictionary: DictionaryProvider
+) -> tuple[str, str, str] | None:
+    aux = _GLUED_AUX.match(folded)
+    if aux:
+        return (
+            f"{aux.group(1)} {aux.group(2)}",
+            "Туслах үйл үг «байна/болно»-г тусад нь бичнэ.",
+            "glued_auxiliary",
+        )
+    question = _GLUED_QUESTION.match(folded)
+    if question and _looks_like_finite_verb(question.group(1)):
+        particle = question_particle(question.group(1)) or question.group(2).casefold()
+        return (
+            f"{question.group(1)} {particle}",
+            "Асуух «уу/үү»-г тусад нь бичнэ.",
+            "glued_question_particle",
+        )
+    direction = _GLUED_DIRECTION.match(folded)
+    stem = direction.group(1) if direction else ""
+    if direction and len(stem) >= 3 and dictionary.contains(stem):
+        particle = _directive(stem) or direction.group(2).casefold()
+        return (
+            f"{stem} {particle}",
+            "Чиглэлийн «руу/рүү»-г тусад нь бичнэ.",
+            "glued_directive",
+        )
+    if dictionary.contains(folded):
+        return None
+    particle = _suggest_separate_particle(folded, dictionary)
+    if particle:
+        return (particle, "Энэ нөхцөл, өгүүлэхүүнийг тусад нь бичнэ.", "separate_particle")
+    split = _suggest_glued_split(folded, dictionary)
+    if split:
+        return (split, "Хоёр үг наалдсан байна. Зай эсвэл таслал дутуу.", "glued_words")
+    return None
 
 
 _CONVERB_LEFT = frozenset(
