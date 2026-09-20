@@ -51,7 +51,7 @@ async function postCheck(
       }
       lastError = new Error(
         response.status === 422
-          ? "Текст хэт урт байна. Нэг дор 100 мянган тэмдэгт хүртэл шалгана."
+          ? "Текст хэт урт байна. Нэг дор 1 сая тэмдэгт хүртэл шалгана."
           : response.status >= 500
             ? "Шалгалт түр саатав."
             : `Шалгалт амжилтгүй (${response.status})`,
