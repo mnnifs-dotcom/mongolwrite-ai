@@ -171,6 +171,17 @@ _RULE_FIRST = frozenset(
     }
 )
 
+# Do not "correct" wiki/legal-established spellings with these school pedantry rules.
+_ESTABLISHED_KEEP = frozenset(
+    {
+        "extra_soft_sign",
+        "lah_verb",
+        "short_case_suffix",
+        "soft_sign_dative",
+        "soft_sign_genitive",
+    }
+)
+
 
 def _confidence(rule_id: str) -> float:
     if rule_id == "common_misspelling":
@@ -317,6 +328,9 @@ def _spelling_decision(
                 dictionary.contains(result[0]) or dictionary.in_wordlist(result[0])
             )
         ):
+            result = None
+        # Keep established legal/wiki spellings (дараахь, батласан, …).
+        if result and result[1] in _ESTABLISHED_KEEP and dictionary.prefers_established(word):
             result = None
         if result and result[1] in _RULE_FIRST:
             # Orthography rule is enough — skip expensive neighbor extras.

@@ -166,6 +166,9 @@ def _glued_decision(
         )
     if dictionary.contains(folded):
         return None
+    # Solid compounds / place names attested in corpus (улаанбаатар, монголбанк).
+    if dictionary.wiki_frequency(folded) >= 50:
+        return None
     particle = _suggest_separate_particle(folded, dictionary)
     if particle:
         return (particle, "Энэ нөхцөл, өгүүлэхүүнийг тусад нь бичнэ.", "separate_particle")
