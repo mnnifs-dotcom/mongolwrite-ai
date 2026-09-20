@@ -456,7 +456,7 @@ _LONG_SEJ_LENGTHEN = {
 
 
 def suggest_sej_converb(word: str, dictionary: DictionaryProvider) -> str | None:
-    """сч → с + эгшиг + ж: хүсч→хүсэж, багасч→багасаж, босч→босож, өсч→өсөж."""
+    """сч → с + эгшиг + ж: хүсч→хүсэж, багасч→багасаж, сэргээсч→сэргээж."""
     folded = word.casefold()
     # өсч is only 3 letters; still a full verb stem + -ч.
     if not folded.endswith("сч") or len(folded) < 3:
@@ -477,7 +477,16 @@ def suggest_sej_converb(word: str, dictionary: DictionaryProvider) -> str | None
                 or (inf and _known_stem(stem + inf, dictionary))
             ):
                 return candidate
-    # Long-vowel verbs wrongly given -сч: сэргэсч → сэргээж.
+    # Long vowel already on the stem: сэргээсч → сэргээж (not сэргээсэж).
+    if len(base) >= 4 and base.endswith(("аа", "ээ", "оо", "өө")):
+        long_ready = base + "ж"
+        if long_ready != folded and (
+            dictionary.contains(long_ready)
+            or dictionary.in_wordlist(long_ready)
+            or _known_stem(base + "х", dictionary)
+        ):
+            return long_ready
+    # Short stem lengthened: сэргэсч → сэргээж.
     if len(base) >= 3:
         extra = _LONG_SEJ_LENGTHEN.get(vowel or "")
         if extra:

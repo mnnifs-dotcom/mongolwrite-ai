@@ -45,15 +45,35 @@ def test_khusch_suggests_khusezh_not_khuch() -> None:
     }
 
 
-def test_sergesc_suggests_sergeezh_not_sergeen() -> None:
+def test_screenshot_sch_phrase() -> None:
+    """Exact user phrase: хүсч, сэргээсч, баясч, хийсч, хэсч."""
+    text = "хүсч → хүсэж, сэргээсч → сэргээж, баясч / хийсч / хэсч"
+    expected = {
+        "хүсч": "хүсэж",
+        "сэргээсч": "сэргээж",
+        "баясч": "баясаж",
+        "хийсч": "хийсэж",
+        "хэсч": "хэсэж",
+    }
+    for word, want in expected.items():
+        hits = _for_word(text, word)
+        assert hits, f"{word} should be flagged"
+        assert hits[0].suggested_text.casefold() == want, word
+        assert hits[0].rule_id == "sej_converb", word
+        assert "сэргээн" not in {
+            hits[0].suggested_text.casefold(),
+            *(s.casefold() for s in (hits[0].suggestions or [])),
+        }
+    # Correct forms after the arrows must stay clean.
+    for good in ("хүсэж", "сэргээж"):
+        assert _for_word(text, good) == []
+
+
+def test_sergesc_short_stem_also_sergeezh() -> None:
     hits = _for_word("сэргэсч ирэв", "сэргэсч")
     assert hits, "сэргэсч should be flagged"
     assert hits[0].suggested_text.casefold() == "сэргээж"
     assert hits[0].rule_id == "sej_converb"
-    assert "сэргээн" not in {
-        hits[0].suggested_text.casefold(),
-        *(s.casefold() for s in (hits[0].suggestions or [])),
-    }
 
 
 def test_sch_junk_neighbors_not_offered() -> None:
