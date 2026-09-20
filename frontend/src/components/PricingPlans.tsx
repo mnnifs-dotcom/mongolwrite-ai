@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import {
@@ -73,9 +74,9 @@ export function PricingPlans() {
               ))}
             </ul>
             {!authed ? (
-              <a className="mw-seo-cta mw-seo-cta-inline" href="/">
+              <Link className="mw-seo-cta mw-seo-cta-inline" href="/">
                 Нэвтэрч турших
-              </a>
+              </Link>
             ) : null}
           </article>
         ) : null}
