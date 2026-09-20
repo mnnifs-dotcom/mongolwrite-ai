@@ -27,6 +27,20 @@ export async function checkTextWithAI(
   return postCheck("/api/v1/check/all", text, options);
 }
 
+export class CheckLimitError extends Error {
+  limit: number;
+
+  constructor(limit?: number) {
+    super(
+      limit
+        ? `Текст хэт урт байна. Нэг дор ${limit.toLocaleString("mn-MN")} тэмдэгт хүртэл шалгана.`
+        : "Текст хэт урт байна. Багцын хязгаар хэтэрсэн.",
+    );
+    this.name = "CheckLimitError";
+    this.limit = limit ?? 0;
+  }
+}
+
 async function postCheck(
   path: string,
   text: string,
@@ -59,13 +73,15 @@ async function postCheck(
       if (response.ok) {
         return response.json() as Promise<CheckResponse>;
       }
-      lastError = new Error(
-        response.status === 413 || response.status === 422
-          ? "Текст хэт урт байна. Нэг дор 300 мянган тэмдэгт хүртэл шалгана — хувааж оруулна уу."
-          : response.status >= 500
+      if (response.status === 413 || response.status === 422) {
+        lastError = new CheckLimitError();
+      } else {
+        lastError = new Error(
+          response.status >= 500
             ? "Шалгалт түр саатав."
             : `Шалгалт амжилтгүй (${response.status})`,
-      );
+        );
+      }
       if (response.status < 500) break;
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") {
@@ -136,11 +152,10 @@ export async function improveText(
     }),
   });
   if (!response.ok) {
-    throw new Error(
-      response.status === 413 || response.status === 422
-        ? "Текст хэт урт байна. Нэг дор 300 мянган тэмдэгт хүртэл шалгана — хувааж оруулна уу."
-        : `Сайжруулалт амжилтгүй (${response.status})`,
-    );
+    if (response.status === 413 || response.status === 422) {
+      throw new CheckLimitError();
+    }
+    throw new Error(`Сайжруулалт амжилтгүй (${response.status})`);
   }
   return response.json() as Promise<ImproveResponse>;
 }
@@ -197,7 +212,7 @@ export async function learnFromText(text: string): Promise<{ added: string[]; ad
 export async function getSettings(): Promise<SettingsResponse> {
   const response = await fetch(apiUrl("/api/v1/settings"), { credentials: "include" });
   if (!response.ok) {
-    return { ai_enabled: false, check_max_chars: 300_000 };
+    return { ai_enabled: false, check_max_chars: 500 };
   }
   return response.json() as Promise<SettingsResponse>;
 }

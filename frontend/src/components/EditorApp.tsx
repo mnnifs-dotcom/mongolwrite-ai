@@ -9,6 +9,7 @@ import {
   authMe,
   checkText,
   checkTextWithAI,
+  CheckLimitError,
   downloadBichigDocx,
   getSettings,
   importDocument,
@@ -21,6 +22,7 @@ import { mapRange, plainTextFromDoc } from "@/lib/offsets";
 import { type Correction } from "@/lib/types";
 import { AuthButton } from "@/components/AuthButton";
 import { BrandLogo } from "@/components/BrandLogo";
+import { PricingUpgradeModal } from "@/components/PricingUpgradeModal";
 
 const STYLE = "government_official";
 const DOC_TYPE = "official_letter";
@@ -224,7 +226,7 @@ export function EditorApp() {
   const [corrections, setCorrections] = useState<Correction[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [counts, setCounts] = useState({ words: 0, chars: 0 });
-  const [maxChars, setMaxChars] = useState(300_000);
+  const [maxChars, setMaxChars] = useState(500);
   const [error, setError] = useState<string | null>(null);
   const [aiEnabled, setAiEnabled] = useState(false);
   const [empty, setEmpty] = useState(true);
@@ -236,6 +238,7 @@ export function EditorApp() {
   const [bichigBusy, setBichigBusy] = useState(false);
   const [draft, setDraft] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -245,7 +248,7 @@ export function EditorApp() {
   const lastLen = useRef(0);
   const lastText = useRef("");
   const aiEnabledRef = useRef(false);
-  const maxCharsRef = useRef(300_000);
+  const maxCharsRef = useRef(500);
   const dismissed = useRef(new Set<string>());
   const shownRef = useRef(false);
   const applying = useRef(false);
@@ -337,7 +340,12 @@ export function EditorApp() {
         if (err instanceof DOMException && err.name === "AbortError") return;
         if (err instanceof Error && err.name === "AbortError") return;
         if (shownRef.current) {
-          setError(err instanceof Error ? err.message : "Алдаа");
+          if (err instanceof CheckLimitError) {
+            setUpgradeOpen(true);
+            setError(null);
+          } else {
+            setError(err instanceof Error ? err.message : "Алдаа");
+          }
         }
       }
     })();
@@ -369,9 +377,8 @@ export function EditorApp() {
       return;
     }
     if (text.length > maxChars) {
-      setError(
-        `Нэг дор ${maxChars.toLocaleString("mn-MN")} тэмдэгт хүртэл шалгана. Бичвэрийг хувааж (бүлэг/хэсгээр) оруулна уу.`,
-      );
+      setError(null);
+      setUpgradeOpen(true);
       return;
     }
     shownRef.current = true;
@@ -492,7 +499,7 @@ export function EditorApp() {
               ? fromUser
               : fromSettings && fromSettings > 0
                 ? fromSettings
-                : 300_000;
+                : 500;
           setMaxChars(next);
         } catch {
           /* keep current limit */
@@ -949,6 +956,11 @@ export function EditorApp() {
           onClose={() => setActiveId(null)}
         />
       ) : null}
+      <PricingUpgradeModal
+        open={upgradeOpen}
+        onClose={() => setUpgradeOpen(false)}
+        limit={maxChars}
+      />
     </div>
   );
 }

@@ -110,7 +110,14 @@ def test_practical_ceiling_rejects_over_300k() -> None:
     assert elapsed < 2.0, f"over-limit reject took {elapsed:.1f}s"
 
 
-def test_practical_ceiling_accepts_300k_legal_sample() -> None:
+def test_practical_ceiling_accepts_300k_for_paid_user(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr("app.core.users.persist_dir", lambda: tmp_path)
+    from app.core.user_auth import set_user_cookie
+    from app.core.users import activate_plan_for_user, upsert_google_user
+
+    upsert_google_user(sub="paid300k", email="paid300k@example.com")
+    activate_plan_for_user("paid300k", "pro_year")
+
     sample_path = Path("/tmp/irgenii_huuli.txt")
     if sample_path.is_file():
         text = sample_path.read_text()[:PRACTICAL_CHECK_MAX_CHARS]
@@ -122,6 +129,21 @@ def test_practical_ceiling_accepts_300k_legal_sample() -> None:
     assert len(text) == PRACTICAL_CHECK_MAX_CHARS
 
     client = TestClient(app)
+    # Attach paid session cookie the same way the auth layer signs it.
+    response_cookie = client.get("/api/v1/settings")
+    assert response_cookie.status_code == 200
+    from starlette.responses import Response
+
+    probe = Response()
+    set_user_cookie(probe, "paid300k")
+    cookie_header = probe.headers.get("set-cookie", "")
+    assert "mw_user=" in cookie_header
+    token = cookie_header.split("mw_user=", 1)[1].split(";", 1)[0]
+    client.cookies.set("mw_user", token)
+
+    settings = client.get("/api/v1/settings")
+    assert settings.json()["check_max_chars"] == PRACTICAL_CHECK_MAX_CHARS
+
     t0 = time.perf_counter()
     response = client.post(
         "/api/v1/check/deterministic",

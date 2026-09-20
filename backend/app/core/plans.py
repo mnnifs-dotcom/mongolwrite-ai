@@ -4,8 +4,12 @@ from __future__ import annotations
 
 from typing import Any
 
-# Honest per-check ceiling: engine finishes ~300k in a few seconds on Fly.
+# Paid / practical engine ceiling (long docs finish in a few seconds).
 PRACTICAL_CHECK_MAX_CHARS = 300_000
+# Not signed in — try the product briefly.
+GUEST_CHECK_MAX_CHARS = 500
+# Signed in on the free plan.
+FREE_CHECK_MAX_CHARS = 1_500
 
 # Three user classes:
 #   1) free — үнэгүй
@@ -18,10 +22,15 @@ PLANS: dict[str, dict[str, Any]] = {
         "price_mnt": 0,
         "duration_days": None,
         "interval": "none",
-        "check_max_chars": PRACTICAL_CHECK_MAX_CHARS,
+        "check_max_chars": FREE_CHECK_MAX_CHARS,
         "checks_per_day": None,
-        "features": ["Зөв бичих", "Монгол бичиг", "Нэг дор 300 мянган тэмдэгт"],
+        "features": [
+            "Зөв бичих",
+            "Монгол бичиг",
+            "Нэг дор 1,500 тэмдэгт",
+        ],
         "badge": "",
+        "blurb": "Туршиж үзэхэд тохиромжтой",
         "sort": 0,
     },
     "pro_3m": {
@@ -40,6 +49,7 @@ PLANS: dict[str, dict[str, Any]] = {
             "Бүрэн эрх · 3 сар",
         ],
         "badge": "сард ₮2,000",
+        "blurb": "Богино хугацаанд хэрэглэхэд",
         "sort": 1,
     },
     "pro_year": {
@@ -58,6 +68,7 @@ PLANS: dict[str, dict[str, Any]] = {
             "Бүрэн эрх · 1 жил",
         ],
         "badge": "хамгийн ашигтай · сард ~₮1,658",
+        "blurb": "Урт хугацаанд илүү хэмнэлттэй",
         "sort": 2,
     },
 }
@@ -93,16 +104,18 @@ def is_paid_plan(plan_id: str) -> bool:
 
 
 def effective_check_max_chars(user: dict[str, Any] | None = None) -> int:
-    """Guest and free users get the free-plan ceiling; paid users get theirs."""
+    """Guest 500 · free 1,500 · paid 300,000 (capped by settings)."""
     from app.core.config import settings
 
     hard_cap = min(int(settings.check_max_chars), PRACTICAL_CHECK_MAX_CHARS)
-    if user:
-        entitlements = user.get("entitlements") or {}
-        raw = entitlements.get("check_max_chars")
-        if raw is not None:
-            try:
-                return min(int(raw), hard_cap)
-            except (TypeError, ValueError):
-                pass
-    return min(int(get_plan(DEFAULT_PLAN)["check_max_chars"]), hard_cap)
+    if not user:
+        return min(GUEST_CHECK_MAX_CHARS, hard_cap)
+    entitlements = user.get("entitlements") or {}
+    raw = entitlements.get("check_max_chars")
+    if raw is not None:
+        try:
+            return min(int(raw), hard_cap)
+        except (TypeError, ValueError):
+            pass
+    plan_id = str(user.get("plan") or DEFAULT_PLAN)
+    return min(int(get_plan(plan_id)["check_max_chars"]), hard_cap)
