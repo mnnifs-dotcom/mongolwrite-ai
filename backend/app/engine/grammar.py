@@ -179,6 +179,51 @@ _CONVERB_LEFT = frozenset(
     {"авч", "үзэж", "хийж", "уншиж", "шалгаж", "сонсож", "танилцан", "танилцаж"}
 )
 
+# Right-hand pieces that are case/particle endings, not free words — do not
+# "split" садангийн → садан гийн or төлбөртэйгээр → төлбөртэй гээр.
+_SUFFIX_LOOKALIKES = frozenset(
+    {
+        "гийн",
+        "ийн",
+        "ын",
+        "ыг",
+        "ийг",
+        "ий",
+        "аар",
+        "ээр",
+        "оор",
+        "өөр",
+        "гаар",
+        "гээр",
+        "гоор",
+        "гөөр",
+        "наар",
+        "нээр",
+        "ноор",
+        "нөөр",
+        "аас",
+        "ээс",
+        "оос",
+        "өөс",
+        "наас",
+        "нээс",
+        "ноос",
+        "нөөс",
+        "тай",
+        "тэй",
+        "той",
+        "төй",
+        "руу",
+        "рүү",
+        "луу",
+        "лүү",
+        "ууд",
+        "үүд",
+        "гууд",
+        "гүүд",
+    }
+)
+
 
 _SEPARATE_TAILS = ("шүү", "нь")
 _CH_HOSTS = frozenset({"ямар", "хэдий", "гэсэн", "хэзээ", "хэнд", "юу"})
@@ -210,6 +255,8 @@ def _suggest_glued_split(word: str, dictionary: DictionaryProvider) -> str | Non
     hits: list[str] = []
     for i in range(3, len(word) - 3):
         left, right = word[:i], word[i:]
+        if right in _SUFFIX_LOOKALIKES:
+            continue
         if left in _CONVERB_LEFT and dictionary.contains(right):
             hits.append(f"{left}, {right}")
             continue

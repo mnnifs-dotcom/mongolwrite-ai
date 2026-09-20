@@ -19,6 +19,7 @@ from app.engine.harmony import (
     suggest_n_plural_g,
     suggest_negative_gui,
     suggest_niy_genitive,
+    suggest_sej_converb,
     suggest_palatal_case,
     suggest_plural_harmony,
     suggest_short_case_suffix,
@@ -49,6 +50,7 @@ _EXPLANATIONS = {
     "reflexive_harmony": "Үйл үгийн -хдаа/-хдээ/-хдоо/-хдөө эгшгийн эв нэгдлийг дагана.",
     "i_drop": "Нөхцөл нэмэгдэхэд үндэсний и эгшиг орхигдоно.",
     "n_genitive": "Эгшгээр төгссөн үгийн харьяалах -ийн/-ын гэж бичигдэнэ.",
+    "sej_converb": "С-ийн дараа үйл үгийн хэв нь -аж/-эж/-ож/-өж гэж бичигдэнэ (багасч → багасаж).",
     "lah_verb": "Үйл үгийн -лах нөхцөлд л болон эгшгийн байр солигдоно (туслах → тусалдаг).",
     "vowel_before_x": "Үйл үгийн х-ийн өмнө эгшиг бичигдэнэ (байгуулах → байгуулахаар).",
     "soft_sign_dative": "Ь-ийн дараа өгөх тийн ялгал -д гэж бичигдэнэ.",
@@ -162,6 +164,7 @@ _RULE_FIRST = frozenset(
         "reflexive_harmony",
         "i_drop",
         "n_genitive",
+        "sej_converb",
         "lah_verb",
         "vowel_before_x",
         "extra_suffix",
@@ -188,7 +191,28 @@ def _usable_suggestion(original: str, item: str) -> bool:
         not lookup_misspelling(item)
         and not is_broken_case_form(item)
         and not drops_stem_i_before_cluster(original, item)
+        and not _bad_sch_neighbor(original, item)
     )
+
+
+def _bad_sch_neighbor(original: str, suggestion: str) -> bool:
+    """Reject junk neighbors for -сч forms (хүсч→хүч, гасч→гарч, тааласч→таалал).
+
+    Legitimate fixes keep the stem and end in a converb -*ж (хүсэж, багасаж, уншиж).
+    """
+    folded = original.casefold()
+    other = suggestion.casefold()
+    if not folded.endswith("сч") or len(folded) < 3:
+        return False
+    stem_sc = folded[:-1]  # хүс / багас
+    stem = folded[:-2]  # хү / бага / унш
+    converb_tails = ("ааж", "ээж", "оож", "өөж", "аж", "эж", "ож", "өж", "иж", "ж")
+    if other.endswith(converb_tails) and (
+        other.startswith(stem_sc)
+        or (len(stem) >= 2 and other.startswith(stem))
+    ):
+        return False
+    return True
 
 
 def check_spelling(tokens: list[Token], dictionary: DictionaryProvider) -> list[Correction]:
@@ -252,6 +276,10 @@ def _spelling_decision(
     if "-" in word:
         return None
     if dictionary.contains(word):
+        # Hunspell sometimes accepts wrong -сч school forms (үсч, загасч).
+        sej = suggest_sej_converb(word, dictionary)
+        if sej and sej.casefold() != word.casefold():
+            return ("hit", sej, "sej_converb", [])
         if len(word) >= 4:
             reflexive = suggest_x_reflexive(word, dictionary)
             if reflexive:
@@ -263,13 +291,29 @@ def _spelling_decision(
     alts: list[str] = []
     if len(word) >= 4:
         result = _suggest(word, dictionary)
+        # Harmony rules must propose an attested form — never invent junk like мөрийийн.
+        # sej_converb may derive багасаж from known багасах even if the converb
+        # itself is missing from a minimal test dictionary.
+        if (
+            result
+            and result[1] in _RULE_FIRST
+            and result[1] != "sej_converb"
+            and not (
+                dictionary.contains(result[0]) or dictionary.in_wordlist(result[0])
+            )
+        ):
+            result = None
         if result and result[1] in _RULE_FIRST:
             alts = [
                 item
                 for item in dictionary.suggest_many(word, preferred=preferred, limit=8)
                 if _usable_suggestion(word, item)
             ]
+            # Keep the orthography-rule form first; neighbors are extras only.
             alts = [result[0], *[item for item in alts if item != result[0]]]
+            if result[1] == "sej_converb":
+                # School converb fix only — do not bury хүсэж under хүч/хүрч.
+                alts = [result[0]]
         elif not _is_implausible(word):
             alts = [
                 item
@@ -278,6 +322,9 @@ def _spelling_decision(
             ]
             if alts:
                 primary = alts[0]
+                # Frequent real forms (хүсч) must not lose to shorter neighbors (хүч).
+                if dictionary.prefers_established(word):
+                    return None
                 if dictionary.prefers_established(word, primary):
                     return None
                 doubled = any(
@@ -286,6 +333,12 @@ def _spelling_decision(
                 )
                 result = (primary, "doubled_letter" if doubled else "nearby_spelling")
                 alts = _confident_alts(word, alts, result, dictionary)
+    elif word.casefold().endswith("сч"):
+        # өсч (3 letters) still needs the school converb fix.
+        sej = suggest_sej_converb(word, dictionary)
+        if sej:
+            result = (sej, "sej_converb")
+            alts = [sej]
     if (
         not (result and result[1] in _RULE_FIRST)
         and len(word) >= 3
@@ -296,6 +349,8 @@ def _spelling_decision(
     ):
         return None
     if alts and not (result and result[0] == word.casefold()):
+        if result and result[1] == "nearby_spelling" and dictionary.prefers_established(word):
+            return None
         if not _is_implausible(word) or (result and result[1] != "nearby_spelling"):
             rule_id = result[1] if result else "nearby_spelling"
             return ("hit", alts[0], rule_id, alts[1:])
@@ -421,6 +476,9 @@ def _suggest(word: str, dictionary: DictionaryProvider) -> tuple[str, str] | Non
     niy = suggest_niy_genitive(word, dictionary)
     if niy:
         return niy, "n_genitive"
+    sej = suggest_sej_converb(word, dictionary)
+    if sej:
+        return sej, "sej_converb"
     lah = suggest_lah_verb(word, dictionary)
     if lah:
         return lah, "lah_verb"
