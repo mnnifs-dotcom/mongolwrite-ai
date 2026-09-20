@@ -30,7 +30,7 @@ const DOC_TYPE = "official_letter";
 /** Keep in sync with backend app.core.plans */
 const GUEST_CHECK_MAX_CHARS = 500;
 const FREE_CHECK_MAX_CHARS = 1_500;
-const PAID_CHECK_MAX_CHARS = 300_000;
+const PAID_CHECK_MAX_CHARS = 500_000;
 
 function resolveCheckMaxChars(me: {
   authenticated: boolean;
@@ -45,9 +45,7 @@ function resolveCheckMaxChars(me: {
   }
   const fromEntitlement = me.user.entitlements?.check_max_chars;
   if (me.user.is_paid || me.user.plan === "pro_3m" || me.user.plan === "pro_year" || me.user.plan === "pro") {
-    if (fromEntitlement && fromEntitlement > 0) {
-      return Math.min(fromEntitlement, PAID_CHECK_MAX_CHARS);
-    }
+    // Always the current paid ceiling (ignore stale client/API entitlement numbers).
     return PAID_CHECK_MAX_CHARS;
   }
   if (fromEntitlement && fromEntitlement > 0) {
@@ -56,6 +54,18 @@ function resolveCheckMaxChars(me: {
   return FREE_CHECK_MAX_CHARS;
 }
 
+function isPaidMe(me: {
+  authenticated: boolean;
+  user: { is_paid?: boolean; plan?: string } | null;
+}): boolean {
+  if (!me.authenticated || !me.user) return false;
+  return Boolean(
+    me.user.is_paid ||
+      me.user.plan === "pro_3m" ||
+      me.user.plan === "pro_year" ||
+      me.user.plan === "pro",
+  );
+}
 const SAMPLE =
   "Манай байгууллагаас ирүүлсэн хүсэлтийг хүлээн авч, танилцан холбогдох арга хэмжээ авч ажиллана уу.\n\nШинжилгээний хариу  одөр ирүүлсэн болно. байгууллагаaс дахин хүсэлт хүсэлт ирүүлнэ үү.\n\nЯгаад өдрээс хойш хариу ирүүлээгүй байна үү. Гэхмэт ажиллажбайна.";
 
@@ -256,6 +266,7 @@ export function EditorApp() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [counts, setCounts] = useState({ words: 0, chars: 0 });
   const [maxChars, setMaxChars] = useState(500);
+  const [isPaid, setIsPaid] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [aiEnabled, setAiEnabled] = useState(false);
   const [empty, setEmpty] = useState(true);
@@ -278,6 +289,7 @@ export function EditorApp() {
   const lastText = useRef("");
   const aiEnabledRef = useRef(false);
   const maxCharsRef = useRef(500);
+  const isPaidRef = useRef(false);
   const dismissed = useRef(new Set<string>());
   const shownRef = useRef(false);
   const applying = useRef(false);
@@ -288,6 +300,7 @@ export function EditorApp() {
   const correctionsRef = useRef<Correction[]>([]);
   aiEnabledRef.current = aiEnabled;
   maxCharsRef.current = maxChars;
+  isPaidRef.current = isPaid;
   correctionsRef.current = corrections;
 
   const editor = useEditor({
@@ -370,8 +383,15 @@ export function EditorApp() {
         if (err instanceof Error && err.name === "AbortError") return;
         if (shownRef.current) {
           if (err instanceof CheckLimitError) {
-            setUpgradeOpen(true);
-            setError(null);
+            if (isPaidRef.current) {
+              setUpgradeOpen(false);
+              setError(
+                `Нэг дор ${maxCharsRef.current.toLocaleString("mn-MN")} тэмдэгт хүртэл шалгана. Бичвэрийг хувааж оруулна уу.`,
+              );
+            } else {
+              setUpgradeOpen(true);
+              setError(null);
+            }
           } else {
             setError(err instanceof Error ? err.message : "Алдаа");
           }
@@ -406,8 +426,13 @@ export function EditorApp() {
       return;
     }
     if (text.length > maxChars) {
-      setError(null);
-      setUpgradeOpen(true);
+      setError(
+        isPaid
+          ? `Нэг дор ${maxChars.toLocaleString("mn-MN")} тэмдэгт хүртэл шалгана. Бичвэрийг хувааж оруулна уу.`
+          : null,
+      );
+      if (!isPaid) setUpgradeOpen(true);
+      else setUpgradeOpen(false);
       return;
     }
     shownRef.current = true;
@@ -433,7 +458,7 @@ export function EditorApp() {
       if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
       setChecking(false);
     }
-  }, [applyResult, checking, editor, maxChars, runCheck, runThink]);
+  }, [applyResult, checking, editor, isPaid, maxChars, runCheck, runThink]);
 
   useEffect(() => {
     if (checking) {
@@ -524,8 +549,10 @@ export function EditorApp() {
           // Auth tier wins — never trust a guest settings value of 80k/300k from an
           // older API build (that used one ceiling for everyone).
           setMaxChars(resolveCheckMaxChars(me));
+          setIsPaid(isPaidMe(me));
         } catch {
           setMaxChars(GUEST_CHECK_MAX_CHARS);
+          setIsPaid(false);
         }
       })();
     };
@@ -840,8 +867,11 @@ export function EditorApp() {
               </div>
               <div className="mw-count">
                 <span>Тэмдэгтийн тоо</span>
-                <strong>
-                  {counts.chars.toLocaleString("mn-MN")}/{maxChars.toLocaleString("mn-MN")}
+                <strong className={counts.chars > maxChars ? "is-over-limit" : undefined}>
+                  <span className={counts.chars > maxChars ? "mw-count-over" : undefined}>
+                    {counts.chars.toLocaleString("mn-MN")}
+                  </span>
+                  /{maxChars.toLocaleString("mn-MN")}
                 </strong>
               </div>
               <div className="mw-editor-legal">

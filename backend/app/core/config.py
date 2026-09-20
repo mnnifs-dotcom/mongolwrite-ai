@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     secret_key: str = "change-me-in-production"
     frontend_origin: str = "http://localhost:3000"
     frontend_dir: str = ""
-    check_max_chars: int = 300_000
+    check_max_chars: int = 500_000
     # How many spell-checks may run at once on one machine (Hunspell is CPU-heavy).
     check_concurrency: int = 3
     # Optional shared Hunspell membership cache across APP instances (Upstash/Fly Redis).

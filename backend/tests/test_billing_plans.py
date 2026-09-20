@@ -31,14 +31,14 @@ def test_plans_catalog() -> None:
 def test_tiered_check_limits() -> None:
     assert GUEST_CHECK_MAX_CHARS == 500
     assert FREE_CHECK_MAX_CHARS == 1_500
-    assert PRACTICAL_CHECK_MAX_CHARS == 300_000
+    assert PRACTICAL_CHECK_MAX_CHARS == 500_000
     assert effective_check_max_chars(None) == 500
     assert effective_check_max_chars({"plan": "free", "entitlements": {"check_max_chars": 1_500}}) == 1_500
     assert (
         effective_check_max_chars(
-            {"plan": "pro_year", "entitlements": {"check_max_chars": 300_000}}
+            {"plan": "pro_year", "entitlements": {"check_max_chars": 500_000}}
         )
-        == 300_000
+        == 500_000
     )
 
 

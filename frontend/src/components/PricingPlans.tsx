@@ -57,7 +57,7 @@ export function PricingPlans() {
     <div className="mw-pricing">
       <p className="mw-seo-lead">
         Үнэгүй нэвтэрсэн хэрэглэгч 1,500 тэмдэгт. Төлбөртэй эрх: 3 сар ₮6,000 эсвэл 1 жил ₮19,900
-        · нэг дор 300 мянган тэмдэгт.
+        · нэг дор 500 мянган тэмдэгт.
       </p>
 
       {error ? <p className="mw-report-error">{error}</p> : null}
