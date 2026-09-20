@@ -37,10 +37,10 @@ async function postCheck(
     document_type: options?.document_type ?? "official_letter",
     style: options?.style ?? "government_official",
   });
-  // Engine targets ≤3s for ~100k; keep modest headroom for cold Fly starts.
+  // Engine targets a few seconds up to ~300k; keep headroom for cold Fly starts.
   const timeoutMs = Math.min(
-    60_000,
-    Math.max(15_000, 10_000 + Math.floor(text.length * 0.4)),
+    90_000,
+    Math.max(20_000, 12_000 + Math.floor(text.length * 0.25)),
   );
   let lastError: Error | null = null;
   for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -61,7 +61,7 @@ async function postCheck(
       }
       lastError = new Error(
         response.status === 413 || response.status === 422
-          ? "Текст хэт урт байна. Нэг дор 100 мянган тэмдэгт хүртэл шалгана — хувааж оруулна уу."
+          ? "Текст хэт урт байна. Нэг дор 300 мянган тэмдэгт хүртэл шалгана — хувааж оруулна уу."
           : response.status >= 500
             ? "Шалгалт түр саатав."
             : `Шалгалт амжилтгүй (${response.status})`,
@@ -138,7 +138,7 @@ export async function improveText(
   if (!response.ok) {
     throw new Error(
       response.status === 413 || response.status === 422
-        ? "Текст хэт урт байна. Нэг дор 100 мянган тэмдэгт хүртэл шалгана — хувааж оруулна уу."
+        ? "Текст хэт урт байна. Нэг дор 300 мянган тэмдэгт хүртэл шалгана — хувааж оруулна уу."
         : `Сайжруулалт амжилтгүй (${response.status})`,
     );
   }
@@ -197,7 +197,7 @@ export async function learnFromText(text: string): Promise<{ added: string[]; ad
 export async function getSettings(): Promise<SettingsResponse> {
   const response = await fetch(apiUrl("/api/v1/settings"), { credentials: "include" });
   if (!response.ok) {
-    return { ai_enabled: false, check_max_chars: 100_000 };
+    return { ai_enabled: false, check_max_chars: 300_000 };
   }
   return response.json() as Promise<SettingsResponse>;
 }

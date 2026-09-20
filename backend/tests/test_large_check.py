@@ -75,9 +75,9 @@ def test_diverse_typos_at_58k_finish_under_3s() -> None:
     assert len(corrections) <= 900
 
 
-def test_diverse_typos_at_80k_and_100k_finish_under_3s() -> None:
+def test_diverse_typos_at_80k_100k_300k_finish_under_3s() -> None:
     get_engine()
-    for size in (80_000, 100_000):
+    for size in (80_000, 100_000, 300_000):
         text = _diverse_legal_typos(size)
         assert len(text) == size
         t0 = time.perf_counter()
@@ -88,13 +88,15 @@ def test_diverse_typos_at_80k_and_100k_finish_under_3s() -> None:
         assert len(corrections) <= 900
 
 
-def test_practical_ceiling_rejects_civil_code_size() -> None:
-    """~460k Civil Code must fail fast — do not spin forever."""
+def test_practical_ceiling_rejects_over_300k() -> None:
+    """Text above the 300k ceiling must fail fast — do not spin forever."""
     sample_path = Path("/tmp/irgenii_huuli.txt")
     if sample_path.is_file():
         text = sample_path.read_text()[:460_000]
     else:
         text = ("Иргэний хуулийн зүйл. " * 20_000)[:460_000]
+    if len(text) <= PRACTICAL_CHECK_MAX_CHARS:
+        text = (text + " " + text)[: PRACTICAL_CHECK_MAX_CHARS + 50_000]
     assert len(text) > PRACTICAL_CHECK_MAX_CHARS
 
     client = TestClient(app)
@@ -108,13 +110,15 @@ def test_practical_ceiling_rejects_civil_code_size() -> None:
     assert elapsed < 2.0, f"over-limit reject took {elapsed:.1f}s"
 
 
-def test_practical_ceiling_accepts_100k_legal_sample() -> None:
+def test_practical_ceiling_accepts_300k_legal_sample() -> None:
     sample_path = Path("/tmp/irgenii_huuli.txt")
     if sample_path.is_file():
         text = sample_path.read_text()[:PRACTICAL_CHECK_MAX_CHARS]
     else:
         unit = "Иргэний хуулийн дагуу гэрээ байгуулахдаа талууд эрх үүргээ тодорхой заана. "
-        text = (unit * 5_000)[:PRACTICAL_CHECK_MAX_CHARS]
+        text = (unit * 20_000)[:PRACTICAL_CHECK_MAX_CHARS]
+    if len(text) < PRACTICAL_CHECK_MAX_CHARS:
+        text = (text + " " + text)[:PRACTICAL_CHECK_MAX_CHARS]
     assert len(text) == PRACTICAL_CHECK_MAX_CHARS
 
     client = TestClient(app)
@@ -127,5 +131,5 @@ def test_practical_ceiling_accepts_100k_legal_sample() -> None:
     assert response.status_code == 200, response.text[:300]
     body = response.json()
     assert body["character_count"] == len(text)
-    assert elapsed < 3.0, f"100k API check took {elapsed:.1f}s"
+    assert elapsed < 3.0, f"300k API check took {elapsed:.1f}s"
     assert isinstance(body["corrections"], list)
