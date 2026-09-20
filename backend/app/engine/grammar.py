@@ -297,6 +297,9 @@ def _looks_like_finite_verb(stem: str) -> bool:
 
 
 def _keep_case(original: str, stem: str) -> str:
+    letters = [ch for ch in original if ch.isalpha()]
+    if letters and all(ch.isupper() for ch in letters):
+        return stem.upper()
     if original[:1].isupper():
         return stem[:1].upper() + stem[1:]
     return stem
