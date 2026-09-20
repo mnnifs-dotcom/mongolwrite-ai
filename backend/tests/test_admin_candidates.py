@@ -175,3 +175,124 @@ def test_check_triggers_harvest_without_failing(monkeypatch, tmp_path) -> None:
     )
     assert response.status_code == 200
     assert "corrections" in response.json()
+
+
+def test_clear_orthography_errors_not_harvested(monkeypatch, tmp_path) -> None:
+    persist = tmp_path / "persist"
+    persist.mkdir()
+    user_dict = tmp_path / "user_dictionary.txt"
+    user_dict.write_text("", encoding="utf-8")
+    monkeypatch.setattr("app.engine.dictionary.user_dictionary_path", lambda: user_dict)
+    monkeypatch.setattr("app.engine.hunspell_candidates.persist_dir", lambda: persist)
+
+    import app.engine.runtime as runtime
+
+    runtime._engine = None
+
+    client = TestClient(app)
+    _login(client, monkeypatch, persist)
+
+    # Clear rule misses — must NOT enter Hunspell admin queue.
+    clear_errors = "ажиллажбайна үзэжбайна ягаад байхгуй өдрээс"
+    client.post("/api/v1/admin/candidates/harvest", json={"text": clear_errors})
+    folded = {
+        row["folded"] for row in client.get("/api/v1/admin/candidates").json()["items"]
+    }
+    for word in ("ажиллажбайна", "үзэжбайна", "ягаад", "байхгуй"):
+        assert word not in folded
+
+    # Invented gap word should still be queued for admin judgment.
+    coined = "эргэлзээтэйтэстүг"
+    client.post("/api/v1/admin/candidates/harvest", json={"text": coined})
+    folded = {
+        row["folded"] for row in client.get("/api/v1/admin/candidates").json()["items"]
+    }
+    assert coined in folded
+
+
+def test_obvious_junk_not_harvested_or_listed(monkeypatch, tmp_path) -> None:
+    persist = tmp_path / "persist"
+    persist.mkdir()
+    user_dict = tmp_path / "user_dictionary.txt"
+    user_dict.write_text("", encoding="utf-8")
+    monkeypatch.setattr("app.engine.dictionary.user_dictionary_path", lambda: user_dict)
+    monkeypatch.setattr("app.engine.hunspell_candidates.persist_dir", lambda: persist)
+
+    import app.engine.runtime as runtime
+
+    runtime._engine = None
+
+    from app.engine.hunspell_candidates import is_obvious_junk, prune_clear_error_candidates
+
+    junk = ["ррүү", "үоүоүүрхг", "рр", "ррү", "рш", "ршрү"]
+    for word in junk:
+        assert is_obvious_junk(word), word
+
+    # Real-looking coined word should NOT be junk.
+    assert not is_obvious_junk("эргэлзээтэйтэстүг")
+
+    client = TestClient(app)
+    _login(client, monkeypatch, persist)
+
+    client.post(
+        "/api/v1/admin/candidates/harvest",
+        json={"text": " ".join(junk) + " эргэлзээтэйтэстүг"},
+    )
+    folded = {
+        row["folded"] for row in client.get("/api/v1/admin/candidates").json()["items"]
+    }
+    for word in junk:
+        assert word not in folded
+    assert "эргэлзээтэйтэстүг" in folded
+
+    # Pre-seed the queue with junk (simulates old data) — prune must drop it.
+    import json
+
+    path = persist / "hunspell_candidates.json"
+    path.write_text(
+        json.dumps(
+            {
+                "words": [
+                    {
+                        "word": "ррүү",
+                        "folded": "ррүү",
+                        "tier": "doubt",
+                        "reason": "old",
+                        "suggestion": "",
+                        "count": 31,
+                        "seen_at": "2026-01-01T00:00:00+00:00",
+                        "updated_at": "2026-01-01T00:00:00+00:00",
+                    },
+                    {
+                        "word": "үоүоүүрхг",
+                        "folded": "үоүоүүрхг",
+                        "tier": "doubt",
+                        "reason": "old",
+                        "suggestion": "",
+                        "count": 21,
+                        "seen_at": "2026-01-01T00:00:00+00:00",
+                        "updated_at": "2026-01-01T00:00:00+00:00",
+                    },
+                    {
+                        "word": "эргэлзээтэйтэстүг",
+                        "folded": "эргэлзээтэйтэстүг",
+                        "tier": "doubt",
+                        "reason": "keep",
+                        "suggestion": "",
+                        "count": 1,
+                        "seen_at": "2026-01-01T00:00:00+00:00",
+                        "updated_at": "2026-01-01T00:00:00+00:00",
+                    },
+                ]
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    removed = prune_clear_error_candidates()
+    assert removed >= 2
+    overview = client.get("/api/v1/admin/overview").json()
+    doubt_folded = {row["folded"] for row in overview["candidates"].get("doubt_items") or []}
+    assert "ррүү" not in doubt_folded
+    assert "үоүоүүрхг" not in doubt_folded
+    assert "эргэлзээтэйтэстүг" in doubt_folded

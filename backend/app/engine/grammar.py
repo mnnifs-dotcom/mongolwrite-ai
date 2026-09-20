@@ -13,7 +13,7 @@ _QUESTION = frozenset({"уу", "үү"})
 _VE = frozenset({"бэ", "вэ"})
 _GLUED_QUESTION = re.compile(r"^(.+?)(уу|үү)$", re.IGNORECASE)
 _GLUED_AUX = re.compile(
-    r"^(.+ж)(байна|байгаа|байсан|байх|болно)$",
+    r"^(.+[жч])(байна|байгаа|байсан|байх|байдаг|байлаа|байжээ|болно|болох)$",
     re.IGNORECASE,
 )
 _GLUED_DIRECTION = re.compile(r"^(.+)(руу|рүү)$", re.IGNORECASE)
@@ -110,72 +110,121 @@ def _particle_harmony(
 
 def _glued_forms(tokens: list[Token], dictionary: DictionaryProvider) -> list[Correction]:
     corrections: list[Correction] = []
+    # folded -> None | (suggested_stem_template, explanation, rule_id)
+    cache: dict[str, tuple[str, str, str] | None] = {}
+    form_counts: dict[str, int] = {}
+    _MAX_PER_FORM = 5
+    _MAX_TOTAL = 400
     for token in tokens:
+        if len(corrections) >= _MAX_TOTAL:
+            break
         folded = token.text.casefold()
-        aux = _GLUED_AUX.match(folded)
-        if aux:
-            corrections.append(
-                _glued(
-                    token,
-                    f"{_keep_case(token.text, aux.group(1))} {aux.group(2)}",
-                    "Туслах үйл үг «байна/болно»-г тусад нь бичнэ.",
-                    "glued_auxiliary",
-                )
-            )
+        if folded in cache:
+            decision = cache[folded]
+        else:
+            decision = _glued_decision(folded, dictionary)
+            cache[folded] = decision
+        if decision is None:
             continue
-        question = _GLUED_QUESTION.match(folded)
-        if question and _looks_like_finite_verb(question.group(1)):
-            particle = question_particle(question.group(1)) or question.group(2).casefold()
-            corrections.append(
-                _glued(
-                    token,
-                    f"{_keep_case(token.text, question.group(1))} {particle}",
-                    "Асуух «уу/үү»-г тусад нь бичнэ.",
-                    "glued_question_particle",
-                )
-            )
+        seen = form_counts.get(folded, 0)
+        if seen >= _MAX_PER_FORM:
             continue
-        direction = _GLUED_DIRECTION.match(folded)
-        stem = direction.group(1) if direction else ""
-        if direction and len(stem) >= 3 and dictionary.contains(stem):
-            particle = _directive(stem) or direction.group(2).casefold()
-            corrections.append(
-                _glued(
-                    token,
-                    f"{_keep_case(token.text, stem)} {particle}",
-                    "Чиглэлийн «руу/рүү»-г тусад нь бичнэ.",
-                    "glued_directive",
-                )
-            )
-            continue
-        if dictionary.contains(folded):
-            continue
-        particle = _suggest_separate_particle(folded, dictionary)
-        if particle:
-            corrections.append(
-                _glued(
-                    token,
-                    _keep_case(token.text, particle),
-                    "Энэ нөхцөл, өгүүлэхүүнийг тусад нь бичнэ.",
-                    "separate_particle",
-                )
-            )
-            continue
-        split = _suggest_glued_split(folded, dictionary)
-        if split:
-            corrections.append(
-                _glued(
-                    token,
-                    _keep_case(token.text, split),
-                    "Хоёр үг наалдсан байна. Зай эсвэл таслал дутуу.",
-                    "glued_words",
-                )
-            )
+        form_counts[folded] = seen + 1
+        suggested, explanation, rule_id = decision
+        corrections.append(
+            _glued(token, _keep_case(token.text, suggested), explanation, rule_id)
+        )
     return corrections
+
+
+def _glued_decision(
+    folded: str, dictionary: DictionaryProvider
+) -> tuple[str, str, str] | None:
+    aux = _GLUED_AUX.match(folded)
+    if aux:
+        return (
+            f"{aux.group(1)} {aux.group(2)}",
+            "Туслах үйл үг «байна/болно»-г тусад нь бичнэ.",
+            "glued_auxiliary",
+        )
+    question = _GLUED_QUESTION.match(folded)
+    if question and _looks_like_finite_verb(question.group(1)):
+        particle = question_particle(question.group(1)) or question.group(2).casefold()
+        return (
+            f"{question.group(1)} {particle}",
+            "Асуух «уу/үү»-г тусад нь бичнэ.",
+            "glued_question_particle",
+        )
+    direction = _GLUED_DIRECTION.match(folded)
+    stem = direction.group(1) if direction else ""
+    if direction and len(stem) >= 3 and dictionary.contains(stem):
+        particle = _directive(stem) or direction.group(2).casefold()
+        return (
+            f"{stem} {particle}",
+            "Чиглэлийн «руу/рүү»-г тусад нь бичнэ.",
+            "glued_directive",
+        )
+    if dictionary.contains(folded):
+        return None
+    # Solid compounds / place names attested in corpus (улаанбаатар, монголбанк).
+    if dictionary.wiki_frequency(folded) >= 50:
+        return None
+    particle = _suggest_separate_particle(folded, dictionary)
+    if particle:
+        return (particle, "Энэ нөхцөл, өгүүлэхүүнийг тусад нь бичнэ.", "separate_particle")
+    split = _suggest_glued_split(folded, dictionary)
+    if split:
+        return (split, "Хоёр үг наалдсан байна. Зай эсвэл таслал дутуу.", "glued_words")
+    return None
 
 
 _CONVERB_LEFT = frozenset(
     {"авч", "үзэж", "хийж", "уншиж", "шалгаж", "сонсож", "танилцан", "танилцаж"}
+)
+
+# Right-hand pieces that are case/particle endings, not free words — do not
+# "split" садангийн → садан гийн or төлбөртэйгээр → төлбөртэй гээр.
+_SUFFIX_LOOKALIKES = frozenset(
+    {
+        "гийн",
+        "ийн",
+        "ын",
+        "ыг",
+        "ийг",
+        "ий",
+        "аар",
+        "ээр",
+        "оор",
+        "өөр",
+        "гаар",
+        "гээр",
+        "гоор",
+        "гөөр",
+        "наар",
+        "нээр",
+        "ноор",
+        "нөөр",
+        "аас",
+        "ээс",
+        "оос",
+        "өөс",
+        "наас",
+        "нээс",
+        "ноос",
+        "нөөс",
+        "тай",
+        "тэй",
+        "той",
+        "төй",
+        "руу",
+        "рүү",
+        "луу",
+        "лүү",
+        "ууд",
+        "үүд",
+        "гууд",
+        "гүүд",
+    }
 )
 
 
@@ -209,6 +258,8 @@ def _suggest_glued_split(word: str, dictionary: DictionaryProvider) -> str | Non
     hits: list[str] = []
     for i in range(3, len(word) - 3):
         left, right = word[:i], word[i:]
+        if right in _SUFFIX_LOOKALIKES:
+            continue
         if left in _CONVERB_LEFT and dictionary.contains(right):
             hits.append(f"{left}, {right}")
             continue
@@ -246,6 +297,9 @@ def _looks_like_finite_verb(stem: str) -> bool:
 
 
 def _keep_case(original: str, stem: str) -> str:
+    letters = [ch for ch in original if ch.isalpha()]
+    if letters and all(ch.isupper() for ch in letters):
+        return stem.upper()
     if original[:1].isupper():
         return stem[:1].upper() + stem[1:]
     return stem

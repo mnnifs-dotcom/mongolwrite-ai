@@ -24,14 +24,19 @@ def get_engine() -> LanguageEngine:
 
 
 def _harvest_async(text: str) -> None:
-    """Fire-and-forget so check latency stays low."""
+    """Fire-and-forget so check latency stays low.
+
+    Very long documents only sample the start — full harvest of 1M chars
+    would compete with the live check for CPU/RAM.
+    """
     if not text.strip():
         return
+    sample = text if len(text) <= 300_000 else text[:300_000]
     engine = get_engine()
 
     def _run() -> None:
         with _harvest_lock:
-            harvest_safe(engine, text)
+            harvest_safe(engine, sample)
 
     threading.Thread(target=_run, name="hunspell-harvest", daemon=True).start()
 

@@ -9,12 +9,29 @@ from typing import Any, Literal
 
 from app.engine.confusables import _variants
 from app.engine.dictionary import DictionaryProvider, _FREQ_TRUST, _repo_root
+from app.engine.grammar import _glued_forms
 from app.engine.misspellings import lookup_misspelling
 from app.engine.pipeline import LanguageEngine
-from app.engine.spelling import _is_implausible
+from app.engine.spelling import _RULE_FIRST, _is_implausible, _suggest
 from app.engine.text import is_cyrillic_letter, tokenize
 
 Tier = Literal["reliable", "doubt"]
+
+# Clear orthography/grammar hits — admin should not review these one-by-one.
+_CLEAR_RULES = _RULE_FIRST | {
+    "common_misspelling",
+    "doubled_letter",
+    "glued_auxiliary",
+    "glued_question_particle",
+    "glued_directive",
+    "glued_words",
+    "separate_particle",
+}
+
+# Back vs front rounded vowels — mixing in one token is almost always junk/OCR mash.
+_BACK_ROUNDED = frozenset("аоу")
+_FRONT_ROUNDED = frozenset("өү")
+_VOWELS = frozenset("аэиоуөүяёеюы")
 
 _log = logging.getLogger(__name__)
 _lock = threading.Lock()
@@ -71,6 +88,86 @@ def _save_rejected(words: set[str]) -> None:
     _save_json(rejected_path(), {"words": sorted(words)})
 
 
+def is_obvious_junk(word: str) -> bool:
+    """True for gibberish / OCR mash that should never enter the admin queue.
+
+    Three-way split conceptually:
+      reliable → show (approve)
+      doubt → show (admin decides)
+      obvious junk / clear error → discard (never show)
+    """
+    cleaned = word.strip()
+    folded = cleaned.casefold()
+    letters = [ch for ch in folded if ch.isalpha()]
+    if len(letters) < 2:
+        return True
+    if _is_implausible(cleaned):
+        return True
+
+    vowels = [ch for ch in letters if ch in _VOWELS]
+    if not vowels:
+        return True
+
+    # ррүү, тт… — consonant doubled at the start is not a Mongolian lemma.
+    if letters[0] == letters[1] and letters[0] not in _VOWELS:
+        return True
+
+    # Same letter three+ times in a row.
+    run_ch = letters[0]
+    run_n = 1
+    for ch in letters[1:]:
+        if ch == run_ch:
+            run_n += 1
+            if run_n >= 3:
+                return True
+        else:
+            run_ch = ch
+            run_n = 1
+
+    # Front/back rounded vowel clash — strong signal for keyboard/OCR mash (үоүо…).
+    # A single stray clash can appear in compounds/names; require repeated mixing.
+    back_n = sum(1 for ch in letters if ch in _BACK_ROUNDED)
+    front_n = sum(1 for ch in letters if ch in _FRONT_ROUNDED)
+    if back_n and front_n:
+        if back_n >= 2 and front_n >= 2:
+            return True
+        clashes = 0
+        prev = ""
+        for ch in letters:
+            if ch in _BACK_ROUNDED:
+                group = "b"
+            elif ch in _FRONT_ROUNDED:
+                group = "f"
+            else:
+                continue
+            if prev and prev != group:
+                clashes += 1
+            prev = group
+        if clashes >= 2:
+            return True
+
+    # Long consonant clusters — OCR / keyboard mash.
+    run = 0
+    max_run = 0
+    for ch in letters:
+        if ch in _VOWELS:
+            run = 0
+            continue
+        run += 1
+        max_run = max(max_run, run)
+    if max_run >= 4:
+        return True
+    # Short tokens with a CCC… cluster are almost never real lemmas.
+    if max_run >= 3 and len(letters) <= 5:
+        return True
+
+    # Too few vowels for the length.
+    if len(letters) >= 6 and len(vowels) / len(letters) < 0.22:
+        return True
+
+    return False
+
+
 def _load_admin_added() -> list[dict[str, Any]]:
     raw = _load_json(admin_added_path())
     rows = raw.get("words", []) if isinstance(raw, dict) else (raw if isinstance(raw, list) else [])
@@ -125,8 +222,50 @@ def record_admin_added(words: list[str]) -> list[dict[str, Any]]:
         return prepend
 
 
-def list_admin_added() -> list[dict[str, Any]]:
-    """Admin-added + user-dictionary words, newest first."""
+def forget_admin_added(words: list[str]) -> list[str]:
+    """Drop lemmas from the admin-added log (after lexicon remove)."""
+    targets = {raw.strip().casefold() for raw in words if raw.strip()}
+    if not targets:
+        return []
+    with _lock:
+        rows = _load_admin_added()
+        kept: list[dict[str, Any]] = []
+        dropped: list[str] = []
+        for row in rows:
+            folded = str(row.get("folded") or "").casefold()
+            if folded in targets:
+                dropped.append(str(row.get("word") or folded))
+                continue
+            kept.append(row)
+        if dropped:
+            _save_admin_added(kept)
+        return dropped
+
+
+def _parse_day_bound(value: str, *, end: bool) -> datetime | None:
+    """Parse YYYY-MM-DD (or full ISO) into an inclusive UTC bound."""
+    raw = (value or "").strip()
+    if not raw:
+        return None
+    if len(raw) == 10 and raw[4] == "-" and raw[7] == "-":
+        stamp = datetime.fromisoformat(raw + ("T23:59:59.999999+00:00" if end else "T00:00:00+00:00"))
+        return stamp
+    try:
+        stamp = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if stamp.tzinfo is None:
+        stamp = stamp.replace(tzinfo=UTC)
+    return stamp.astimezone(UTC)
+
+
+def list_admin_added(
+    *,
+    since: str = "",
+    until: str = "",
+    q: str = "",
+) -> list[dict[str, Any]]:
+    """Admin-added + user-dictionary words, newest first. Optional date/query filter."""
     from app.engine.dictionary import list_user_dictionary_lemmas
 
     with _lock:
@@ -147,11 +286,42 @@ def list_admin_added() -> list[dict[str, Any]]:
             continue
         seen.add(folded)
         out.append(row)
-    return out
+
+    since_dt = _parse_day_bound(since, end=False)
+    until_dt = _parse_day_bound(until, end=True)
+    query = q.strip().casefold()
+    if not since_dt and not until_dt and not query:
+        return out
+
+    filtered: list[dict[str, Any]] = []
+    for row in out:
+        word = str(row.get("word") or "")
+        folded = str(row.get("folded") or word).casefold()
+        if query and query not in folded and query not in word.casefold():
+            continue
+        added_raw = str(row.get("added_at") or "").strip()
+        if since_dt or until_dt:
+            if not added_raw:
+                # File-only lemmas have no stamp — hide when a date range is set.
+                continue
+            try:
+                added_dt = datetime.fromisoformat(added_raw.replace("Z", "+00:00"))
+            except ValueError:
+                continue
+            if added_dt.tzinfo is None:
+                added_dt = added_dt.replace(tzinfo=UTC)
+            added_dt = added_dt.astimezone(UTC)
+            if since_dt and added_dt < since_dt:
+                continue
+            if until_dt and added_dt > until_dt:
+                continue
+        filtered.append(row)
+    return filtered
 
 
 def admin_lists_payload() -> dict[str, Any]:
     """Single payload for the admin UI lists."""
+    prune_clear_error_candidates()
     reliable = list_candidates("reliable")
     doubt = list_candidates("doubt")
     added = list_admin_added()
@@ -216,18 +386,43 @@ def in_curated_lexicon(dictionary: DictionaryProvider, word: str) -> bool:
     return dictionary.in_seed(word)
 
 
+def is_clear_orthography_error(dictionary: DictionaryProvider, word: str) -> bool:
+    """True for glued/rule misspellings that the engine can already fix automatically."""
+    cleaned = word.strip()
+    if len(cleaned) < 2:
+        return False
+    if lookup_misspelling(cleaned):
+        return True
+    tokens = tokenize(cleaned)
+    for item in _glued_forms(tokens, dictionary):
+        if item.rule_id in _CLEAR_RULES:
+            return True
+    if len(cleaned) >= 4:
+        suggested = _suggest(cleaned, dictionary)
+        if suggested and suggested[1] in _CLEAR_RULES:
+            return True
+    return False
+
+
 def classify_candidate(dictionary: DictionaryProvider, word: str) -> dict[str, Any] | None:
-    """Return reliable/doubt item, or None when the word should not be listed."""
+    """Return reliable/doubt item, or None when the word should not be listed.
+
+    Three buckets:
+      - reliable — likely good, show for quick approve
+      - doubt — uncertain, show for admin judgment
+      - obvious junk / clear error — discard, never show
+    """
     cleaned = word.strip()
     folded = cleaned.casefold()
     if len(folded) < 2:
         return None
-    miss = lookup_misspelling(cleaned)
-    if miss:
+    if lookup_misspelling(cleaned):
         return None
-    if _is_implausible(cleaned):
+    if is_obvious_junk(cleaned):
         return None
     if in_curated_lexicon(dictionary, cleaned):
+        return None
+    if is_clear_orthography_error(dictionary, cleaned):
         return None
 
     hun_ok = hunspell_knows(dictionary, cleaned)
@@ -270,7 +465,7 @@ def classify_candidate(dictionary: DictionaryProvider, word: str) -> dict[str, A
         "word": cleaned,
         "folded": folded,
         "tier": "doubt",
-        "reason": "Санд байхгүй үг. Админ шалгаад оруулна.",
+        "reason": "Эргэлзээтэй / санд байхгүй үг. Админ шийдэнэ.",
         "suggestion": "",
     }
 
@@ -385,6 +580,32 @@ def list_candidates(tier: Tier | str | None = None) -> list[dict[str, Any]]:
     return rows
 
 
+def prune_clear_error_candidates(dictionary: DictionaryProvider | None = None) -> int:
+    """Drop queued words that are clear errors or obvious junk (one-shot cleanup)."""
+    from app.engine.runtime import get_engine
+
+    dict_provider = dictionary or get_engine().dictionary
+    removed = 0
+    with _lock:
+        rows = _load_rows()
+        rejected = _load_rejected()
+        drop = [
+            folded
+            for folded, row in rows.items()
+            if is_obvious_junk(str(row.get("word") or folded))
+            or is_clear_orthography_error(dict_provider, str(row.get("word") or folded))
+        ]
+        if not drop:
+            return 0
+        for folded in drop:
+            rows.pop(folded, None)
+            rejected.add(folded)
+            removed += 1
+        _save_rows(rows)
+        _save_rejected(rejected)
+    return removed
+
+
 def counts() -> dict[str, int]:
     rows = list_candidates()
     reliable = sum(1 for row in rows if row.get("tier") == "reliable")
@@ -438,6 +659,54 @@ def reject_words(words: list[str]) -> dict[str, Any]:
         _save_rows(rows)
         _save_rejected(rejected)
     return {"removed": removed, "removed_count": len(removed)}
+
+
+def queue_doubt_words(
+    words: list[str],
+    *,
+    reason: str = "Админ сангаас хассан · алдаатай гэж тэмдэглэсэн",
+) -> dict[str, Any]:
+    """Put lemmas into the admin doubt queue (and clear any prior rejection)."""
+    cleaned = [item.strip() for item in words if item.strip()]
+    if not cleaned:
+        return {"queued": [], "queued_count": 0}
+    stamped = _now()
+    queued: list[str] = []
+    with _lock:
+        rows = _load_rows()
+        rejected = _load_rejected()
+        for word in cleaned:
+            folded = word.casefold()
+            rejected.discard(folded)
+            prev = rows.get(folded)
+            if prev:
+                prev["tier"] = "doubt"
+                prev["reason"] = reason
+                prev["updated_at"] = stamped
+                prev["count"] = max(1, int(prev.get("count") or 1))
+            else:
+                rows[folded] = {
+                    "word": word,
+                    "folded": folded,
+                    "tier": "doubt",
+                    "reason": reason,
+                    "suggestion": "",
+                    "count": 1,
+                    "seen_at": stamped,
+                    "updated_at": stamped,
+                }
+            queued.append(folded)
+        # Cap growth
+        if len(rows) > _MAX_CANDIDATES:
+            ordered = sorted(
+                rows.values(),
+                key=lambda row: str(row.get("updated_at") or ""),
+                reverse=True,
+            )[:_MAX_CANDIDATES]
+            rows = {str(row["folded"]): row for row in ordered}
+        _save_rows(rows)
+        _save_rejected(rejected)
+    return {"queued": queued, "queued_count": len(queued)}
 
 
 def harvest_safe(engine: LanguageEngine, text: str) -> None:

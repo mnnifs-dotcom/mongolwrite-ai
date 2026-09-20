@@ -1,14 +1,38 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.api import api_router
 from app.core.config import settings
 from app.engine.warmup import keep_warm_loop, warm_now
+
+PUBLIC_HOST = "mongolwrite.com"
+LEGACY_HOSTS = frozenset(
+    {
+        "mongolwrite-ai.fly.dev",
+        "www.mongolwrite.com",
+    }
+)
+
+
+class CanonicalHostMiddleware(BaseHTTPMiddleware):
+    """Send legacy hosts to the public mongolwrite.com URL."""
+
+    async def dispatch(self, request: Request, call_next):
+        host = (request.headers.get("host") or "").split(":")[0].lower()
+        if host in LEGACY_HOSTS:
+            path = request.url.path or "/"
+            query = f"?{request.url.query}" if request.url.query else ""
+            return RedirectResponse(
+                url=f"https://{PUBLIC_HOST}{path}{query}",
+                status_code=301,
+            )
+        return await call_next(request)
 
 
 def _frontend_dir() -> Path | None:
@@ -44,6 +68,8 @@ _origins = {
     settings.frontend_origin,
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "https://mongolwrite.com",
+    "https://www.mongolwrite.com",
 }
 _allow_all = settings.app_env == "production"
 app.add_middleware(
@@ -56,6 +82,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+if settings.app_env == "production":
+    app.add_middleware(CanonicalHostMiddleware)
 app.include_router(api_router)
 
 if _frontend is None:
@@ -71,8 +99,8 @@ if _frontend is None:
         }
 
 else:
-    # Next static export writes admin.html; Starlette StaticFiles(html=True) does not
-    # map /admin → admin.html, so register an explicit page route before the mount.
+    # Next static export writes page.html; Starlette StaticFiles(html=True) does not
+    # map /page → page.html, so register explicit page routes before the mount.
     _admin_html = _frontend / "admin.html"
     if _admin_html.is_file():
 
@@ -80,5 +108,45 @@ else:
         @app.get("/admin/")
         def admin_page() -> FileResponse:
             return FileResponse(_admin_html)
+
+    _seo_html = _frontend / "ugiin-aldaga-shalgah.html"
+    if _seo_html.is_file():
+
+        @app.get("/ugiin-aldaga-shalgah")
+        @app.get("/ugiin-aldaga-shalgah/")
+        def ugiin_aldaga_shalgah_page() -> FileResponse:
+            return FileResponse(_seo_html)
+
+    _aldaga_html = _frontend / "aldaga-shalgah.html"
+    if _aldaga_html.is_file():
+
+        @app.get("/aldaga-shalgah")
+        @app.get("/aldaga-shalgah/")
+        def aldaga_shalgah_page() -> FileResponse:
+            return FileResponse(_aldaga_html)
+
+    _terms_html = _frontend / "uilchilgeenii-nokhtsol.html"
+    if _terms_html.is_file():
+
+        @app.get("/uilchilgeenii-nokhtsol")
+        @app.get("/uilchilgeenii-nokhtsol/")
+        def terms_page() -> FileResponse:
+            return FileResponse(_terms_html)
+
+    _report_html = _frontend / "aldaa-medegdeh.html"
+    if _report_html.is_file():
+
+        @app.get("/aldaa-medegdeh")
+        @app.get("/aldaa-medegdeh/")
+        def report_error_page() -> FileResponse:
+            return FileResponse(_report_html)
+
+    _tolbor_html = _frontend / "tolbor.html"
+    if _tolbor_html.is_file():
+
+        @app.get("/tolbor")
+        @app.get("/tolbor/")
+        def tolbor_page() -> FileResponse:
+            return FileResponse(_tolbor_html)
 
     app.mount("/", StaticFiles(directory=_frontend, html=True), name="frontend")
