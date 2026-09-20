@@ -74,6 +74,11 @@ def ingested_laws_path() -> Path:
     return persist_dir() / "legal_laws_ingested.json"
 
 
+def failed_laws_path() -> Path:
+    """Broken / skipped laws that should leave the ingest queue."""
+    return persist_dir() / "legal_laws_failed.json"
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
@@ -114,9 +119,50 @@ def _save_ingested_map(rows: dict[str, dict[str, Any]]) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
+def _load_failed_map() -> dict[str, dict[str, Any]]:
+    path = failed_laws_path()
+    if not path.is_file():
+        return {}
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    laws = raw.get("laws") if isinstance(raw, dict) else None
+    if not isinstance(laws, dict):
+        return {}
+    out: dict[str, dict[str, Any]] = {}
+    for key, row in laws.items():
+        lid = str(key).strip()
+        if not lid.isdigit():
+            continue
+        if isinstance(row, dict):
+            out[lid] = row
+        else:
+            out[lid] = {"law_id": lid}
+    return out
+
+
+def _save_failed_map(rows: dict[str, dict[str, Any]]) -> None:
+    path = failed_laws_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {"laws": rows, "count": len(rows)}
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
 def ingested_law_ids() -> set[str]:
     with _ingested_lock:
         return set(_load_ingested_map().keys())
+
+
+def failed_law_ids() -> set[str]:
+    with _ingested_lock:
+        return set(_load_failed_map().keys())
+
+
+def blocked_law_ids() -> set[str]:
+    """Laws that must not appear in the pending ingest queue."""
+    with _ingested_lock:
+        return set(_load_ingested_map().keys()) | set(_load_failed_map().keys())
 
 
 def mark_law_ingested(
@@ -143,6 +189,81 @@ def mark_law_ingested(
             "ingested_at": _now(),
         }
         _save_ingested_map(rows)
+        # Clear any prior failure/skip for this id.
+        failed = _load_failed_map()
+        if lid in failed:
+            failed.pop(lid, None)
+            _save_failed_map(failed)
+
+
+def mark_law_failed(
+    law_id: str,
+    *,
+    title: str = "",
+    url: str = "",
+    error: str = "",
+    reason: str = "error",
+) -> dict[str, Any]:
+    """Remove a broken/unusable law from the pending queue (keep for admin review)."""
+    lid = str(law_id).strip()
+    if not _LAW_ID_RE.match(lid):
+        raise ValueError("Буруу lawId")
+    with _ingested_lock:
+        failed = _load_failed_map()
+        prev = failed.get(lid) or {}
+        attempts = int(prev.get("attempts") or 0) + 1
+        row = {
+            "law_id": lid,
+            "title": title or str(prev.get("title") or f"Хууль #{lid}"),
+            "url": url or str(prev.get("url") or law_url(lid)),
+            "error": (error or str(prev.get("error") or ""))[:500],
+            "reason": reason or "error",
+            "attempts": attempts,
+            "failed_at": _now(),
+        }
+        failed[lid] = row
+        _save_failed_map(failed)
+        return row
+
+
+def skip_law(
+    law_id: str,
+    *,
+    title: str = "",
+    url: str = "",
+    note: str = "",
+) -> dict[str, Any]:
+    """Manually dismiss a law from the queue without fetching."""
+    return mark_law_failed(
+        law_id,
+        title=title,
+        url=url,
+        error=note or "Админ жагсаалтаас хассан",
+        reason="skipped",
+    )
+
+
+def clear_law_failed(law_id: str) -> bool:
+    """Re-queue a previously failed/skipped law."""
+    lid = str(law_id).strip()
+    if not _LAW_ID_RE.match(lid):
+        return False
+    with _ingested_lock:
+        failed = _load_failed_map()
+        if lid not in failed:
+            return False
+        failed.pop(lid, None)
+        _save_failed_map(failed)
+        return True
+
+
+def list_failed_laws(*, limit: int = 100) -> dict[str, Any]:
+    with _ingested_lock:
+        rows = list(_load_failed_map().values())
+    rows.sort(key=lambda row: str(row.get("failed_at") or ""), reverse=True)
+    limit = max(1, min(500, limit))
+    items = rows[:limit]
+    return {"items": items, "count": len(rows), "limit": limit}
 
 
 @lru_cache(maxsize=1)
@@ -182,16 +303,17 @@ def list_laws(
 ) -> dict[str, Any]:
     """Paginated searchable catalog of legalinfo.mn law links.
 
-    Already-ingested laws are omitted so the admin queue only shows work left.
+    Already-ingested and failed/skipped laws are omitted so the admin queue
+    only shows work left.
     """
     index = _load_index()
     laws = index.get("laws") or []
-    done = ingested_law_ids()
-    if done:
+    blocked = blocked_law_ids()
+    if blocked:
         laws = [
             row
             for row in laws
-            if isinstance(row, dict) and str(row.get("law_id") or "") not in done
+            if isinstance(row, dict) and str(row.get("law_id") or "") not in blocked
         ]
     query = q.strip().casefold()
     if query:
@@ -207,8 +329,8 @@ def list_laws(
             elif query in law_id.casefold() or query in title.casefold():
                 filtered.append(row)
         # Exact law_id match: include even if missing from the shipped index,
-        # but never re-queue an already ingested law.
-        if _LAW_ID_RE.match(query) and not exact and query not in done:
+        # but never re-queue an already ingested/failed law.
+        if _LAW_ID_RE.match(query) and not exact and query not in blocked:
             exact.append(
                 {
                     "law_id": query,
@@ -233,7 +355,8 @@ def list_laws(
         if isinstance(row, dict) and str(row.get("law_id") or "").isdigit()
     ]
     catalog_count = int(index.get("count") or 0)
-    ingested_count = len(done)
+    ingested_count = len(ingested_law_ids())
+    failed_count = len(failed_law_ids())
     return {
         "items": items,
         "total": total,
@@ -242,7 +365,8 @@ def list_laws(
         "source": index.get("source"),
         "catalog_count": catalog_count,
         "ingested_count": ingested_count,
-        "remaining_count": max(0, catalog_count - ingested_count),
+        "failed_count": failed_count,
+        "remaining_count": max(0, catalog_count - ingested_count - failed_count),
     }
 
 
@@ -281,12 +405,29 @@ def fetch_law_text(law_id: str, *, timeout: float = 90.0) -> dict[str, Any]:
         "Accept": "text/html,application/xhtml+xml",
         "Accept-Language": "mn,en;q=0.8",
     }
-    with httpx.Client(follow_redirects=True, timeout=timeout, headers=headers) as client:
-        response = client.get(url)
+    try:
+        with httpx.Client(follow_redirects=True, timeout=timeout, headers=headers) as client:
+            response = client.get(url)
+    except httpx.TimeoutException as exc:
+        raise RuntimeError("legalinfo холболт хугацаа хэтэрсэн") from exc
+    except httpx.HTTPError as exc:
+        raise RuntimeError(f"legalinfo холбогдсонгүй: {exc}") from exc
+
     if response.status_code >= 400:
         raise RuntimeError(f"legalinfo хариу {response.status_code}")
-    html = response.text
+
+    # Soft-fail redirects to login / search / empty shells.
+    final_url = str(response.url)
+    lowered = final_url.casefold()
+    if any(token in lowered for token in ("/login", "/signin", "/auth", "captcha")):
+        raise RuntimeError("Хуудас нэвтрэх/баталгаажуулалт руу шилжсэн")
+
+    html = response.text or ""
+    if len(html) < 200:
+        raise RuntimeError("Хуулийн хуудас хоосон")
+
     title, text = _html_to_plain_labels(html)
+    # Detect common portal chrome-only pages (no statute body).
     if len(text) < 80:
         raise RuntimeError("Хуулийн текст олдсонгүй (хуудас хоосон эсвэл бүтэц өөрчлөгдсөн)")
     return {
@@ -299,24 +440,47 @@ def fetch_law_text(law_id: str, *, timeout: float = 90.0) -> dict[str, Any]:
     }
 
 
-def ingest_law(engine: LanguageEngine, law_id: str) -> dict[str, Any]:
+def ingest_law(engine: LanguageEngine, law_id: str, *, source: str = "legal_law") -> dict[str, Any]:
     """Fetch a law, run the checker, add accepted words to the lexicon.
 
     Also harvests missing forms into the Hunspell candidate queues for review.
     Successful ingest removes the law from the admin pending list.
+    On fetch/parse failure the law is marked failed so it leaves the queue.
     """
-    fetched = fetch_law_text(law_id)
+    lid = str(law_id).strip()
+    try:
+        fetched = fetch_law_text(lid)
+    except (ValueError, RuntimeError) as exc:
+        mark_law_failed(
+            lid,
+            title=f"Хууль #{lid}",
+            url=law_url(lid),
+            error=str(exc),
+            reason="error",
+        )
+        raise
+
     text = fetched["text"]
     # Cap extremely large pages so one click cannot stall the machine.
     if len(text) > 900_000:
         text = text[:900_000]
 
-    added = learn_accepted_words(engine, text)
-    if added:
-        engine.dictionary.ensure_curated(added)
-        record_admin_added(added)
+    try:
+        added = learn_accepted_words(engine, text)
+        if added:
+            engine.dictionary.ensure_curated(added)
+            record_admin_added(added, source=source, ref=f"lawId={fetched['law_id']}")
 
-    queued = record_from_text(engine, text)
+        queued = record_from_text(engine, text)
+    except Exception as exc:
+        mark_law_failed(
+            fetched["law_id"],
+            title=fetched["title"],
+            url=fetched["url"],
+            error=f"Боловсруулалт амжилтгүй: {exc}",
+            reason="error",
+        )
+        raise RuntimeError(f"Боловсруулалт амжилтгүй: {exc}") from exc
 
     mark_law_ingested(
         fetched["law_id"],
@@ -345,3 +509,13 @@ def ingest_law(engine: LanguageEngine, law_id: str) -> dict[str, Any]:
         fetched["char_count"],
     )
     return result
+
+
+def peek_next_law_id() -> str | None:
+    """Return the next pending law id for the background bot (or None)."""
+    page = list_laws(q="", offset=0, limit=1)
+    items = page.get("items") or []
+    if not items:
+        return None
+    lid = str(items[0].get("law_id") or "").strip()
+    return lid if _LAW_ID_RE.match(lid) else None

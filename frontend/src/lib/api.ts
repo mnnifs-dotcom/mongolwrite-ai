@@ -537,6 +537,7 @@ export type LegalLawsPage = {
   source?: string | null;
   catalog_count: number;
   ingested_count?: number;
+  failed_count?: number;
   remaining_count?: number;
 };
 
@@ -584,6 +585,156 @@ export async function adminLegalLawIngest(lawId: string): Promise<LegalLawIngest
     throw new Error(message);
   }
   return response.json() as Promise<LegalLawIngestResult>;
+}
+
+export type FailedLawItem = {
+  law_id: string;
+  title: string;
+  url: string;
+  error: string;
+  reason: string;
+  attempts: number;
+  failed_at: string;
+};
+
+export async function adminLegalLawsFailed(limit = 100): Promise<{
+  items: FailedLawItem[];
+  count: number;
+}> {
+  const response = await fetch(apiUrl(`/api/v1/admin/legal/laws/failed?limit=${limit}`), {
+    credentials: "include",
+  });
+  if (!response.ok) throw new Error("Алдаатай хуулиуд уншигдсангүй");
+  return response.json() as Promise<{ items: FailedLawItem[]; count: number }>;
+}
+
+export async function adminLegalLawSkip(lawId: string): Promise<{ skipped: FailedLawItem }> {
+  const response = await fetch(apiUrl(`/api/v1/admin/legal/laws/${encodeURIComponent(lawId)}/skip`), {
+    method: "POST",
+    credentials: "include",
+  });
+  if (!response.ok) throw new Error("Хуулийг хасаж чадсангүй");
+  return response.json() as Promise<{ skipped: FailedLawItem }>;
+}
+
+export async function adminLegalLawRetry(lawId: string): Promise<{ retried: string }> {
+  const response = await fetch(apiUrl(`/api/v1/admin/legal/laws/${encodeURIComponent(lawId)}/retry`), {
+    method: "POST",
+    credentials: "include",
+  });
+  if (!response.ok) throw new Error("Дахин оруулж чадсангүй");
+  return response.json() as Promise<{ retried: string }>;
+}
+
+export type LegalBotStatus = {
+  enabled: boolean;
+  running: boolean;
+  last_started_at: string;
+  last_finished_at: string;
+  last_law_id: string;
+  last_title: string;
+  last_ok: boolean | null;
+  last_error: string;
+  last_added: number;
+  last_queued: number;
+  next_wait_seconds: number;
+  cycles: number;
+  min_interval_seconds: number;
+  max_interval_seconds: number;
+};
+
+export async function adminLegalBotStatus(): Promise<LegalBotStatus> {
+  const response = await fetch(apiUrl("/api/v1/admin/legal/bot"), { credentials: "include" });
+  if (!response.ok) throw new Error("Бот төлөв уншигдсангүй");
+  return response.json() as Promise<LegalBotStatus>;
+}
+
+export type ReviewWordItem = {
+  word: string;
+  folded: string;
+  kinds: string[];
+  sources: string[];
+  when: string;
+  refs?: string[];
+  tier?: string;
+  reason?: string;
+  rule_id?: string;
+};
+
+export type ReviewBatch = {
+  items: ReviewWordItem[];
+  words: string[];
+  count: number;
+  since: string;
+  until: string;
+  text: string;
+};
+
+export async function adminReviewWords(opts?: {
+  since?: string;
+  until?: string;
+  q?: string;
+}): Promise<ReviewBatch> {
+  const search = new URLSearchParams();
+  if (opts?.since) search.set("since", opts.since);
+  if (opts?.until) search.set("until", opts.until);
+  if (opts?.q) search.set("q", opts.q);
+  const query = search.toString();
+  const response = await fetch(apiUrl(`/api/v1/admin/review${query ? `?${query}` : ""}`), {
+    credentials: "include",
+  });
+  if (!response.ok) throw new Error("Шалгах үгс татагдсангүй");
+  return response.json() as Promise<ReviewBatch>;
+}
+
+export type ReviewPreview = {
+  batch_count: number;
+  approved_count: number;
+  keep: string[];
+  keep_extra: string[];
+  keep_count: number;
+  drop_count: number;
+  remove_from_lexicon: string[];
+  do_not_add: string[];
+};
+
+export async function adminReviewPreview(body: {
+  batch_words: string[];
+  approved_text: string;
+}): Promise<ReviewPreview> {
+  const response = await fetch(apiUrl("/api/v1/admin/review/preview"), {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) throw new Error("Урьдчилсан харьцуулалт амжилтгүй");
+  return response.json() as Promise<ReviewPreview>;
+}
+
+export async function adminReviewConfirm(body: {
+  keep: string[];
+  remove_from_lexicon: string[];
+  do_not_add: string[];
+}): Promise<{
+  kept_count: number;
+  added_count: number;
+  removed_count: number;
+  rejected_count: number;
+}> {
+  const response = await fetch(apiUrl("/api/v1/admin/review/confirm"), {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) throw new Error("Баталгаажуулалт амжилтгүй");
+  return response.json() as Promise<{
+    kept_count: number;
+    added_count: number;
+    removed_count: number;
+    rejected_count: number;
+  }>;
 }
 
 export type LexiconLetter = {

@@ -179,7 +179,15 @@ def _load_admin_added() -> list[dict[str, Any]]:
             word = row.strip()
             if len(word) < 2:
                 continue
-            out.append({"word": word, "folded": word.casefold(), "added_at": ""})
+            out.append(
+                {
+                    "word": word,
+                    "folded": word.casefold(),
+                    "added_at": "",
+                    "source": "",
+                    "ref": "",
+                }
+            )
             continue
         if not isinstance(row, dict):
             continue
@@ -192,6 +200,8 @@ def _load_admin_added() -> list[dict[str, Any]]:
                 "word": word or folded,
                 "folded": folded,
                 "added_at": str(row.get("added_at") or ""),
+                "source": str(row.get("source") or ""),
+                "ref": str(row.get("ref") or ""),
             }
         )
     return out
@@ -201,9 +211,16 @@ def _save_admin_added(rows: list[dict[str, Any]]) -> None:
     _save_json(admin_added_path(), {"words": rows[: _MAX_CANDIDATES]})
 
 
-def record_admin_added(words: list[str]) -> list[dict[str, Any]]:
+def record_admin_added(
+    words: list[str],
+    *,
+    source: str = "",
+    ref: str = "",
+) -> list[dict[str, Any]]:
     """Prepend newly admin-approved words (newest first)."""
     stamped = _now()
+    src = (source or "").strip()
+    reference = (ref or "").strip()
     with _lock:
         rows = _load_admin_added()
         existing = {str(row.get("folded") or "") for row in rows}
@@ -215,7 +232,15 @@ def record_admin_added(words: list[str]) -> list[dict[str, Any]]:
                 continue
             if folded in existing:
                 rows = [row for row in rows if row.get("folded") != folded]
-            prepend.append({"word": word, "folded": folded, "added_at": stamped})
+            prepend.append(
+                {
+                    "word": word,
+                    "folded": folded,
+                    "added_at": stamped,
+                    "source": src,
+                    "ref": reference,
+                }
+            )
             existing.add(folded)
         merged = prepend + rows
         _save_admin_added(merged)

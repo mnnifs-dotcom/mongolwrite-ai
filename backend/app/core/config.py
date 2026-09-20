@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     qpay_invoice_code: str = ""
     qpay_base_url: str = "https://merchant.qpay.mn/v2"
     qpay_callback_url: str = ""
+    # Background legalinfo ingest bot (one law every min–max seconds).
+    legal_ingest_bot: bool = True
+    legal_ingest_min_seconds: int = 20 * 60
+    legal_ingest_max_seconds: int = 40 * 60
 
 
 settings = Settings()
