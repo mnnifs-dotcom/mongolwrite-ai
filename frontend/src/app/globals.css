@@ -2525,12 +2525,6 @@ label {
   text-align: left;
 }
 
-.mw-pricing-note {
-  margin-top: 20px;
-  font-size: 14px;
-  text-align: justify;
-}
-
 .mw-upgrade-overlay {
   position: fixed;
   inset: 0;
@@ -2694,17 +2688,6 @@ label {
   background: color-mix(in srgb, var(--accent) 12%, #fff);
   color: var(--accent-deep);
   font-weight: 600;
-}
-
-.mw-upgrade-save {
-  margin: 6px 0 0;
-  align-self: flex-start;
-  padding: 3px 8px;
-  border-radius: 6px;
-  background: #e7f6ec;
-  color: #1f8a4c;
-  font-size: 12px;
-  font-weight: 700;
 }
 
 .mw-upgrade-card ul {

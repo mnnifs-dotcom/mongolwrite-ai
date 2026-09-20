@@ -162,10 +162,9 @@ export function PricingUpgradeModal({ open, onClose, limit }: PricingUpgradeModa
                   {plan.blurb ||
                     (plan.id === "pro_3m"
                       ? "Богино хугацаанд хэрэглэхэд"
-                      : "Урт хугацаанд илүү хэмнэлттэй")}
+                      : "Урт хугацаанд тохиромжтой")}
                 </p>
                 <p className="mw-upgrade-price">{formatPrice(plan.price_mnt)}</p>
-                {featured ? <p className="mw-upgrade-save">17%-ийн хэмнэлт</p> : null}
                 {plan.badge ? <p className="mw-upgrade-pill">{plan.badge}</p> : null}
                 <ul>
                   {(plan.features || []).map((item) => (
