@@ -53,6 +53,9 @@
   --btn-secondary-hover: #eef6fc;
   --link: #1a649c;
   --link-hover: #0f4570;
+  /* Logo wordmark — Mongol (navy) + Write (bright blue) */
+  --brand-mongol: #0d2453;
+  --brand-write: #306ff5;
 }
 
 html,
@@ -134,7 +137,7 @@ body {
   letter-spacing: -0.04em;
   line-height: 1;
   flex: 0 0 auto;
-  color: var(--accent-deep);
+  color: var(--brand-mongol);
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -166,7 +169,22 @@ body {
 }
 
 .mw-brand-text {
-  display: block;
+  display: inline;
+  letter-spacing: -0.03em;
+}
+
+.mw-brand-mongol {
+  color: var(--brand-mongol);
+}
+
+.mw-brand-write {
+  color: var(--brand-write);
+}
+
+.mw-brand-suffix {
+  color: var(--muted);
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
 .mw-brand-bichig {
@@ -2205,9 +2223,14 @@ body {
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 20px;
-  color: var(--accent-deep);
+  color: var(--brand-mongol);
   text-decoration: none;
   text-align: left;
+}
+
+.mw-seo-brand .mw-brand-text {
+  font-size: inherit;
+  font-weight: inherit;
 }
 
 .mw-seo-brand img {
