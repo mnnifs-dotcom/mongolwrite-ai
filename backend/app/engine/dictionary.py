@@ -10,6 +10,7 @@ from typing import Any
 
 from app.engine.frequency import load_frequency
 from app.engine.misspellings import lookup_misspelling
+from app.engine.legal_lexicon import load_legal_auto_lexicon, load_legal_frequency
 
 _SEED_FREQ_BONUS = 100
 # Wikipedia counts at or above this are treated as established spellings.
@@ -179,7 +180,7 @@ class DictionaryProvider:
         frequency: dict[str, int] | None = None,
     ) -> None:
         if words is None:
-            base = load_wordlist() | load_user_dictionary()
+            base = load_wordlist() | load_user_dictionary() | load_legal_auto_lexicon()
             self._persist_user = True
             self._removed = load_removed_lexicon()
         else:
@@ -205,6 +206,9 @@ class DictionaryProvider:
             }
         elif words is None:
             self._wiki_freq = dict(load_frequency())
+            # Statute document-frequency counts as established evidence too.
+            for key, value in load_legal_frequency().items():
+                self._wiki_freq[key] = max(self._wiki_freq.get(key, 0), int(value))
         else:
             self._wiki_freq = {}
         self._freq = dict(self._wiki_freq)
