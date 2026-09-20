@@ -11,26 +11,32 @@ from app.main import app
 def test_plans_catalog() -> None:
     plans = list_plans()
     assert {row["id"] for row in plans} == {"free", "pro_3m", "pro_year"}
-    assert get_plan("free")["check_max_chars"] == 1_000_000
+    assert get_plan("free")["check_max_chars"] == 80_000
     assert get_plan("pro_3m")["price_mnt"] == 6_000
-    assert get_plan("pro_3m")["check_max_chars"] == 1_000_000
+    assert get_plan("pro_3m")["check_max_chars"] == 80_000
     assert get_plan("pro_year")["price_mnt"] == 19_900
     assert get_plan("pro")["id"] == "pro_year"  # legacy alias
     paid = list_paid_plans()
     assert [row["id"] for row in paid] == ["pro_3m", "pro_year"]
 
 
-def test_settings_exposes_million_char_ceiling() -> None:
+def test_settings_exposes_practical_char_ceiling() -> None:
     client = TestClient(app)
     settings = client.get("/api/v1/settings")
     assert settings.status_code == 200
-    assert settings.json()["check_max_chars"] == 1_000_000
+    assert settings.json()["check_max_chars"] == 80_000
 
     ok = client.post(
         "/api/v1/check/deterministic",
         json={"text": "сайн байна уу", "document_type": "general", "style": "government_official"},
     )
     assert ok.status_code == 200
+
+    over = client.post(
+        "/api/v1/check/deterministic",
+        json={"text": "а" * 80_001, "document_type": "general", "style": "government_official"},
+    )
+    assert over.status_code == 413
 
 
 def test_billing_plans_endpoint() -> None:

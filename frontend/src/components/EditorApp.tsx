@@ -224,7 +224,7 @@ export function EditorApp() {
   const [corrections, setCorrections] = useState<Correction[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [counts, setCounts] = useState({ words: 0, chars: 0 });
-  const [maxChars, setMaxChars] = useState(1_000_000);
+  const [maxChars, setMaxChars] = useState(80_000);
   const [error, setError] = useState<string | null>(null);
   const [aiEnabled, setAiEnabled] = useState(false);
   const [empty, setEmpty] = useState(true);
@@ -245,7 +245,7 @@ export function EditorApp() {
   const lastLen = useRef(0);
   const lastText = useRef("");
   const aiEnabledRef = useRef(false);
-  const maxCharsRef = useRef(1_000_000);
+  const maxCharsRef = useRef(80_000);
   const dismissed = useRef(new Set<string>());
   const shownRef = useRef(false);
   const applying = useRef(false);
@@ -369,7 +369,9 @@ export function EditorApp() {
       return;
     }
     if (text.length > maxChars) {
-      setError(`Тэмдэгтийн хязгаар хэтэрсэн. Энэ багцад ${maxChars.toLocaleString("mn-MN")} хүртэл.`);
+      setError(
+        `Нэг дор ${maxChars.toLocaleString("mn-MN")} тэмдэгт хүртэл шалгана. Бичвэрийг хувааж (бүлэг/хэсгээр) оруулна уу.`,
+      );
       return;
     }
     shownRef.current = true;
@@ -490,7 +492,7 @@ export function EditorApp() {
               ? fromUser
               : fromSettings && fromSettings > 0
                 ? fromSettings
-                : 1_000_000;
+                : 80_000;
           setMaxChars(next);
         } catch {
           /* keep current limit */

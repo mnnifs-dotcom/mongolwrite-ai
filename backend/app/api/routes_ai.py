@@ -13,7 +13,7 @@ router = APIRouter(prefix="/api/v1", tags=["ai"])
 
 class SettingsResponse(BaseModel):
     ai_enabled: bool
-    check_max_chars: int = 1_000_000
+    check_max_chars: int = 80_000
     google_client_id: str | None = None
 
 
