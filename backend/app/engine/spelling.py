@@ -232,6 +232,16 @@ def check_spelling(tokens: list[Token], dictionary: DictionaryProvider) -> list[
     form_counts: dict[str, int] = {}
     _MAX_PER_FORM = 5
     _MAX_TOTAL = 800
+    # Neighbor search is the slow path. Keep the budget tight on long docs so
+    # shared-CPU Fly hosts finish before browser/proxy limits (~60–80k chars).
+    n_tokens = len(tokens)
+    if n_tokens > 5_000:
+        nearby_budget = 15
+    elif n_tokens > 2_000:
+        nearby_budget = 40
+    else:
+        nearby_budget = 120
+    budget = {"nearby": nearby_budget}
     for token in tokens:
         if len(corrections) >= _MAX_TOTAL:
             break
@@ -243,7 +253,7 @@ def check_spelling(tokens: list[Token], dictionary: DictionaryProvider) -> list[
         if cache_key in cache:
             decision = cache[cache_key]
         else:
-            decision = _spelling_decision(token.text, dictionary, preferred)
+            decision = _spelling_decision(token.text, dictionary, preferred, budget)
             cache[cache_key] = decision
         if decision is None:
             continue
@@ -264,14 +274,19 @@ def _spelling_decision(
     word: str,
     dictionary: DictionaryProvider,
     preferred: set[str],
+    budget: dict[str, int] | None = None,
 ) -> tuple | None:
     misspelled = lookup_misspelling(word)
     if misspelled:
-        extras = [
-            item
-            for item in dictionary.suggest_many(word, preferred=preferred, limit=8)
-            if item != misspelled and _usable_suggestion(word, item)
-        ]
+        extras: list[str] = []
+        if budget is None or budget.get("nearby", 0) > 0:
+            if budget is not None:
+                budget["nearby"] -= 1
+            extras = [
+                item
+                for item in dictionary.suggest_many(word, preferred=preferred, limit=3)
+                if item != misspelled and _usable_suggestion(word, item)
+            ]
         return ("hit", misspelled, "common_misspelling", extras)
     if "-" in word:
         return None
@@ -304,20 +319,16 @@ def _spelling_decision(
         ):
             result = None
         if result and result[1] in _RULE_FIRST:
-            alts = [
-                item
-                for item in dictionary.suggest_many(word, preferred=preferred, limit=8)
-                if _usable_suggestion(word, item)
-            ]
-            # Keep the orthography-rule form first; neighbors are extras only.
-            alts = [result[0], *[item for item in alts if item != result[0]]]
-            if result[1] == "sej_converb":
-                # School converb fix only — do not bury хүсэж under хүч/хүрч.
-                alts = [result[0]]
+            # Orthography rule is enough — skip expensive neighbor extras.
+            alts = [result[0]]
         elif not _is_implausible(word):
+            if budget is not None and budget.get("nearby", 0) <= 0:
+                return ("unknown",)
+            if budget is not None:
+                budget["nearby"] -= 1
             alts = [
                 item
-                for item in dictionary.suggest_many(word, preferred=preferred, limit=8)
+                for item in dictionary.suggest_many(word, preferred=preferred, limit=3)
                 if _usable_suggestion(word, item)
             ]
             if alts:

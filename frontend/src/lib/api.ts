@@ -37,10 +37,16 @@ async function postCheck(
     document_type: options?.document_type ?? "official_letter",
     style: options?.style ?? "government_official",
   });
+  // Shared Fly CPU + cold start + typo-heavy ~60–80k docs need headroom.
+  // Scale with length; keep a high floor so first request after idle still works.
+  const timeoutMs = Math.min(
+    180_000,
+    Math.max(60_000, 40_000 + Math.floor(text.length * 1.5)),
+  );
   let lastError: Error | null = null;
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      const timeout = AbortSignal.timeout(30_000);
+      const timeout = AbortSignal.timeout(timeoutMs);
       const signal = options?.signal
         ? AbortSignal.any([options.signal, timeout])
         : timeout;

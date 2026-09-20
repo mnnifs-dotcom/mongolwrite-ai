@@ -21,7 +21,16 @@ def warm_now() -> dict[str, float | bool]:
     _ = engine.dictionary.has_hunspell
     # Mark ready before sample checks so they count as normal traffic, not boot spikes.
     mark_ready(warmup_ms=0)
-    for sample in ("бэлэн", "ажилтангууд одөр", "байгууллага хүсэлт"):
+    for sample in (
+        "бэлэн",
+        "ажилтангууд одөр",
+        "байгууллага хүсэлт",
+        # Prime caches for long official text so the first 50k+ check is not ice-cold.
+        (
+            "Иргэний хуулийн дагуу гэрээ байгуулахдаа талууд эрх үүргээ тодорхой заана. "
+            * 200
+        ),
+    ):
         t1 = time.perf_counter()
         engine.check(sample)
         record((time.perf_counter() - t1) * 1000)

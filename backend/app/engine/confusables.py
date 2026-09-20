@@ -17,9 +17,11 @@ PAIRS = (
     ("Ү", "У"),
 )
 
+_CONFUSABLE_CHARS = frozenset("оөуүОӨУҮ")
+
 
 def _variants(word: str, limit: int = 32) -> list[str]:
-    indexes = [i for i, ch in enumerate(word) if ch in "оөуүОӨУҮ"]
+    indexes = [i for i, ch in enumerate(word) if ch in _CONFUSABLE_CHARS]
     if not indexes or len(indexes) > 6:
         return []
     out: list[str] = []
@@ -50,10 +52,31 @@ def _variants(word: str, limit: int = 32) -> list[str]:
 
 def check_confusables(tokens: list[Token], dictionary: DictionaryProvider) -> list[Correction]:
     corrections: list[Correction] = []
+    # Long docs: only inspect tokens that can flip о/ө у/ү, and cache lookups.
+    known_cache: dict[str, bool] = {}
+    checked: set[str] = set()
+    max_marks = 200 if len(tokens) > 3_000 else 500
+
+    def is_known(word: str) -> bool:
+        key = word.casefold()
+        hit = known_cache.get(key)
+        if hit is None:
+            hit = dictionary.contains(word) or dictionary.in_wordlist(word)
+            known_cache[key] = hit
+        return hit
+
     for token in tokens:
-        if dictionary.contains(token.text) or dictionary.in_wordlist(token.text):
+        if len(corrections) >= max_marks:
+            break
+        if not any(ch in _CONFUSABLE_CHARS for ch in token.text):
             continue
-        for variant in _variants(token.text):
+        folded = token.text.casefold()
+        if folded in checked:
+            continue
+        checked.add(folded)
+        if is_known(token.text):
+            continue
+        for variant in _variants(token.text, limit=16):
             # Hunspell accepts junk stems (бурт). Only trusted wordlist hits.
             if not dictionary.in_wordlist(variant):
                 continue
