@@ -1266,25 +1266,32 @@ body {
 
 .mw-sug {
   text-align: left;
-  border: 1px solid var(--line);
+  border: 1px solid color-mix(in srgb, var(--accent) 16%, var(--line));
   background: #fff;
-  border-radius: 8px;
-  padding: 7px 10px;
+  border-radius: 10px;
+  padding: 8px 11px;
   cursor: pointer;
   font-size: 14px;
-  color: var(--ink);
+  font-weight: 600;
+  color: var(--accent-deep);
   transition:
     border-color 0.12s ease,
-    background 0.12s ease;
+    background 0.12s ease,
+    box-shadow 0.12s ease,
+    transform 0.12s ease;
 }
 
 .mw-sug.best {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 10%, #fff);
+  border-color: transparent;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 16%, #fff) 0%, #fff 100%);
+  box-shadow: 0 4px 12px rgba(31, 111, 173, 0.12);
 }
 
 .mw-sug:hover {
   border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, #fff);
+  box-shadow: 0 4px 12px rgba(31, 111, 173, 0.14);
+  transform: translateY(-1px);
 }
 
 .mw-pop-skip {
@@ -1292,15 +1299,17 @@ body {
   width: 100%;
   border: 0;
   background: transparent;
-  color: var(--muted);
+  color: var(--link);
   font-size: 13px;
+  font-weight: 650;
   padding: 6px 4px 2px;
   cursor: pointer;
   text-align: left;
 }
 
 .mw-pop-skip:hover {
-  color: var(--ink);
+  color: var(--link-hover);
+  text-decoration: underline;
 }
 
 .mw-admin-page {
