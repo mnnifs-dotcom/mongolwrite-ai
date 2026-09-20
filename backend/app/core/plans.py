@@ -17,9 +17,9 @@ PLANS: dict[str, dict[str, Any]] = {
         "price_mnt": 0,
         "duration_days": None,
         "interval": "none",
-        "check_max_chars": 500_000,
+        "check_max_chars": 1_500,
         "checks_per_day": None,
-        "features": ["Зөв бичих", "Монгол бичиг", "Нэг дор 500 мянган тэмдэгт"],
+        "features": ["Зөв бичих", "Монгол бичиг", "Нэг дор 1,500 тэмдэгт"],
         "badge": "",
         "sort": 0,
     },
@@ -89,3 +89,19 @@ def get_plan(plan_id: str) -> dict[str, Any]:
 
 def is_paid_plan(plan_id: str) -> bool:
     return normalize_plan_id(plan_id) in {"pro_3m", "pro_year"}
+
+
+def effective_check_max_chars(user: dict[str, Any] | None = None) -> int:
+    """Guest and free users get the free-plan ceiling; paid users get theirs."""
+    from app.core.config import settings
+
+    hard_cap = int(settings.check_max_chars)
+    if user:
+        entitlements = user.get("entitlements") or {}
+        raw = entitlements.get("check_max_chars")
+        if raw is not None:
+            try:
+                return min(int(raw), hard_cap)
+            except (TypeError, ValueError):
+                pass
+    return min(int(get_plan(DEFAULT_PLAN)["check_max_chars"]), hard_cap)

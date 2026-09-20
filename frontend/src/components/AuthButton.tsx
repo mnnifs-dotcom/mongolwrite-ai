@@ -105,6 +105,7 @@ export function AuthButton() {
                 setUser(result.user);
                 setError(null);
                 setMenuOpen(false);
+                window.dispatchEvent(new Event("mw-auth-changed"));
               } catch (err) {
                 setError(err instanceof Error ? err.message : "Нэвтэрч чадсангүй");
               } finally {
@@ -144,6 +145,7 @@ export function AuthButton() {
       await authLogout();
       setUser(null);
       setMenuOpen(false);
+      window.dispatchEvent(new Event("mw-auth-changed"));
     } finally {
       setBusy(false);
     }

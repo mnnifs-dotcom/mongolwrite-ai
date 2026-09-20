@@ -6,6 +6,7 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 
 import {
+  authMe,
   checkText,
   checkTextWithAI,
   downloadBichigDocx,
@@ -223,7 +224,7 @@ export function EditorApp() {
   const [corrections, setCorrections] = useState<Correction[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [counts, setCounts] = useState({ words: 0, chars: 0 });
-  const [maxChars, setMaxChars] = useState(1_000_000);
+  const [maxChars, setMaxChars] = useState(1_500);
   const [error, setError] = useState<string | null>(null);
   const [aiEnabled, setAiEnabled] = useState(false);
   const [empty, setEmpty] = useState(true);
@@ -244,6 +245,7 @@ export function EditorApp() {
   const lastLen = useRef(0);
   const lastText = useRef("");
   const aiEnabledRef = useRef(false);
+  const maxCharsRef = useRef(1_500);
   const dismissed = useRef(new Set<string>());
   const shownRef = useRef(false);
   const applying = useRef(false);
@@ -253,6 +255,7 @@ export function EditorApp() {
   const inflight = useRef<Promise<void> | null>(null);
   const correctionsRef = useRef<Correction[]>([]);
   aiEnabledRef.current = aiEnabled;
+  maxCharsRef.current = maxChars;
   correctionsRef.current = corrections;
 
   const editor = useEditor({
@@ -315,6 +318,10 @@ export function EditorApp() {
       words: text.trim() ? text.trim().split(/\s+/).length : 0,
       chars: text.length,
     });
+    if (text.length > maxCharsRef.current) {
+      pending.current = null;
+      return;
+    }
     const work = (async () => {
       try {
         const result = await checkText(text, {
@@ -361,6 +368,10 @@ export function EditorApp() {
       setError(null);
       return;
     }
+    if (text.length > maxChars) {
+      setError(`Тэмдэгтийн хязгаар хэтэрсэн. Энэ багцад ${maxChars.toLocaleString("mn-MN")} хүртэл.`);
+      return;
+    }
     shownRef.current = true;
     setShown(true);
     setError(null);
@@ -384,7 +395,7 @@ export function EditorApp() {
       if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
       setChecking(false);
     }
-  }, [applyResult, checking, editor, runCheck, runThink]);
+  }, [applyResult, checking, editor, maxChars, runCheck, runThink]);
 
   useEffect(() => {
     if (checking) {
@@ -467,12 +478,28 @@ export function EditorApp() {
   }, [editor, corrections, activeId]);
 
   useEffect(() => {
-    void getSettings().then((result) => {
-      setAiEnabled(result.ai_enabled);
-      if (result.check_max_chars && result.check_max_chars > 0) {
-        setMaxChars(result.check_max_chars);
-      }
-    });
+    const refreshLimit = () => {
+      void (async () => {
+        try {
+          const [settings, me] = await Promise.all([getSettings(), authMe()]);
+          if (typeof settings.ai_enabled === "boolean") setAiEnabled(settings.ai_enabled);
+          const fromUser = me.user?.entitlements?.check_max_chars;
+          const fromSettings = settings.check_max_chars;
+          const next =
+            fromUser && fromUser > 0
+              ? fromUser
+              : fromSettings && fromSettings > 0
+                ? fromSettings
+                : 1_500;
+          setMaxChars(next);
+        } catch {
+          /* keep current limit */
+        }
+      })();
+    };
+    refreshLimit();
+    window.addEventListener("mw-auth-changed", refreshLimit);
+    return () => window.removeEventListener("mw-auth-changed", refreshLimit);
   }, []);
 
   useEffect(() => {

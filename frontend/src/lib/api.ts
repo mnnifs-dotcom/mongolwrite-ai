@@ -42,6 +42,7 @@ async function postCheck(
     try {
       const response = await fetch(apiUrl(path), {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body,
         signal: options?.signal,
@@ -50,8 +51,8 @@ async function postCheck(
         return response.json() as Promise<CheckResponse>;
       }
       lastError = new Error(
-        response.status === 422
-          ? "Текст хэт урт байна. Нэг дор 1 сая тэмдэгт хүртэл шалгана."
+        response.status === 413 || response.status === 422
+          ? "Текст хэт урт байна. Багцынхаа тэмдэгтийн хязгаарыг шалгана уу."
           : response.status >= 500
             ? "Шалгалт түр саатав."
             : `Шалгалт амжилтгүй (${response.status})`,
@@ -102,6 +103,7 @@ export async function improveText(
 ): Promise<ImproveResponse> {
   const response = await fetch(apiUrl("/api/v1/check/improve"), {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       text,
@@ -110,7 +112,11 @@ export async function improveText(
     }),
   });
   if (!response.ok) {
-    throw new Error(`Сайжруулалт амжилтгүй (${response.status})`);
+    throw new Error(
+      response.status === 413 || response.status === 422
+        ? "Текст хэт урт байна. Багцынхаа тэмдэгтийн хязгаарыг шалгана уу."
+        : `Сайжруулалт амжилтгүй (${response.status})`,
+    );
   }
   return response.json() as Promise<ImproveResponse>;
 }
@@ -165,9 +171,9 @@ export async function learnFromText(text: string): Promise<{ added: string[]; ad
 }
 
 export async function getSettings(): Promise<SettingsResponse> {
-  const response = await fetch(apiUrl("/api/v1/settings"));
+  const response = await fetch(apiUrl("/api/v1/settings"), { credentials: "include" });
   if (!response.ok) {
-    return { ai_enabled: false };
+    return { ai_enabled: false, check_max_chars: 1_500 };
   }
   return response.json() as Promise<SettingsResponse>;
 }
