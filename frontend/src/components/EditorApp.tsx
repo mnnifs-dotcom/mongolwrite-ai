@@ -45,9 +45,7 @@ function resolveCheckMaxChars(me: {
   }
   const fromEntitlement = me.user.entitlements?.check_max_chars;
   if (me.user.is_paid || me.user.plan === "pro_3m" || me.user.plan === "pro_year" || me.user.plan === "pro") {
-    if (fromEntitlement && fromEntitlement > 0) {
-      return Math.min(fromEntitlement, PAID_CHECK_MAX_CHARS);
-    }
+    // Always the current paid ceiling (ignore stale client/API entitlement numbers).
     return PAID_CHECK_MAX_CHARS;
   }
   if (fromEntitlement && fromEntitlement > 0) {
