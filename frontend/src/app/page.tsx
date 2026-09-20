@@ -7,16 +7,16 @@ export const metadata: Metadata = {
     absolute: "Алдаа шалгах | MongolWrite — монгол үгийн алдаа шалгагч",
   },
   description:
-    "Алдаа шалгах онлайн. Монгол текстээ буулгаад үгийн алдааг олж засаарай. Монгол бичиг хөрвүүлэх, Word татах.",
+    "Монгол бичвэрийн үгийн алдааг онлайнаар шалгаж засаарай. Монгол бичиг рүү хөрвүүлэх, Word файлаар татах.",
   alternates: { canonical: "/" },
 };
 
 export default function Home() {
   return (
     <>
-      <h1 className="mw-seo-sr-only">Алдаа шалгах — монгол үгийн алдаа шалгагч онлайн | MongolWrite</h1>
+      <h1 className="mw-seo-sr-only">Алдаа шалгах — монгол үгийн алдаа шалгагч | MongolWrite</h1>
       <EditorApp />
-      <nav className="mw-seo-sr-only" aria-label="SEO холбоос">
+      <nav className="mw-seo-sr-only" aria-label="Нэмэлт холбоос">
         <Link href="/aldaga-shalgah">Алдаа шалгах тухай</Link>
         <Link href="/ugiin-aldaga-shalgah">Үгийн алдаа шалгах</Link>
         <Link href="/uilchilgeenii-nokhtsol">Үйлчилгээний нөхцөл</Link>

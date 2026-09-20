@@ -1,22 +1,7 @@
 import type { Metadata, Viewport } from "next";
-import { Noto_Sans, Noto_Serif } from "next/font/google";
 import "./globals.css";
 
 const SITE = "https://mongolwrite.com";
-
-const sans = Noto_Sans({
-  subsets: ["cyrillic", "latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-sans",
-  display: "swap",
-});
-
-const display = Noto_Serif({
-  subsets: ["cyrillic", "latin"],
-  weight: ["600", "700"],
-  variable: "--font-display",
-  display: "swap",
-});
 
 export const viewport: Viewport = {
   themeColor: "#1f6fad",
@@ -24,7 +9,7 @@ export const viewport: Viewport = {
 
 const titleDefault = "Алдаа шалгах | MongolWrite — монгол үгийн алдаа шалгагч";
 const descriptionDefault =
-  "Алдаа шалгах онлайн — монгол үг, бичгийн алдаагаа шууд шалгаж засаарай. Монгол бичиг хөрвүүлэх, Word татах.";
+  "Монгол бичвэрийн үгийн алдааг онлайнаар шалгаж засаарай. Монгол бичиг рүү хөрвүүлэх, Word файлаар татах.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE),
@@ -132,7 +117,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="mn" className={`${sans.variable} ${display.variable}`}>
+    <html lang="mn">
       <body>
         <script
           type="application/ld+json"

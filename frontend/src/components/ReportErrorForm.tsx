@@ -8,8 +8,8 @@ import { submitFeedback } from "@/lib/api";
 const CATEGORIES = [
   { id: "spelling", label: "Зөв бичгийн алдаа (буруу тэмдэглэсэн үг)" },
   { id: "bichig", label: "Монгол бичиг хөрвүүлэлт" },
-  { id: "site", label: "Сайтын алдаа / саатал" },
-  { id: "other", label: "Бусад санал" },
+  { id: "site", label: "Сайтын алдаа, саатал" },
+  { id: "other", label: "Бусад" },
 ] as const;
 
 type CategoryId = (typeof CATEGORIES)[number]["id"];
@@ -20,8 +20,8 @@ export function ReportErrorForm() {
   const initialCategory = useMemo((): CategoryId => {
     const raw = (params.get("type") || "").trim();
     if (CATEGORIES.some((row) => row.id === raw)) return raw as CategoryId;
-    return initialWord ? "spelling" : "spelling";
-  }, [params, initialWord]);
+    return "spelling";
+  }, [params]);
 
   const [category, setCategory] = useState<CategoryId>(initialCategory);
   const [word, setWord] = useState(initialWord);
@@ -35,7 +35,7 @@ export function ReportErrorForm() {
     event.preventDefault();
     const trimmed = message.trim();
     if (trimmed.length < 8) {
-      setError("Тайлбар хамгийн багадаа 8 тэмдэгт байна.");
+      setError("Тайлбарыг арай дэлгэрэнгүй бичнэ үү.");
       return;
     }
     setBusy(true);
@@ -51,7 +51,7 @@ export function ReportErrorForm() {
       setDone(true);
       setMessage("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Илгээж чадсангүй");
+      setError(err instanceof Error ? err.message : "Илгээж чадсангүй.");
     } finally {
       setBusy(false);
     }
@@ -61,7 +61,7 @@ export function ReportErrorForm() {
     return (
       <div className="mw-report-done" role="status">
         <strong>Баярлалаа.</strong>
-        <p>Таны мэдэгдэл хүлээн авлаа. Шаардлагатай бол холбогдох хариу илгээнэ.</p>
+        <p>Мэдэгдлээ хүлээж авлаа. Шаардлагатай бол хариу бичнэ.</p>
         <button type="button" className="mw-seo-cta mw-seo-cta-inline" onClick={() => setDone(false)}>
           Дахин илгээх
         </button>
@@ -83,7 +83,7 @@ export function ReportErrorForm() {
       </label>
 
       <label className="mw-report-field">
-        <span>Үг / хэсэг (заавал биш)</span>
+        <span>Үг, хэсэг (заавал биш)</span>
         <input
           type="text"
           value={word}
@@ -119,7 +119,7 @@ export function ReportErrorForm() {
       {error ? <p className="mw-report-error">{error}</p> : null}
 
       <button type="submit" className="mw-seo-cta mw-seo-cta-inline" disabled={busy}>
-        {busy ? "Илгээж байна…" : "Мэдэгдэл илгээх"}
+        {busy ? "Илгээж байна…" : "Илгээх"}
       </button>
     </form>
   );
