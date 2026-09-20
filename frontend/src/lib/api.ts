@@ -40,7 +40,7 @@ async function postCheck(
   let lastError: Error | null = null;
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      const timeout = AbortSignal.timeout(120_000);
+      const timeout = AbortSignal.timeout(30_000);
       const signal = options?.signal
         ? AbortSignal.any([options.signal, timeout])
         : timeout;
@@ -56,7 +56,7 @@ async function postCheck(
       }
       lastError = new Error(
         response.status === 413 || response.status === 422
-          ? "Текст хэт урт байна. Багцынхаа тэмдэгтийн хязгаарыг шалгана уу."
+          ? "Текст хэт урт байна. Нэг дор 80 мянган тэмдэгт хүртэл шалгана — хувааж оруулна уу."
           : response.status >= 500
             ? "Шалгалт түр саатав."
             : `Шалгалт амжилтгүй (${response.status})`,
@@ -133,7 +133,7 @@ export async function improveText(
   if (!response.ok) {
     throw new Error(
       response.status === 413 || response.status === 422
-        ? "Текст хэт урт байна. Багцынхаа тэмдэгтийн хязгаарыг шалгана уу."
+        ? "Текст хэт урт байна. Нэг дор 80 мянган тэмдэгт хүртэл шалгана — хувааж оруулна уу."
         : `Сайжруулалт амжилтгүй (${response.status})`,
     );
   }
@@ -192,7 +192,7 @@ export async function learnFromText(text: string): Promise<{ added: string[]; ad
 export async function getSettings(): Promise<SettingsResponse> {
   const response = await fetch(apiUrl("/api/v1/settings"), { credentials: "include" });
   if (!response.ok) {
-    return { ai_enabled: false, check_max_chars: 1_000_000 };
+    return { ai_enabled: false, check_max_chars: 80_000 };
   }
   return response.json() as Promise<SettingsResponse>;
 }

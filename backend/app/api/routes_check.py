@@ -25,7 +25,8 @@ UserDep = Annotated[dict | None, Depends(optional_user)]
 
 
 class CheckRequest(BaseModel):
-    text: str = Field(default="", max_length=settings.check_max_chars)
+    # Hard pydantic ceiling (payload safety). Practical plan limit is enforced below.
+    text: str = Field(default="", max_length=1_000_000)
     document_type: str = "general"
     style: str = "government_official"
 
@@ -42,7 +43,10 @@ def _assert_char_limit(text: str, user: dict | None) -> None:
     if len(text) > limit:
         raise HTTPException(
             status_code=413,
-            detail=f"Тэмдэгтийн хязгаар хэтэрсэн. Энэ багцад {limit} хүртэл.",
+            detail=(
+                f"Нэг дор {limit} тэмдэгт хүртэл шалгана. "
+                "Бичвэрийг хувааж (бүлэг/хэсгээр) оруулна уу."
+            ),
         )
 
 
