@@ -41,6 +41,34 @@ def test_repeated_misspellings_finish_quickly() -> None:
     assert len(corrections) <= 900
 
 
+def test_diverse_typos_at_58k_finish_quickly() -> None:
+    """Many unique misspellings near the practical ceiling must not hang."""
+    get_engine()
+    sample_path = Path("/tmp/irgenii_huuli.txt")
+    if sample_path.is_file():
+        raw = sample_path.read_text()[:58_000]
+    else:
+        unit = "Иргэний хуулийн дагуу гэрээ байгуулахдаа талууд эрх үүргээ тодорхой заана. "
+        raw = (unit * 3_000)[:58_000]
+    parts: list[str] = []
+    for i, word in enumerate(raw.split()):
+        if len(word) >= 5 and i % 3 == 0:
+            parts.append(word[:-1] + "ы" + word[-1] if "ы" not in word else word + "г")
+        else:
+            parts.append(word)
+    text = " ".join(parts)[:58_000]
+    assert len(text) >= 50_000
+    assert len(set(text.split())) > 1_500
+
+    t0 = time.perf_counter()
+    corrections = run_engine_check(text, "government_official")
+    elapsed = time.perf_counter() - t0
+
+    assert elapsed < 20.0, f"58k diverse check took {elapsed:.1f}s"
+    assert isinstance(corrections, list)
+    assert len(corrections) <= 900
+
+
 def test_practical_ceiling_rejects_civil_code_size() -> None:
     """~460k Civil Code must fail fast — do not spin forever."""
     sample_path = Path("/tmp/irgenii_huuli.txt")
