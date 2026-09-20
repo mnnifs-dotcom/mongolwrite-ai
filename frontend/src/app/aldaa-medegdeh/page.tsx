@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     absolute: "Алдаа мэдэгдэх | MongolWrite",
   },
   description:
-    "MongolWrite дээрх зөв бичгийн алдаа, монгол бичиг хөрвүүлэлт, сайтын алдааг мэдэгдэх хуудас.",
+    "Буруу тэмдэглэсэн үг, монгол бичиг хөрвүүлэлт, сайтын алдааг мэдэгдэх.",
   alternates: { canonical: "/aldaa-medegdeh" },
   openGraph: {
     title: "Алдаа мэдэгдэх | MongolWrite",
@@ -41,17 +41,16 @@ export default function ReportErrorPage() {
       <article className="mw-seo-article">
         <h1>Алдаа мэдэгдэх</h1>
         <p className="mw-seo-lead">
-          Буруу тэмдэглэсэн үг, монгол бичиг хөрвүүлэлт, эсвэл сайтын алдааг эндээс илгээнэ үү.
-          Таны мэдэгдэл үйлчилгээг сайжруулахад шууд тусална.
+          Буруу тэмдэглэсэн үг, монгол бичиг хөрвүүлэлтийн алдаа, сайтын саатлыг энд
+          бичнэ үү. Бид шалгаад засна.
         </p>
 
-        <Suspense fallback={<p className="mw-muted">Ачаалж байна…</p>}>
+        <Suspense fallback={<p className="mw-muted">Уншиж байна…</p>}>
           <ReportErrorForm />
         </Suspense>
 
         <p className="mw-report-note">
-          Үйлчилгээний нөхцөлтэй танилцах:{" "}
-          <Link href="/uilchilgeenii-nokhtsol">Үйлчилгээний нөхцөл</Link>
+          <Link href="/uilchilgeenii-nokhtsol">Үйлчилгээний нөхцөл</Link>-тэй танилцана уу.
         </p>
       </article>
 

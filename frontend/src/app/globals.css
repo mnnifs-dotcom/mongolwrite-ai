@@ -30,6 +30,9 @@
   --error: #c62828;
   --warning: #b86b12;
   --suggest: #1a7ab8;
+  /* Cyrillic UI — Arial as requested */
+  --font-sans: Arial, "Helvetica Neue", Helvetica, sans-serif;
+  --font-display: Arial, "Helvetica Neue", Helvetica, sans-serif;
   /* KIMO default face: Mongolian Script (Bolorsoft) */
   --font-mongol: "MongolianScript", "Classical Mongolian Dashitseden", "Noto Sans Mongolian",
     "Mongolian Baiti", sans-serif;
@@ -50,7 +53,10 @@ body {
     radial-gradient(640px 400px at 68% 100%, rgba(31, 111, 173, 0.1) 0%, transparent 55%),
     linear-gradient(165deg, #d2e3f2 0%, var(--bg) 42%, #edf3f9 100%);
   color: var(--ink);
-  font-family: var(--font-sans), "Noto Sans", "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
+  text-align: justify;
+  text-justify: inter-word;
+  hyphens: auto;
 }
 
 * {
@@ -108,7 +114,7 @@ body {
 }
 
 .mw-brand {
-  font-family: var(--font-display), "Noto Serif", Georgia, serif;
+  font-family: var(--font-display);
   font-weight: 700;
   font-size: 22px;
   letter-spacing: -0.04em;
@@ -119,6 +125,7 @@ body {
   align-items: center;
   gap: 10px;
   animation: mw-fade-rise 0.45s ease both;
+  text-align: left;
 }
 
 .mw-brand-logo {
@@ -781,7 +788,7 @@ body {
 .mw-bichig-empty {
   writing-mode: vertical-lr;
   text-orientation: mixed;
-  font-family: var(--font-sans), "Noto Sans", sans-serif;
+  font-family: var(--font-sans);
   font-size: 13px;
   line-height: 1.5;
   color: color-mix(in srgb, var(--muted) 55%, #9eb4c8);
@@ -831,10 +838,24 @@ body {
   font-size: 18px;
   line-height: 1.8;
   max-width: 680px;
+  font-family: var(--font-sans);
+  text-align: justify;
+  text-justify: inter-word;
 }
 
-.mw-prose p {
+.mw-prose p,
+.mw-prose .ProseMirror,
+.ProseMirror,
+.ProseMirror p {
   margin: 0 0 1em;
+  text-align: justify;
+  text-justify: inter-word;
+  text-align-last: left;
+  font-family: var(--font-sans);
+}
+
+.ProseMirror p:last-child {
+  margin-bottom: 0;
 }
 
 .mw-editor.is-empty .mw-prose > p:first-child::before {
@@ -2011,7 +2032,7 @@ body {
     radial-gradient(1200px 600px at 10% -10%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 60%),
     linear-gradient(180deg, #eef4fa 0%, var(--bg) 40%, #e8eef5 100%);
   color: var(--ink);
-  font-family: var(--font-sans), "Noto Sans", sans-serif;
+  font-family: var(--font-sans);
 }
 
 .mw-seo-top {
@@ -2022,17 +2043,19 @@ body {
   max-width: 720px;
   margin: 0 auto;
   padding: 20px 20px 8px;
+  text-align: left;
 }
 
 .mw-seo-brand {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  font-family: var(--font-display), "Noto Serif", Georgia, serif;
+  font-family: var(--font-display);
   font-weight: 700;
   font-size: 20px;
   color: var(--accent-deep);
   text-decoration: none;
+  text-align: left;
 }
 
 .mw-seo-brand img {
@@ -2053,6 +2076,7 @@ body {
   font-size: 14px;
   text-decoration: none;
   box-shadow: 0 8px 20px color-mix(in srgb, var(--accent) 28%, transparent);
+  text-align: center;
 }
 
 .mw-seo-cta:hover {
@@ -2067,41 +2091,97 @@ body {
   max-width: 720px;
   margin: 0 auto;
   padding: 12px 20px 64px;
-  line-height: 1.65;
+  line-height: 1.7;
+  text-align: justify;
+  text-justify: inter-word;
+  font-family: var(--font-sans);
 }
 
 .mw-seo-article h1 {
-  font-family: var(--font-display), "Noto Serif", Georgia, serif;
+  font-family: var(--font-display);
   font-size: clamp(1.6rem, 3vw, 2.1rem);
-  line-height: 1.25;
-  letter-spacing: -0.02em;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
   margin: 12px 0 14px;
   color: var(--accent-deep);
+  text-align: left;
 }
 
 .mw-seo-article h2 {
   font-size: 1.15rem;
   margin: 28px 0 10px;
   color: var(--ink);
+  text-align: left;
 }
 
 .mw-seo-lead {
   font-size: 1.05rem;
   color: color-mix(in srgb, var(--ink) 88%, var(--muted));
+  text-align: justify;
+}
+
+.mw-seo-article p {
+  text-align: justify;
+  text-justify: inter-word;
+  text-align-last: left;
 }
 
 .mw-seo-article ul,
 .mw-seo-article ol {
   padding-left: 1.25rem;
   margin: 8px 0 12px;
+  text-align: justify;
 }
 
 .mw-seo-article li {
   margin: 6px 0;
+  text-align: justify;
 }
 
 .mw-seo-foot-cta {
   margin-top: 36px;
+  text-align: left;
+}
+
+.mw-top,
+.mw-top-actions,
+.mw-menu-list,
+.mw-editor-footer,
+.mw-count,
+.mw-editor-legal,
+.mw-pop,
+.mw-right,
+.mw-auth-menu,
+button,
+.mw-btn,
+.mw-btn-primary,
+.mw-menu-trigger,
+input,
+select,
+textarea,
+label {
+  text-align: left;
+}
+
+.mw-btn,
+.mw-btn-primary,
+.mw-seo-cta,
+.mw-menu-trigger,
+.mw-auth-login {
+  text-align: center;
+}
+
+.mw-report-form,
+.mw-report-field,
+.mw-report-done,
+.mw-report-note {
+  text-align: left;
+}
+
+.mw-report-done p,
+.mw-legal-article p {
+  text-align: justify;
+  text-justify: inter-word;
 }
 
 .mw-site-footer {
@@ -2109,6 +2189,7 @@ body {
   margin: 0 auto;
   padding: 8px 20px 40px;
   border-top: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+  text-align: left;
 }
 
 .mw-site-footer-nav {
