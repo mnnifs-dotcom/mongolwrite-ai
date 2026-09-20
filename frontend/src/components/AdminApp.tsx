@@ -13,6 +13,7 @@ import {
   adminLegalLaws,
   adminLegalPreview,
   adminLexiconRemove,
+  adminLexiconExport,
   adminLexiconWords,
   adminLogin,
   adminLogout,
@@ -117,6 +118,7 @@ export function AdminApp() {
   const [lexLetters, setLexLetters] = useState<LexiconLetter[]>([]);
   const [lexSelected, setLexSelected] = useState<Set<string>>(new Set());
   const [lexLoading, setLexLoading] = useState(false);
+  const [lexCopied, setLexCopied] = useState(false);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [usersTotal, setUsersTotal] = useState(0);
   const [usersOffset, setUsersOffset] = useState(0);
@@ -643,6 +645,40 @@ export function AdminApp() {
     setStatus(`${addedSelected.size} үг хууллаа`);
   }
 
+  async function copyAllLexiconWords() {
+    if (acting === "lex-copy") return;
+    setActing("lex-copy");
+    setError(null);
+    try {
+      const payload = await adminLexiconExport();
+      const text = payload.words.join("\n");
+      if (!text.trim()) {
+        setStatus("Үгийн сан хоосон");
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch {
+        const area = document.createElement("textarea");
+        area.value = text;
+        area.setAttribute("readonly", "");
+        area.style.position = "fixed";
+        area.style.left = "-9999px";
+        document.body.appendChild(area);
+        area.select();
+        document.execCommand("copy");
+        area.remove();
+      }
+      setLexCopied(true);
+      window.setTimeout(() => setLexCopied(false), 2500);
+      setStatus(`${payload.count.toLocaleString("mn-MN")} үг хууллаа`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Үгийн санг хуулж чадсангүй");
+    } finally {
+      setActing(null);
+    }
+  }
+
   async function onRemoveAddedFromLexicon() {
     const words = addedFiltered
       .filter((item) => addedSelected.has(item.folded))
@@ -802,9 +838,9 @@ export function AdminApp() {
                   <strong>{overview.lexicon.seed.toLocaleString("mn-MN")}</strong>
                   <em>
                     {overview.lexicon.hunspell_stems
-                      ? `Hunspell ${(overview.lexicon.hunspell_stems / 1000).toFixed(0)} мянга`
+                      ? `Шалгалт: Hunspell ${(overview.lexicon.hunspell_stems / 1000).toFixed(0)} мянга (бүгдийг санд хийдэггүй)`
                       : overview.lexicon.has_hunspell
-                        ? "Hunspell"
+                        ? "Hunspell идэвхтэй"
                         : "—"}
                   </em>
                 </div>
@@ -830,6 +866,11 @@ export function AdminApp() {
           {section === "lexicon" ? (
             <section className="mw-admin-card" id="lexicon-browser">
               <h2>Үгийн сан · {lexTotal.toLocaleString("mn-MN")}</h2>
+              <p className="mw-muted">
+                Энэ жагсаалт нь curated үгийн сан (санал/админ). Шалгалтын хүлээн авалт Hunspell
+                (~{Math.floor((overview?.lexicon.hunspell_stems ?? 0) / 1000)} мянган үндэс)-ээр
+                явдаг — тэр бүх үгийг энд шууд оруулдаггүй.
+              </p>
               <form className="mw-lex-search" onSubmit={(event) => void onLexSearch(event)}>
                 <input
                   value={lexQuery}
@@ -872,6 +913,19 @@ export function AdminApp() {
                 ))}
               </div>
               <div className="mw-admin-row mw-lex-actions">
+                <button
+                  type="button"
+                  className="mw-btn"
+                  disabled={lexTotal <= 0 || acting === "lex-copy"}
+                  onClick={() => void copyAllLexiconWords()}
+                  title="Бүх үгийг нэг мөрөнд нэг үгээр clipboard-д хуулна"
+                >
+                  {acting === "lex-copy"
+                    ? "Хуулж байна…"
+                    : lexCopied
+                      ? "Хуулсан ✓"
+                      : `Бүх үгийг хуулах · ${lexTotal.toLocaleString("mn-MN")}`}
+                </button>
                 <button
                   type="button"
                   className="mw-btn"
