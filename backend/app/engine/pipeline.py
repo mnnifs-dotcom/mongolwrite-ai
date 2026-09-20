@@ -20,7 +20,7 @@ _KEEP = {Category.SPELLING, Category.REDUNDANCY}
 
 # Above this size, prefetch + seal Hunspell so 58–100k checks finish in a few seconds.
 _LONG_DOC_CHARS = 20_000
-_LONG_DOC_HUNSPELL_BUDGET_S = 0.9
+_LONG_DOC_HUNSPELL_BUDGET_S = 2.5
 
 
 class LanguageEngine:
