@@ -806,8 +806,24 @@ _X_REFLEXIVE = {
 
 
 def suggest_vowel_before_x(word: str, dictionary: DictionaryProvider) -> str | None:
-    """Verb х is written after a vowel: байгуулхаар → байгуулахаар."""
+    """Verb х is written after a vowel: байгуулхаар → байгуулахаар.
+
+    Does not rewrite curated / established lemmas. Noun + гүй forms like
+    «эрхгүй» must not become «эрэхгүй» just because «эрэх» is a known verb.
+    """
     folded = word.casefold()
+    # Curated surface forms win over the verb-х school rewrite.
+    if dictionary.in_seed(folded) or dictionary.in_wordlist(folded):
+        return None
+    if dictionary.prefers_established(folded):
+        return None
+    # «эрх» + «гүй» (and similar N+гүй) — not a /хгүй/ verb ending.
+    if folded.endswith("хгүй") and len(folded) > 5:
+        noun = folded[:-3]  # strip гүй → …х
+        if noun.endswith("х") and (
+            dictionary.in_seed(noun) or dictionary.in_wordlist(noun)
+        ):
+            return None
     matched = next(
         (
             tail

@@ -173,6 +173,20 @@ def test_vowel_before_verb_x_from_infinitive() -> None:
     )
 
 
+def test_erkhgui_not_rewritten_as_erehgui() -> None:
+    """«эрхгүй» is noun+гүй; must not become «эрэхгүй» via vowel_before_x."""
+    local = LanguageEngine(
+        DictionaryProvider(frozenset({"эрхгүй", "эрх", "эрэх", "байгуулах"}))
+    )
+    assert not any(item.original_text == "эрхгүй" for item in local.check("эрхгүй"))
+    assert not any(item.original_text == "эрхгүй" for item in local.check("тэр эрхгүй байна"))
+    # Verb misspelling still fixed.
+    assert any(
+        item.suggested_text == "байгуулахгүй" and item.rule_id == "vowel_before_x"
+        for item in local.check("байгуулхгүй")
+    )
+
+
 def test_palatal_case_from_stem() -> None:
     local = LanguageEngine(DictionaryProvider(frozenset({"давтамж", "цаг", "багш", "ажил"})))
     cases = (
