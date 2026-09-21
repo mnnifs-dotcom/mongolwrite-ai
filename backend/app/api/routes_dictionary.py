@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from app.core.auth import require_admin
+from app.engine.hunspell_candidates import queue_review_words
 from app.engine.learn import learn_accepted_words
 from app.engine.pending import record_skip
 from app.engine.runtime import get_engine
@@ -30,6 +31,8 @@ class SkipRequest(BaseModel):
 class LearnResponse(BaseModel):
     added: list[str]
     added_count: int
+    queued: list[str] = Field(default_factory=list)
+    queued_count: int = 0
 
 
 @router.post("/skip")
@@ -40,14 +43,21 @@ def skip_word(body: SkipRequest) -> dict[str, bool]:
 
 @router.post("/learn", response_model=LearnResponse)
 def learn(body: LearnRequest, _: AdminDep) -> LearnResponse:
-    added = learn_accepted_words(get_engine(), body.text)
-    return LearnResponse(added=added, added_count=len(added))
+    """Queue checker-accepted words for review — does not write the lexicon."""
+    queued = learn_accepted_words(get_engine(), body.text)
+    return LearnResponse(added=[], added_count=0, queued=queued, queued_count=len(queued))
 
 
 @router.post("/words", response_model=LearnResponse)
 def add_words(body: WordsRequest, _: AdminDep) -> LearnResponse:
-    dictionary = get_engine().dictionary
-    added = dictionary.add_words(body.words)
-    if not added:
-        added = dictionary.ensure_curated(body.words)
-    return LearnResponse(added=added, added_count=len(added))
+    """Queue explicit word list for admin review — does not write the lexicon."""
+    engine = get_engine()
+    result = queue_review_words(
+        body.words,
+        reason="Админ жагсаалт · шалгах багцад",
+        tier="reliable",
+        dictionary=engine.dictionary,
+        skip_curated=True,
+    )
+    queued = list(result.get("queued") or [])
+    return LearnResponse(added=[], added_count=0, queued=queued, queued_count=len(queued))

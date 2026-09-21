@@ -584,6 +584,8 @@ export type LegalLawIngestResult = {
   added_to_lexicon: number;
   added_words: string[];
   queued_candidates: number;
+  queued_accepted?: number;
+  queued_for_review?: number;
   yield_note?: string;
 };
 

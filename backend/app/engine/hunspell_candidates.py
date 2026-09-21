@@ -692,28 +692,53 @@ def queue_doubt_words(
     reason: str = "Админ сангаас хассан · алдаатай гэж тэмдэглэсэн",
 ) -> dict[str, Any]:
     """Put lemmas into the admin doubt queue (and clear any prior rejection)."""
+    return queue_review_words(words, reason=reason, tier="doubt")
+
+
+def queue_review_words(
+    words: list[str],
+    *,
+    reason: str,
+    tier: Tier | str = "doubt",
+    dictionary: DictionaryProvider | None = None,
+    skip_curated: bool = True,
+) -> dict[str, Any]:
+    """Queue lemmas for admin review — never writes the curated lexicon.
+
+    Words already in the curated seed (when skip_curated) or empty forms are
+    skipped. Prior rejection marks are cleared so the admin can re-decide.
+    """
     cleaned = [item.strip() for item in words if item.strip()]
     if not cleaned:
-        return {"queued": [], "queued_count": 0}
+        return {"queued": [], "queued_count": 0, "skipped_curated": 0}
+    tier_name = tier if tier in {"reliable", "doubt"} else "doubt"
     stamped = _now()
     queued: list[str] = []
+    skipped = 0
     with _lock:
         rows = _load_rows()
         rejected = _load_rejected()
         for word in cleaned:
             folded = word.casefold()
+            if len(folded) < 2:
+                continue
+            if skip_curated and dictionary is not None and in_curated_lexicon(dictionary, folded):
+                skipped += 1
+                continue
             rejected.discard(folded)
             prev = rows.get(folded)
             if prev:
-                prev["tier"] = "doubt"
+                prev["tier"] = tier_name
                 prev["reason"] = reason
                 prev["updated_at"] = stamped
-                prev["count"] = max(1, int(prev.get("count") or 1))
+                prev["count"] = max(1, int(prev.get("count") or 1) + 1)
+                if len(word) >= len(str(prev.get("word") or "")):
+                    prev["word"] = word
             else:
                 rows[folded] = {
                     "word": word,
                     "folded": folded,
-                    "tier": "doubt",
+                    "tier": tier_name,
                     "reason": reason,
                     "suggestion": "",
                     "count": 1,
@@ -721,7 +746,6 @@ def queue_doubt_words(
                     "updated_at": stamped,
                 }
             queued.append(folded)
-        # Cap growth
         if len(rows) > _MAX_CANDIDATES:
             ordered = sorted(
                 rows.values(),
@@ -731,7 +755,7 @@ def queue_doubt_words(
             rows = {str(row["folded"]): row for row in ordered}
         _save_rows(rows)
         _save_rejected(rejected)
-    return {"queued": queued, "queued_count": len(queued)}
+    return {"queued": queued, "queued_count": len(queued), "skipped_curated": skipped}
 
 
 def harvest_safe(engine: LanguageEngine, text: str) -> None:

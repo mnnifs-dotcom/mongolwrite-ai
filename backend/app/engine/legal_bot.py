@@ -126,9 +126,9 @@ async def legal_ingest_loop(stop: asyncio.Event) -> None:
                     cycles=int(_status.get("cycles") or 0) + 1,
                 )
                 _log.info(
-                    "legal bot ingested lawId=%s added=%s",
+                    "legal bot ingested lawId=%s queued=%s",
                     result.get("law_id"),
-                    result.get("added_to_lexicon"),
+                    result.get("queued_candidates"),
                 )
         except Exception as exc:
             _set_status(

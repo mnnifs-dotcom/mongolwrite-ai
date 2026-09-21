@@ -636,11 +636,11 @@ export function AdminApp() {
     try {
       const result = await adminLegalImport();
       setStatus(
-        `Legalinfo: санд ${result.added_to_lexicon} нэмэгдлээ · Hunspell → Эргэлзээтэй рүү ${result.queued_for_admin} үг орлоо`,
+        `Legalinfo файл: шалгах багц / Hunspell руу ${result.queued_for_admin.toLocaleString("mn-MN")} үг · шууд санд оруулаагүй`,
       );
       await loadLists();
       await loadLexicon({ offset: 0 });
-      setSection("hunspell");
+      setSection("review");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Импорт амжилтгүй");
     } finally {
@@ -660,16 +660,14 @@ export function AdminApp() {
     setError(null);
     try {
       const result = await adminLegalLawIngest(lawId);
-      const unique = result.unique_accepted ?? result.added_to_lexicon;
+      const queued = result.queued_for_review ?? result.queued_candidates ?? 0;
       const already = result.already_in_lexicon ?? 0;
-      const yieldHint =
-        already > 0 && result.added_to_lexicon <= 5
-          ? ` · хүлээн зөвшөөрсөн ${unique.toLocaleString("mn-MN")} үгээс ${already.toLocaleString("mn-MN")} аль хэдийн санд байсан`
-          : unique > result.added_to_lexicon
-            ? ` · хүлээн зөвшөөрсөн ${unique.toLocaleString("mn-MN")}`
-            : "";
+      const alreadyHint =
+        already > 0
+          ? ` · аль хэдийн санд ${already.toLocaleString("mn-MN")}`
+          : "";
       setStatus(
-        `«${result.title}» (#${result.law_id}): шинээр санд ${result.added_to_lexicon} үг${yieldHint} · Hunspell дараалалд ${result.queued_candidates} · ${(result.char_count || 0).toLocaleString("mn-MN")} тэмдэгт`,
+        `«${result.title}» (#${result.law_id}): шалгах багц руу ${queued.toLocaleString("mn-MN")} үг${alreadyHint} · ${(result.char_count || 0).toLocaleString("mn-MN")} тэмдэгт · шууд санд оруулаагүй`,
       );
       await loadLists();
       await loadLexicon({ offset: 0 });
@@ -1262,8 +1260,9 @@ export function AdminApp() {
                   : ""}
               </p>
               <p className="mw-muted mw-legal-hint">
-                Нэг хууль бүхэлдээ орсон ч санд цөөн шинэ үг нэмэгдэх нь хэвийн — ихэнх үг аль хэдийн
-                санд байдаг. Гарчиггүй линкүүд ихэвчлэн хоосон/устгагдсан акт байж болно.
+                Хуулиас олдсон шинэ үгс шууд санд орохгүй — эхлээд «Шалгах багц»-д орно. Тэнд
+                үлдээсний дараа л үгийн санд нэмэгдэнэ. Гарчиггүй линкүүд ихэвчлэн хоосон/устгагдсан
+                акт байж болно.
               </p>
 
               {legalBot ? (
@@ -1277,7 +1276,7 @@ export function AdminApp() {
                       ? ` · сүүлд #${legalBot.last_law_id}${legalBot.last_ok === false ? " (алдаа)" : ""}`
                       : ""}
                     {legalBot.last_ok && legalBot.last_law_id
-                      ? ` · +${legalBot.last_added} үг / Hunspell ${legalBot.last_queued}`
+                      ? ` · шалгах багц +${legalBot.last_queued}`
                       : ""}
                     {legalBot.last_error ? ` · ${legalBot.last_error}` : ""}
                     {legalBot.cycles ? ` · ${legalBot.cycles} удаа ажилласан` : ""}
@@ -1436,9 +1435,9 @@ export function AdminApp() {
                 <div className="mw-legal-bulk">
                   <h3>Бөөн импорт (файл)</h3>
                   <p className="mw-muted mw-legal-hint">
-                    Шинэ найдвартай {legalPreview.trusted_count.toLocaleString("mn-MN")} · админ
-                    шалгах {legalPreview.doubt_count.toLocaleString("mn-MN")}.{" "}
-                    <strong>Импортлох</strong> дарвал эргэлзээтэй үгс Hunspell дараалалд орно.
+                    Шинэ найдвартай {legalPreview.trusted_count.toLocaleString("mn-MN")} · эргэлзээтэй{" "}
+                    {legalPreview.doubt_count.toLocaleString("mn-MN")} — бүгд шалгах багц / Hunspell
+                    дараалалд орно, шууд санд биш.
                   </p>
                   <button
                     type="button"
