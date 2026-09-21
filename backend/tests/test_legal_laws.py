@@ -35,9 +35,11 @@ def test_list_laws_from_index(laws_env: Path) -> None:
     page = legal_laws.list_laws(q="", offset=0, limit=10)
     assert page["total"] == 3
     assert page["items"][0]["law_id"] == "10"
+    assert page["items"][0]["has_title"] is True
     assert page["ingested_count"] == 0
     assert page["failed_count"] == 0
     assert page["remaining_count"] == 3
+    assert page["titled_remaining"] == 3
 
     found = legal_laws.list_laws(q="12701", offset=0, limit=10)
     assert found["total"] == 1
@@ -46,6 +48,49 @@ def test_list_laws_from_index(laws_env: Path) -> None:
     orphan = legal_laws.list_laws(q="999999", offset=0, limit=5)
     assert orphan["total"] == 1
     assert orphan["items"][0]["law_id"] == "999999"
+    assert orphan["items"][0]["untitled"] is True
+
+
+def test_list_laws_prefers_titled_over_placeholders(laws_env: Path, monkeypatch) -> None:
+    payload = {
+        "source": "test",
+        "count": 3,
+        "laws": [
+            {"law_id": "2", "title": "Хууль #2", "url": "https://legalinfo.mn/mn/detail?lawId=2"},
+            {"law_id": "10", "title": "ӨРШӨӨЛ ҮЗҮҮЛЭХ ТУХАЙ", "url": "https://legalinfo.mn/mn/detail?lawId=10"},
+            {"law_id": "99", "title": "Хууль #99", "url": "https://legalinfo.mn/mn/detail?lawId=99"},
+        ],
+    }
+    path = laws_env.parent / "mixed_index.json.gz"
+    path.write_bytes(__import__("gzip").compress(__import__("json").dumps(payload).encode()))
+    monkeypatch.setattr(legal_laws, "laws_index_path", lambda: path)
+    legal_laws.clear_laws_cache()
+
+    page = legal_laws.list_laws(q="", offset=0, limit=10)
+    assert [row["law_id"] for row in page["items"]] == ["10", "2", "99"]
+    assert page["titled_remaining"] == 1
+    assert page["untitled_remaining"] == 2
+
+    titled = legal_laws.list_laws(q="", offset=0, limit=10, titled_only=True)
+    assert [row["law_id"] for row in titled["items"]] == ["10"]
+    assert titled["total"] == 1
+
+
+def test_failure_reason_classifies_missing() -> None:
+    assert legal_laws._failure_reason_for_error("Эрх зүйн акт олдсонгүй") == "missing"
+    assert legal_laws._failure_reason_for_error("Хуулийн хуудас хоосон") == "missing"
+    assert legal_laws._failure_reason_for_error("legalinfo хариу 500") == "error"
+
+
+def test_html_missing_act_detection() -> None:
+    html = """
+    <html><head><title>Эрх зүйн акт олдсонгүй</title></head><body>
+    <label class="line-clamp-1">Нэвтрэх</label>
+    </body></html>
+    """
+    title, text = legal_laws._html_to_plain_labels(html)
+    assert "олдсонгүй" in title.casefold()
+    assert len(text) < 80
 
 
 def test_ingested_laws_disappear_from_list(laws_env: Path) -> None:

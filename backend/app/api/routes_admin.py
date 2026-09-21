@@ -261,9 +261,10 @@ def legal_laws(
     q: str = "",
     offset: int = 0,
     limit: int = 50,
+    titled_only: bool = False,
 ) -> dict[str, Any]:
     """Paginated list of legalinfo.mn law links (from shipped sitemap index)."""
-    return list_laws(q=q, offset=offset, limit=limit)
+    return list_laws(q=q, offset=offset, limit=limit, titled_only=titled_only)
 
 
 @router.get("/legal/laws/failed")

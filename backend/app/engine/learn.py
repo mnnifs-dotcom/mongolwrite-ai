@@ -5,8 +5,8 @@ from app.engine.pipeline import LanguageEngine
 from app.engine.text import is_cyrillic_letter, tokenize
 
 
-def learn_accepted_words(engine: LanguageEngine, text: str) -> list[str]:
-    """Add Cyrillic words that were not flagged as spelling errors."""
+def extract_accepted_candidates(engine: LanguageEngine, text: str) -> list[str]:
+    """Cyrillic tokens that the checker did not flag as spelling errors."""
     flagged = {
         item.original_text.casefold()
         for item in engine.check(text)
@@ -25,4 +25,13 @@ def learn_accepted_words(engine: LanguageEngine, text: str) -> list[str]:
             continue
         seen.add(folded)
         candidates.append(token.text)
-    return engine.dictionary.add_words(candidates)
+    return candidates
+
+
+def learn_accepted_words(engine: LanguageEngine, text: str) -> list[str]:
+    """Add Cyrillic words that were not flagged as spelling errors.
+
+    Words already in the curated seed are skipped, so a long statute often
+    yields only a handful of newly added forms — that is expected.
+    """
+    return engine.dictionary.add_words(extract_accepted_candidates(engine, text))

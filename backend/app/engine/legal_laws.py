@@ -17,7 +17,7 @@ import httpx
 
 from app.engine.dictionary import persist_dir
 from app.engine.hunspell_candidates import record_admin_added, record_from_text
-from app.engine.learn import learn_accepted_words
+from app.engine.learn import extract_accepted_candidates
 from app.engine.pipeline import LanguageEngine
 
 _log = logging.getLogger(__name__)
@@ -31,6 +31,8 @@ _LABEL_RE = re.compile(
 _TAG_RE = re.compile(r"<[^>]+>")
 _TITLE_RE = re.compile(r"<title[^>]*>([^<]+)</title>", re.IGNORECASE)
 _CYR_WORD = re.compile(r"[А-ЯӨҮЁа-яөүё]{3,}")
+_PLACEHOLDER_TITLE_RE = re.compile(r"^Хууль\s*#\s*\d+$", re.IGNORECASE)
+_MISSING_ACT_RE = re.compile(r"эрх\s*зүйн\s*акт\s*олдсонгүй", re.IGNORECASE)
 
 # Portal chrome that shows up in scraped labels / HF mirrors.
 _UI_JUNK = {
@@ -263,7 +265,12 @@ def list_failed_laws(*, limit: int = 100) -> dict[str, Any]:
     rows.sort(key=lambda row: str(row.get("failed_at") or ""), reverse=True)
     limit = max(1, min(500, limit))
     items = rows[:limit]
-    return {"items": items, "count": len(rows), "limit": limit}
+    return {
+        "items": items,
+        "count": len(rows),
+        "limit": limit,
+        "summary": list_failed_summary(),
+    }
 
 
 @lru_cache(maxsize=1)
@@ -295,16 +302,46 @@ def law_url(law_id: str) -> str:
     return f"https://legalinfo.mn/mn/detail?lawId={law_id}"
 
 
+def is_placeholder_title(title: str) -> bool:
+    """True when the catalog only has a synthetic «Хууль #id» label."""
+    text = (title or "").strip()
+    if not text:
+        return True
+    return bool(_PLACEHOLDER_TITLE_RE.match(text))
+
+
+def _failure_reason_for_error(message: str) -> str:
+    folded = (message or "").casefold()
+    if "олдсонгүй" in folded or "хоосон" in folded:
+        return "missing"
+    return "error"
+
+
+def list_failed_summary() -> dict[str, int]:
+    with _ingested_lock:
+        rows = list(_load_failed_map().values())
+    summary = {"missing": 0, "error": 0, "skipped": 0, "other": 0}
+    for row in rows:
+        reason = str(row.get("reason") or "error")
+        if reason in summary:
+            summary[reason] += 1
+        else:
+            summary["other"] += 1
+    return summary
+
+
 def list_laws(
     *,
     q: str = "",
     offset: int = 0,
     limit: int = 50,
+    titled_only: bool = False,
 ) -> dict[str, Any]:
     """Paginated searchable catalog of legalinfo.mn law links.
 
     Already-ingested and failed/skipped laws are omitted so the admin queue
-    only shows work left.
+    only shows work left. Laws with real titles are listed before placeholder
+    «Хууль #id» stubs so the queue does not look entirely broken.
     """
     index = _load_index()
     laws = index.get("laws") or []
@@ -340,23 +377,52 @@ def list_laws(
             )
         laws = exact + filtered
 
+    titled: list[dict[str, Any]] = []
+    untitled: list[dict[str, Any]] = []
+    for row in laws:
+        if not isinstance(row, dict):
+            continue
+        title = str(row.get("title") or f"Хууль #{row.get('law_id')}")
+        if is_placeholder_title(title):
+            untitled.append(row)
+        else:
+            titled.append(row)
+
+    titled_remaining = len(titled)
+    untitled_remaining = len(untitled)
+    if titled_only:
+        laws = titled
+    else:
+        # Prefer named statutes; stubs (often dead ids) come last.
+        laws = titled + untitled
+
     total = len(laws)
     offset = max(0, offset)
     limit = max(1, min(200, limit))
     page = laws[offset : offset + limit]
-    items = [
-        {
-            "law_id": str(row.get("law_id") or ""),
-            "title": str(row.get("title") or f"Хууль #{row.get('law_id')}"),
-            "url": str(row.get("url") or law_url(str(row.get("law_id") or ""))),
-            "article_count": int(row.get("article_count") or 0),
-        }
-        for row in page
-        if isinstance(row, dict) and str(row.get("law_id") or "").isdigit()
-    ]
+    items = []
+    for row in page:
+        if not isinstance(row, dict):
+            continue
+        law_id = str(row.get("law_id") or "")
+        if not law_id.isdigit():
+            continue
+        title = str(row.get("title") or f"Хууль #{law_id}")
+        untitled_flag = is_placeholder_title(title)
+        items.append(
+            {
+                "law_id": law_id,
+                "title": title,
+                "url": str(row.get("url") or law_url(law_id)),
+                "article_count": int(row.get("article_count") or 0),
+                "has_title": not untitled_flag,
+                "untitled": untitled_flag,
+            }
+        )
     catalog_count = int(index.get("count") or 0)
     ingested_count = len(ingested_law_ids())
     failed_count = len(failed_law_ids())
+    failed_summary = list_failed_summary()
     return {
         "items": items,
         "total": total,
@@ -366,7 +432,11 @@ def list_laws(
         "catalog_count": catalog_count,
         "ingested_count": ingested_count,
         "failed_count": failed_count,
+        "failed_summary": failed_summary,
         "remaining_count": max(0, catalog_count - ingested_count - failed_count),
+        "titled_remaining": titled_remaining,
+        "untitled_remaining": untitled_remaining,
+        "titled_only": titled_only,
     }
 
 
@@ -427,6 +497,10 @@ def fetch_law_text(law_id: str, *, timeout: float = 90.0) -> dict[str, Any]:
         raise RuntimeError("Хуулийн хуудас хоосон")
 
     title, text = _html_to_plain_labels(html)
+    # Dead / deleted acts still have a portal shell.
+    if _MISSING_ACT_RE.search(title) or _MISSING_ACT_RE.search(html):
+        raise RuntimeError("Эрх зүйн акт олдсонгүй (legalinfo дээр байхгүй)")
+
     # Detect common portal chrome-only pages (no statute body).
     if len(text) < 80:
         raise RuntimeError("Хуулийн текст олдсонгүй (хуудас хоосон эсвэл бүтэц өөрчлөгдсөн)")
@@ -446,17 +520,21 @@ def ingest_law(engine: LanguageEngine, law_id: str, *, source: str = "legal_law"
     Also harvests missing forms into the Hunspell candidate queues for review.
     Successful ingest removes the law from the admin pending list.
     On fetch/parse failure the law is marked failed so it leaves the queue.
+
+    Note: «added_to_lexicon» is often small even for long statutes — most tokens
+    are already in the curated seed. Check unique_accepted / already_in_lexicon.
     """
     lid = str(law_id).strip()
     try:
         fetched = fetch_law_text(lid)
     except (ValueError, RuntimeError) as exc:
+        message = str(exc)
         mark_law_failed(
             lid,
             title=f"Хууль #{lid}",
             url=law_url(lid),
-            error=str(exc),
-            reason="error",
+            error=message,
+            reason=_failure_reason_for_error(message),
         )
         raise
 
@@ -466,7 +544,8 @@ def ingest_law(engine: LanguageEngine, law_id: str, *, source: str = "legal_law"
         text = text[:900_000]
 
     try:
-        added = learn_accepted_words(engine, text)
+        candidates = extract_accepted_candidates(engine, text)
+        added = engine.dictionary.add_words(candidates)
         if added:
             engine.dictionary.ensure_curated(added)
             record_admin_added(added, source=source, ref=f"lawId={fetched['law_id']}")
@@ -482,6 +561,9 @@ def ingest_law(engine: LanguageEngine, law_id: str, *, source: str = "legal_law"
         )
         raise RuntimeError(f"Боловсруулалт амжилтгүй: {exc}") from exc
 
+    unique_accepted = len(candidates)
+    already_in_lexicon = max(0, unique_accepted - len(added))
+
     mark_law_ingested(
         fetched["law_id"],
         title=fetched["title"],
@@ -496,25 +578,41 @@ def ingest_law(engine: LanguageEngine, law_id: str, *, source: str = "legal_law"
         "url": fetched["url"],
         "char_count": fetched["char_count"],
         "line_count": fetched["line_count"],
+        "unique_accepted": unique_accepted,
+        "already_in_lexicon": already_in_lexicon,
         "added_to_lexicon": len(added),
         "added_words": added[:80],
         "queued_candidates": queued,
         "removed_from_list": True,
+        "yield_note": (
+            "Санд аль хэдийн байсан үгс дахин нэмэгдэхгүй — цөөн шинэ үг хэвийн."
+            if already_in_lexicon and len(added) <= 5
+            else ""
+        ),
     }
     _log.info(
-        "legalinfo ingest lawId=%s added=%s queued=%s chars=%s",
+        "legalinfo ingest lawId=%s added=%s already=%s unique=%s queued=%s chars=%s",
         fetched["law_id"],
         len(added),
+        already_in_lexicon,
+        unique_accepted,
         queued,
         fetched["char_count"],
     )
     return result
 
 
-def peek_next_law_id() -> str | None:
-    """Return the next pending law id for the background bot (or None)."""
-    page = list_laws(q="", offset=0, limit=1)
+def peek_next_law_id(*, titled_only: bool = False) -> str | None:
+    """Return the next pending law id for the background bot (or None).
+
+    Prefers named statutes; when those are exhausted, falls back to untitled
+    stubs unless titled_only is set.
+    """
+    page = list_laws(q="", offset=0, limit=1, titled_only=titled_only)
     items = page.get("items") or []
+    if not items and titled_only:
+        page = list_laws(q="", offset=0, limit=1, titled_only=False)
+        items = page.get("items") or []
     if not items:
         return None
     lid = str(items[0].get("law_id") or "").strip()

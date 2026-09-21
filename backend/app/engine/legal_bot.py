@@ -51,8 +51,11 @@ def _set_status(**kwargs: Any) -> None:
 
 
 def ingest_next_law_once() -> dict[str, Any]:
-    """Pick the next pending law and ingest it (or no-op if queue empty)."""
-    law_id = peek_next_law_id()
+    """Pick the next pending law and ingest it (or no-op if queue empty).
+
+    Prefers named statutes so the bot does not burn cycles on untitled stubs first.
+    """
+    law_id = peek_next_law_id(titled_only=True)
     if not law_id:
         return {"ok": True, "empty": True, "law_id": None}
     engine = get_engine()
