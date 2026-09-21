@@ -187,6 +187,55 @@ def test_erkhgui_not_rewritten_as_erehgui() -> None:
     )
 
 
+def test_noun_ending_x_case_forms_not_verb_rewritten() -> None:
+    """Known nouns ending in х + case/гүй must not be rewritten as verb-х forms.
+
+    Even when the full surface form is absent from the seed — the noun stem
+    alone is enough to block the false positive.
+    """
+    local = LanguageEngine(
+        DictionaryProvider(
+            frozenset(
+                {
+                    "эрх",
+                    "эрэх",
+                    "өрх",
+                    "өрөх",
+                    "цонх",
+                    "цонох",
+                    "талх",
+                    "талах",
+                    "байгуулах",
+                }
+            )
+        )
+    )
+    keep = (
+        "эрхгүй",
+        "эрхээр",
+        "эрхээс",
+        "эрхэд",
+        "өрхгүй",
+        "өрхөөс",
+        "өрхөд",
+        "цонхоор",
+        "цонхгүй",
+        "талхгүй",
+    )
+    for word in keep:
+        found = [item for item in local.check(word) if item.rule_id == "vowel_before_x"]
+        assert not found, f"{word} wrongly rewritten → {found[0].suggested_text if found else ''}"
+    # Real verb misspellings still corrected.
+    assert any(
+        item.suggested_text == "байгуулахгүй" and item.rule_id == "vowel_before_x"
+        for item in local.check("байгуулхгүй")
+    )
+    assert any(
+        item.suggested_text == "байгуулахаар" and item.rule_id == "vowel_before_x"
+        for item in local.check("байгуулхаар")
+    )
+
+
 def test_palatal_case_from_stem() -> None:
     local = LanguageEngine(DictionaryProvider(frozenset({"давтамж", "цаг", "багш", "ажил"})))
     cases = (

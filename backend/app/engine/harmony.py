@@ -808,22 +808,28 @@ _X_REFLEXIVE = {
 def suggest_vowel_before_x(word: str, dictionary: DictionaryProvider) -> str | None:
     """Verb х is written after a vowel: байгуулхаар → байгуулахаар.
 
-    Does not rewrite curated / established lemmas. Noun + гүй forms like
-    «эрхгүй» must not become «эрэхгүй» just because «эрэх» is a known verb.
+    Never rewrite curated/established lemmas, and never treat a known noun that
+    ends in «х» plus case/гүй as a missing-vowel verb form:
+
+      эрхгүй → not эрэхгүй
+      эрхээр → not эрэхээр
+      цонхоор → not цонохоор
+      өрхөөс → not өрөхөөс
     """
     folded = word.casefold()
-    # Curated surface forms win over the verb-х school rewrite.
+    # Curated / frequent surface forms win over the verb-х school rewrite.
     if dictionary.in_seed(folded) or dictionary.in_wordlist(folded):
         return None
     if dictionary.prefers_established(folded):
         return None
-    # «эрх» + «гүй» (and similar N+гүй) — not a /хгүй/ verb ending.
-    if folded.endswith("хгүй") and len(folded) > 5:
-        noun = folded[:-3]  # strip гүй → …х
-        if noun.endswith("х") and (
-            dictionary.in_seed(noun) or dictionary.in_wordlist(noun)
-        ):
-            return None
+
+    def _is_known_x_noun(before: str) -> bool:
+        """True when «before + х» is a curated noun (эрх, цонх, өрх, …)."""
+        if len(before) < 1 or before[-1:] in _VOWELS:
+            return False
+        noun = before + "х"
+        return dictionary.in_seed(noun) or dictionary.in_wordlist(noun)
+
     matched = next(
         (
             tail
@@ -834,7 +840,7 @@ def suggest_vowel_before_x(word: str, dictionary: DictionaryProvider) -> str | N
     )
     if matched:
         before = folded[: -len(matched)]
-        if before[-1:] not in _VOWELS and before[-1:].isalpha():
+        if before[-1:] not in _VOWELS and before[-1:].isalpha() and not _is_known_x_noun(before):
             found: list[str] = []
             for vowel in _X_CONNECT_VOWELS:
                 infinitive = before + vowel + "х"
@@ -860,6 +866,9 @@ def suggest_vowel_before_x(word: str, dictionary: DictionaryProvider) -> str | N
             continue
         before = folded[: -len(matched)]
         if before[-1:] in _VOWELS or not before[-1:].isalpha():
+            continue
+        # Noun ending in х + гүй/case (эрхгүй, эрхээр, цонхоор) — not verb-х.
+        if _is_known_x_noun(before):
             continue
         found: list[str] = []
         for vowel in _X_CONNECT_VOWELS:
