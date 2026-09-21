@@ -16,7 +16,7 @@ from typing import Any
 import httpx
 
 from app.engine.dictionary import persist_dir
-from app.engine.hunspell_candidates import record_admin_added, record_from_text
+from app.engine.hunspell_candidates import queue_review_words, record_from_text
 from app.engine.learn import extract_accepted_candidates
 from app.engine.pipeline import LanguageEngine
 
@@ -515,14 +515,12 @@ def fetch_law_text(law_id: str, *, timeout: float = 90.0) -> dict[str, Any]:
 
 
 def ingest_law(engine: LanguageEngine, law_id: str, *, source: str = "legal_law") -> dict[str, Any]:
-    """Fetch a law, run the checker, add accepted words to the lexicon.
+    """Fetch a law, harvest new forms into the review queue (never the lexicon).
 
-    Also harvests missing forms into the Hunspell candidate queues for review.
+    Accepted and curated-missing tokens go to Hunspell / «Шалгах багц». Lexicon
+    writes happen only after an admin keeps/approves them there.
     Successful ingest removes the law from the admin pending list.
     On fetch/parse failure the law is marked failed so it leaves the queue.
-
-    Note: «added_to_lexicon» is often small even for long statutes — most tokens
-    are already in the curated seed. Check unique_accepted / already_in_lexicon.
     """
     lid = str(law_id).strip()
     try:
@@ -545,12 +543,21 @@ def ingest_law(engine: LanguageEngine, law_id: str, *, source: str = "legal_law"
 
     try:
         candidates = extract_accepted_candidates(engine, text)
-        added = engine.dictionary.add_words(candidates)
-        if added:
-            engine.dictionary.ensure_curated(added)
-            record_admin_added(added, source=source, ref=f"lawId={fetched['law_id']}")
-
-        queued = record_from_text(engine, text)
+        already_in_lexicon = sum(
+            1 for word in candidates if engine.dictionary.in_seed(word)
+        )
+        to_queue = [
+            word for word in candidates if not engine.dictionary.in_seed(word)
+        ]
+        accepted_result = queue_review_words(
+            to_queue,
+            reason=f"legalinfo · lawId={fetched['law_id']}",
+            tier="reliable",
+            dictionary=engine.dictionary,
+            skip_curated=True,
+        )
+        queued_accepted = list(accepted_result.get("queued") or [])
+        queued_missing = record_from_text(engine, text)
     except Exception as exc:
         mark_law_failed(
             fetched["law_id"],
@@ -561,15 +568,16 @@ def ingest_law(engine: LanguageEngine, law_id: str, *, source: str = "legal_law"
         )
         raise RuntimeError(f"Боловсруулалт амжилтгүй: {exc}") from exc
 
+    # learn_accepted_words + record_from_text may overlap; report both counts.
+    queued_total = len(queued_accepted) + int(queued_missing)
     unique_accepted = len(candidates)
-    already_in_lexicon = max(0, unique_accepted - len(added))
 
     mark_law_ingested(
         fetched["law_id"],
         title=fetched["title"],
         url=fetched["url"],
-        added_to_lexicon=len(added),
-        queued_candidates=queued,
+        added_to_lexicon=0,
+        queued_candidates=queued_total,
     )
 
     result = {
@@ -580,24 +588,26 @@ def ingest_law(engine: LanguageEngine, law_id: str, *, source: str = "legal_law"
         "line_count": fetched["line_count"],
         "unique_accepted": unique_accepted,
         "already_in_lexicon": already_in_lexicon,
-        "added_to_lexicon": len(added),
-        "added_words": added[:80],
-        "queued_candidates": queued,
+        "added_to_lexicon": 0,
+        "added_words": [],
+        "queued_accepted": len(queued_accepted),
+        "queued_candidates": queued_total,
+        "queued_for_review": queued_total,
         "removed_from_list": True,
         "yield_note": (
-            "Санд аль хэдийн байсан үгс дахин нэмэгдэхгүй — цөөн шинэ үг хэвийн."
-            if already_in_lexicon and len(added) <= 5
-            else ""
+            "Шинэ үгс шууд санд орохгүй — эхлээд «Шалгах багц»-д орно."
+            if queued_total
+            else "Шинэ үг олдсонгүй (ихэнх нь аль хэдийн санд)."
         ),
     }
     _log.info(
-        "legalinfo ingest lawId=%s added=%s already=%s unique=%s queued=%s chars=%s",
+        "legalinfo ingest lawId=%s queued=%s already=%s unique=%s chars=%s source=%s",
         fetched["law_id"],
-        len(added),
+        queued_total,
         already_in_lexicon,
         unique_accepted,
-        queued,
         fetched["char_count"],
+        source,
     )
     return result
 

@@ -184,8 +184,9 @@ export function AdminReviewPanel({ onDone }: Props) {
     <section className="mw-admin-card" id="review-words">
       <h2>Шалгуулах үг татах</h2>
       <p className="mw-muted">
-        Огноо сонгоод тухайн хугацаанд орсон алгассан, нэмсэн, hunspell, legalinfo үгсийг нэг дор
-        татна. Хуулж аваад гадна шалгаад зөвхөн үлдээх үгсээ буцааж paste хийнэ.
+        Огноо сонгоод тухайн хугацаанд орсон алгассан, hunspell, legalinfo үгсийг нэг дор татна.
+        Хуулж аваад гадна шалгаад зөвхөн үлдээх үгсээ буцааж paste хийнэ. Үлдээсэн үгс л үгийн санд
+        нэмэгдэнэ — бусад нь оруулахгүй эсвэл сангаас хасагдана.
       </p>
 
       <form className="mw-admin-row" onSubmit={(event) => void loadBatch(event)}>

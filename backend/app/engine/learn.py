@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app.engine.hunspell_candidates import in_curated_lexicon, queue_review_words
 from app.engine.models import Category
 from app.engine.pipeline import LanguageEngine
 from app.engine.text import is_cyrillic_letter, tokenize
@@ -28,10 +29,27 @@ def extract_accepted_candidates(engine: LanguageEngine, text: str) -> list[str]:
     return candidates
 
 
-def learn_accepted_words(engine: LanguageEngine, text: str) -> list[str]:
-    """Add Cyrillic words that were not flagged as spelling errors.
+def learn_accepted_words(
+    engine: LanguageEngine,
+    text: str,
+    *,
+    reason: str = "Шалгагч зөвшөөрсөн · шалгах багцад",
+    tier: str = "reliable",
+) -> list[str]:
+    """Queue checker-accepted Cyrillic words for admin review (no lexicon write).
 
-    Words already in the curated seed are skipped, so a long statute often
-    yields only a handful of newly added forms — that is expected.
+    Words already in the curated seed are skipped. Lexicon membership only
+    happens after an admin keeps/approves them in «Шалгах багц».
     """
-    return engine.dictionary.add_words(extract_accepted_candidates(engine, text))
+    candidates = extract_accepted_candidates(engine, text)
+    to_queue = [
+        word for word in candidates if not in_curated_lexicon(engine.dictionary, word)
+    ]
+    result = queue_review_words(
+        to_queue,
+        reason=reason,
+        tier=tier,
+        dictionary=engine.dictionary,
+        skip_curated=True,
+    )
+    return list(result.get("queued") or [])

@@ -15,7 +15,7 @@ from app.engine.hunspell_candidates import (
     _now,
     _save_rows,
     in_curated_lexicon,
-    record_admin_added,
+    queue_review_words,
 )
 from app.engine.pipeline import LanguageEngine
 
@@ -78,26 +78,30 @@ def _read_doubt_items() -> list[dict[str, Any]]:
 
 
 def apply_legal_lexicon(engine: LanguageEngine) -> dict[str, Any]:
-    """Merge trusted legal lemmas into curated lexicon; queue doubt for admin.
+    """Queue trusted + doubt legal lemmas for admin review (no lexicon write).
 
-    Never auto-merges doubt. Skips words already curated or previously rejected.
+    Never auto-merges into the curated seed. Skips words already curated or
+    previously rejected. Lexicon membership happens only via «Шалгах багц».
     """
     dictionary = engine.dictionary
     trusted = _read_trusted()
     doubt_items = _read_doubt_items()
     rejected = _load_rejected()
 
-    to_add = [
+    trusted_queue = [
         word
         for word in trusted
         if word not in rejected and not in_curated_lexicon(dictionary, word)
     ]
-    added = dictionary.add_words(to_add) if to_add else []
-    if to_add:
-        dictionary.ensure_curated(to_add)
-        record_admin_added(to_add)
+    trusted_result = queue_review_words(
+        trusted_queue,
+        reason="legalinfo · trusted файл · шалгах багцад",
+        tier="reliable",
+        dictionary=dictionary,
+        skip_curated=True,
+    )
 
-    queued = 0
+    queued = int(trusted_result.get("queued_count") or 0)
     with _lock:
         existing = _load_rows()
         for item in doubt_items:
@@ -120,12 +124,13 @@ def apply_legal_lexicon(engine: LanguageEngine) -> dict[str, Any]:
     result = {
         "trusted_file": len(trusted),
         "doubt_file": len(doubt_items),
-        "added_to_lexicon": len(added),
-        "added_words": added[:50],
+        "added_to_lexicon": 0,
+        "added_words": [],
+        "queued_trusted": int(trusted_result.get("queued_count") or 0),
         "queued_for_admin": queued,
         "candidates_total": total,
     }
-    _log.info("legal lexicon import: %s", result)
+    _log.info("legal lexicon import (review-only): %s", result)
     return result
 
 

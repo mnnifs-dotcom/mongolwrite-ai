@@ -197,8 +197,14 @@ def pending_reject_many(body: WordsAction, _: AdminDep) -> dict[str, Any]:
 
 @router.post("/ingest")
 def ingest(body: IngestRequest, _: AdminDep) -> dict[str, Any]:
-    added = learn_accepted_words(get_engine(), body.text)
-    return {"added": added, "added_count": len(added)}
+    """Queue checker-accepted words for review — does not write the lexicon."""
+    queued = learn_accepted_words(get_engine(), body.text)
+    return {
+        "added": [],
+        "added_count": 0,
+        "queued": queued,
+        "queued_count": len(queued),
+    }
 
 
 @router.get("/added-words")
@@ -250,7 +256,7 @@ def lexicon_legal_preview(_: AdminDep) -> dict[str, Any]:
 
 @router.post("/lexicon/legal-import")
 def lexicon_legal_import(_: AdminDep) -> dict[str, Any]:
-    """Import legalinfo trusted lemmas into curated lexicon; queue doubt for review."""
+    """Queue legalinfo trusted + doubt lemmas for admin review (no lexicon write)."""
     result = apply_legal_lexicon(get_engine())
     return {**result, "counts": counts(), "preview": legal_import_preview()}
 
