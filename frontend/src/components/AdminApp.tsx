@@ -35,6 +35,7 @@ import {
   type FailedLawItem,
   type HunspellCandidate,
   type LegalBotStatus,
+  type LegalFailedSummary,
   type LegalImportPreview,
   type LegalLawItem,
   type LexiconLetter,
@@ -119,6 +120,10 @@ export function AdminApp() {
   const [lawsIngestedCount, setLawsIngestedCount] = useState(0);
   const [lawsRemainingCount, setLawsRemainingCount] = useState(0);
   const [lawsFailedCount, setLawsFailedCount] = useState(0);
+  const [lawsFailedSummary, setLawsFailedSummary] = useState<LegalFailedSummary | null>(null);
+  const [lawsTitledRemaining, setLawsTitledRemaining] = useState(0);
+  const [lawsUntitledRemaining, setLawsUntitledRemaining] = useState(0);
+  const [lawsTitledOnly, setLawsTitledOnly] = useState(true);
   const [failedLaws, setFailedLaws] = useState<FailedLawItem[]>([]);
   const [legalBot, setLegalBot] = useState<LegalBotStatus | null>(null);
   const [lawsQuery, setLawsQuery] = useState("");
@@ -236,9 +241,10 @@ export function AdminApp() {
     }
   }, [usersQuery, usersPlan, usersOffset]);
 
-  const loadLaws = useCallback(async (opts?: { q?: string; offset?: number }) => {
+  const loadLaws = useCallback(async (opts?: { q?: string; offset?: number; titledOnly?: boolean }) => {
     const q = opts?.q ?? lawsQuery;
     const offset = opts?.offset ?? lawsOffset;
+    const titledOnly = opts?.titledOnly ?? lawsTitledOnly;
     setLawsLoading(true);
     try {
       const [page, failed, bot] = await Promise.all([
@@ -246,8 +252,13 @@ export function AdminApp() {
           q: q.trim() || undefined,
           offset,
           limit: LAWS_PAGE,
+          titled_only: titledOnly,
         }),
-        adminLegalLawsFailed(80).catch(() => ({ items: [] as FailedLawItem[], count: 0 })),
+        adminLegalLawsFailed(80).catch(() => ({
+          items: [] as FailedLawItem[],
+          count: 0,
+          summary: undefined as LegalFailedSummary | undefined,
+        })),
         adminLegalBotStatus().catch(() => null),
       ]);
       setLaws(page.items);
@@ -256,7 +267,10 @@ export function AdminApp() {
       setLawsCatalogCount(page.catalog_count);
       setLawsIngestedCount(page.ingested_count ?? 0);
       setLawsRemainingCount(page.remaining_count ?? page.total);
+      setLawsTitledRemaining(page.titled_remaining ?? 0);
+      setLawsUntitledRemaining(page.untitled_remaining ?? 0);
       setLawsFailedCount(page.failed_count ?? failed.count);
+      setLawsFailedSummary(page.failed_summary ?? failed.summary ?? null);
       setFailedLaws(failed.items);
       setLegalBot(bot);
     } catch (err) {
@@ -264,7 +278,7 @@ export function AdminApp() {
     } finally {
       setLawsLoading(false);
     }
-  }, [lawsQuery, lawsOffset]);
+  }, [lawsQuery, lawsOffset, lawsTitledOnly]);
 
   const loadLists = useCallback(async () => {
     const nextOverview = await adminOverview();
@@ -646,8 +660,16 @@ export function AdminApp() {
     setError(null);
     try {
       const result = await adminLegalLawIngest(lawId);
+      const unique = result.unique_accepted ?? result.added_to_lexicon;
+      const already = result.already_in_lexicon ?? 0;
+      const yieldHint =
+        already > 0 && result.added_to_lexicon <= 5
+          ? ` · хүлээн зөвшөөрсөн ${unique.toLocaleString("mn-MN")} үгээс ${already.toLocaleString("mn-MN")} аль хэдийн санд байсан`
+          : unique > result.added_to_lexicon
+            ? ` · хүлээн зөвшөөрсөн ${unique.toLocaleString("mn-MN")}`
+            : "";
       setStatus(
-        `«${result.title}» (#${result.law_id}): санд ${result.added_to_lexicon} үг · Hunspell дараалалд ${result.queued_candidates} · жагсаалтаас хаслаа`,
+        `«${result.title}» (#${result.law_id}): шинээр санд ${result.added_to_lexicon} үг${yieldHint} · Hunspell дараалалд ${result.queued_candidates} · ${(result.char_count || 0).toLocaleString("mn-MN")} тэмдэгт`,
       );
       await loadLists();
       await loadLexicon({ offset: 0 });
@@ -658,7 +680,10 @@ export function AdminApp() {
       // Failed ingest now auto-skips the law from the queue — refresh so it disappears.
       setError(
         err instanceof Error
-          ? `${err.message} · энэ хуулийг алдаатай жагсаалт руу шилжүүллээ`
+          ? err.message.toLocaleLowerCase("mn").includes("олдсонгүй") ||
+            err.message.toLocaleLowerCase("mn").includes("хоосон")
+            ? `${err.message} · жагсаалтаас хаслаа (акт байхгүй)`
+            : `${err.message} · энэ хуулийг хассан жагсаалт руу шилжүүллээ`
           : "Хууль татаж чадсангүй",
       );
       const nextOffset = laws.length <= 1 ? Math.max(0, lawsOffset - LAWS_PAGE) : lawsOffset;
@@ -1220,16 +1245,25 @@ export function AdminApp() {
               <h2>legalinfo.mn хуулиуд</h2>
               <p className="mw-muted">
                 Үлдсэн {(lawsRemainingCount || lawsTotal).toLocaleString("mn-MN")}
+                {lawsTitledRemaining
+                  ? ` · нэртэй ${lawsTitledRemaining.toLocaleString("mn-MN")}`
+                  : ""}
+                {lawsUntitledRemaining
+                  ? ` · гарчиггүй ${lawsUntitledRemaining.toLocaleString("mn-MN")}`
+                  : ""}
                 {lawsIngestedCount
                   ? ` · татсан ${lawsIngestedCount.toLocaleString("mn-MN")}`
                   : ""}
                 {lawsFailedCount
-                  ? ` · алдаатай/хассан ${lawsFailedCount.toLocaleString("mn-MN")}`
+                  ? ` · хассан ${lawsFailedCount.toLocaleString("mn-MN")}`
                   : ""}
                 {lawsCatalogCount
                   ? ` / ${lawsCatalogCount.toLocaleString("mn-MN")}`
-                  : ""}{" "}
-                · татсан эсвэл алдаатай хууль жагсаалтаас автоматаар хасагдана
+                  : ""}
+              </p>
+              <p className="mw-muted mw-legal-hint">
+                Нэг хууль бүхэлдээ орсон ч санд цөөн шинэ үг нэмэгдэх нь хэвийн — ихэнх үг аль хэдийн
+                санд байдаг. Гарчиггүй линкүүд ихэвчлэн хоосон/устгагдсан акт байж болно.
               </p>
 
               {legalBot ? (
@@ -1237,10 +1271,13 @@ export function AdminApp() {
                   <h3>Автомат бот</h3>
                   <p className="mw-muted mw-legal-hint">
                     {legalBot.enabled
-                      ? `Идэвхтэй · ${Math.round(legalBot.min_interval_seconds / 60)}–${Math.round(legalBot.max_interval_seconds / 60)} мин тутамд 1 хууль`
+                      ? `Идэвхтэй · ${Math.round(legalBot.min_interval_seconds / 60)}–${Math.round(legalBot.max_interval_seconds / 60)} мин тутамд 1 хууль (эхлээд нэртэй)`
                       : "Идэвхгүй"}
                     {legalBot.last_law_id
                       ? ` · сүүлд #${legalBot.last_law_id}${legalBot.last_ok === false ? " (алдаа)" : ""}`
+                      : ""}
+                    {legalBot.last_ok && legalBot.last_law_id
+                      ? ` · +${legalBot.last_added} үг / Hunspell ${legalBot.last_queued}`
                       : ""}
                     {legalBot.last_error ? ` · ${legalBot.last_error}` : ""}
                     {legalBot.cycles ? ` · ${legalBot.cycles} удаа ажилласан` : ""}
@@ -1259,11 +1296,28 @@ export function AdminApp() {
                 <button type="submit" className="mw-btn" disabled={lawsLoading}>
                   Хайх
                 </button>
+                <label className="mw-muted" style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+                  <input
+                    type="checkbox"
+                    checked={lawsTitledOnly}
+                    onChange={(event) => {
+                      const next = event.target.checked;
+                      setLawsTitledOnly(next);
+                      setLawsOffset(0);
+                      void loadLaws({ offset: 0, titledOnly: next });
+                    }}
+                  />
+                  Зөвхөн нэртэй
+                </label>
               </form>
               {lawsLoading && laws.length === 0 ? (
                 <p className="mw-muted">Уншиж байна…</p>
               ) : laws.length === 0 ? (
-                <p className="mw-muted">Олдсонгүй</p>
+                <p className="mw-muted">
+                  {lawsTitledOnly
+                    ? "Нэртэй хууль үлдсэнгүй — «Зөвхөн нэртэй»-г унтрааж гарчиггүйг харна уу"
+                    : "Олдсонгүй"}
+                </p>
               ) : (
                 <div className="mw-admin-scroll mw-legal-laws-scroll">
                   <ul className="mw-admin-list mw-legal-laws-list">
@@ -1272,7 +1326,8 @@ export function AdminApp() {
                         <div className="mw-candidate-main">
                           <strong>{law.title}</strong>
                           <span className="mw-muted">
-                            #{law.law_id} ·{" "}
+                            #{law.law_id}
+                            {law.untitled ? " · гарчиг индексэд алга" : ""} ·{" "}
                             <a href={law.url} target="_blank" rel="noreferrer">
                               legalinfo.mn
                             </a>
@@ -1338,9 +1393,13 @@ export function AdminApp() {
 
               {failedLaws.length ? (
                 <div className="mw-legal-bulk" style={{ marginTop: 18 }}>
-                  <h3>Алдаатай / хассан хуулиуд · {lawsFailedCount || failedLaws.length}</h3>
+                  <h3>Хассан / олдсонгүй хуулиуд · {lawsFailedCount || failedLaws.length}</h3>
                   <p className="mw-muted mw-legal-hint">
-                    Татах үед алдаа гарсан эсвэл гараар хассан хуулиуд. Дахин оролдох эсвэл үлдээнэ.
+                    {lawsFailedSummary
+                      ? `Акт олдсонгүй ${lawsFailedSummary.missing.toLocaleString("mn-MN")} · техникийн алдаа ${lawsFailedSummary.error.toLocaleString("mn-MN")} · гараар хассан ${lawsFailedSummary.skipped.toLocaleString("mn-MN")}. `
+                      : null}
+                    Эдгээр нь алдаатай гэж харагдах боловч ихэнхдээ legalinfo дээр устгагдсан/хоосон линк.
+                    Дахин оролдох эсвэл үлдээнэ.
                   </p>
                   <ul className="mw-admin-list">
                     {failedLaws.map((law) => (
@@ -1348,8 +1407,13 @@ export function AdminApp() {
                         <div className="mw-candidate-main">
                           <strong>{law.title || `Хууль #${law.law_id}`}</strong>
                           <span className="mw-muted">
-                            #{law.law_id} · {law.reason === "skipped" ? "хассан" : "алдаа"} ·{" "}
-                            {law.error || "—"}
+                            #{law.law_id} ·{" "}
+                            {law.reason === "skipped"
+                              ? "хассан"
+                              : law.reason === "missing"
+                                ? "акт олдсонгүй"
+                                : "алдаа"}{" "}
+                            · {law.error || "—"}
                           </span>
                         </div>
                         <div className="mw-admin-row">

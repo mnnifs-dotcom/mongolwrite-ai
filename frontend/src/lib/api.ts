@@ -527,6 +527,15 @@ export type LegalLawItem = {
   title: string;
   url: string;
   article_count?: number;
+  has_title?: boolean;
+  untitled?: boolean;
+};
+
+export type LegalFailedSummary = {
+  missing: number;
+  error: number;
+  skipped: number;
+  other: number;
 };
 
 export type LegalLawsPage = {
@@ -538,18 +547,24 @@ export type LegalLawsPage = {
   catalog_count: number;
   ingested_count?: number;
   failed_count?: number;
+  failed_summary?: LegalFailedSummary;
   remaining_count?: number;
+  titled_remaining?: number;
+  untitled_remaining?: number;
+  titled_only?: boolean;
 };
 
 export async function adminLegalLaws(params: {
   q?: string;
   offset?: number;
   limit?: number;
+  titled_only?: boolean;
 }): Promise<LegalLawsPage> {
   const search = new URLSearchParams();
   if (params.q) search.set("q", params.q);
   if (params.offset != null) search.set("offset", String(params.offset));
   if (params.limit != null) search.set("limit", String(params.limit));
+  if (params.titled_only) search.set("titled_only", "true");
   const query = search.toString();
   const response = await fetch(apiUrl(`/api/v1/admin/legal/laws${query ? `?${query}` : ""}`), {
     credentials: "include",
@@ -564,9 +579,12 @@ export type LegalLawIngestResult = {
   url: string;
   char_count: number;
   line_count: number;
+  unique_accepted?: number;
+  already_in_lexicon?: number;
   added_to_lexicon: number;
   added_words: string[];
   queued_candidates: number;
+  yield_note?: string;
 };
 
 export async function adminLegalLawIngest(lawId: string): Promise<LegalLawIngestResult> {
@@ -600,12 +618,17 @@ export type FailedLawItem = {
 export async function adminLegalLawsFailed(limit = 100): Promise<{
   items: FailedLawItem[];
   count: number;
+  summary?: LegalFailedSummary;
 }> {
   const response = await fetch(apiUrl(`/api/v1/admin/legal/laws/failed?limit=${limit}`), {
     credentials: "include",
   });
   if (!response.ok) throw new Error("Алдаатай хуулиуд уншигдсангүй");
-  return response.json() as Promise<{ items: FailedLawItem[]; count: number }>;
+  return response.json() as Promise<{
+    items: FailedLawItem[];
+    count: number;
+    summary?: LegalFailedSummary;
+  }>;
 }
 
 export async function adminLegalLawSkip(lawId: string): Promise<{ skipped: FailedLawItem }> {
