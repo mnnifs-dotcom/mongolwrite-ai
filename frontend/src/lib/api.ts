@@ -5,12 +5,28 @@ import type {
   ImproveResponse,
   SettingsResponse,
 } from "./types";
+import { deviceHeaders } from "./deviceId";
 
 export type { AuthMeResponse, AuthUser };
 
 function apiUrl(path: string): string {
   if (typeof window !== "undefined") return path;
   return `${process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"}${path}`;
+}
+
+function jsonHeaders(extra?: Record<string, string>): Record<string, string> {
+  return {
+    "Content-Type": "application/json",
+    ...deviceHeaders(),
+    ...extra,
+  };
+}
+
+function authHeaders(extra?: Record<string, string>): Record<string, string> {
+  return {
+    ...deviceHeaders(),
+    ...extra,
+  };
 }
 
 export async function checkText(
@@ -66,7 +82,7 @@ async function postCheck(
       const response = await fetch(apiUrl(path), {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: jsonHeaders(),
         body,
         signal,
       });
@@ -75,6 +91,14 @@ async function postCheck(
       }
       if (response.status === 413 || response.status === 422) {
         lastError = new CheckLimitError();
+      } else if (response.status === 403) {
+        const detail = await response
+          .json()
+          .then((body: { detail?: string }) => body.detail)
+          .catch(() => null);
+        lastError = new Error(
+          detail || "Энэ бүртгэлээр төхөөрөмжийн хязгаар хэтэрсэн байна.",
+        );
       } else {
         lastError = new Error(
           response.status >= 500
@@ -144,7 +168,7 @@ export async function improveText(
   const response = await fetch(apiUrl("/api/v1/check/improve"), {
     method: "POST",
     credentials: "include",
-    headers: { "Content-Type": "application/json" },
+    headers: jsonHeaders(),
     body: JSON.stringify({
       text,
       document_type: options?.document_type ?? "official_letter",
@@ -154,6 +178,13 @@ export async function improveText(
   if (!response.ok) {
     if (response.status === 413 || response.status === 422) {
       throw new CheckLimitError();
+    }
+    if (response.status === 403) {
+      const detail = await response
+        .json()
+        .then((body: { detail?: string }) => body.detail)
+        .catch(() => null);
+      throw new Error(detail || "Энэ бүртгэлээр төхөөрөмжийн хязгаар хэтэрсэн байна.");
     }
     throw new Error(`Сайжруулалт амжилтгүй (${response.status})`);
   }
@@ -210,7 +241,10 @@ export async function learnFromText(text: string): Promise<{ added: string[]; ad
 }
 
 export async function getSettings(): Promise<SettingsResponse> {
-  const response = await fetch(apiUrl("/api/v1/settings"), { credentials: "include" });
+  const response = await fetch(apiUrl("/api/v1/settings"), {
+    credentials: "include",
+    headers: authHeaders(),
+  });
   if (!response.ok) {
     return { ai_enabled: false, check_max_chars: 500 };
   }
@@ -218,7 +252,17 @@ export async function getSettings(): Promise<SettingsResponse> {
 }
 
 export async function authMe(): Promise<AuthMeResponse> {
-  const response = await fetch(apiUrl("/api/v1/auth/me"), { credentials: "include" });
+  const response = await fetch(apiUrl("/api/v1/auth/me"), {
+    credentials: "include",
+    headers: authHeaders(),
+  });
+  if (response.status === 403) {
+    const detail = await response
+      .json()
+      .then((body: { detail?: string }) => body.detail)
+      .catch(() => null);
+    throw new Error(detail || "Энэ бүртгэлээр төхөөрөмжийн хязгаар хэтэрсэн байна.");
+  }
   if (!response.ok) {
     return { authenticated: false, user: null, google_client_id: null, plans: [] };
   }
@@ -231,11 +275,15 @@ export async function loginWithGoogle(
   const response = await fetch(apiUrl("/api/v1/auth/google"), {
     method: "POST",
     credentials: "include",
-    headers: { "Content-Type": "application/json" },
+    headers: jsonHeaders(),
     body: JSON.stringify({ credential }),
   });
   if (!response.ok) {
-    throw new Error("Google-ээр нэвтэрч чадсангүй");
+    const detail = await response
+      .json()
+      .then((body: { detail?: string }) => body.detail)
+      .catch(() => null);
+    throw new Error(detail || "Google-ээр нэвтэрч чадсангүй");
   }
   return response.json() as Promise<{ ok: boolean; user: AuthUser }>;
 }
@@ -246,11 +294,15 @@ export async function loginWithGoogleAccessToken(
   const response = await fetch(apiUrl("/api/v1/auth/google"), {
     method: "POST",
     credentials: "include",
-    headers: { "Content-Type": "application/json" },
+    headers: jsonHeaders(),
     body: JSON.stringify({ access_token: accessToken }),
   });
   if (!response.ok) {
-    throw new Error("Google-ээр нэвтэрч чадсангүй");
+    const detail = await response
+      .json()
+      .then((body: { detail?: string }) => body.detail)
+      .catch(() => null);
+    throw new Error(detail || "Google-ээр нэвтэрч чадсангүй");
   }
   return response.json() as Promise<{ ok: boolean; user: AuthUser }>;
 }
@@ -265,7 +317,8 @@ export async function authLogout(): Promise<void> {
 export async function saveAiKey(key: string): Promise<SettingsResponse> {
   const response = await fetch(apiUrl("/api/v1/settings/ai-key"), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    headers: jsonHeaders(),
     body: JSON.stringify({ key }),
   });
   if (!response.ok) {
@@ -382,6 +435,8 @@ export type AdminUser = {
   status: string;
   created_at: string;
   last_login_at: string;
+  last_check_at?: string;
+  device_count?: number;
 };
 
 export type AdminUsersPage = {
@@ -954,6 +1009,23 @@ export async function adminSetUserPlan(
   if (!response.ok) {
     const detail = await response.text();
     throw new Error(detail || "Төлөвлөгөө шинэчлэгдсэнгүй");
+  }
+  return response.json() as Promise<{ ok: boolean; user: AdminUser }>;
+}
+
+export async function adminClearUserDevices(
+  userId: string,
+): Promise<{ ok: boolean; user: AdminUser }> {
+  const response = await fetch(
+    apiUrl(`/api/v1/admin/users/${encodeURIComponent(userId)}/devices/clear`),
+    {
+      method: "POST",
+      credentials: "include",
+    },
+  );
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(detail || "Төхөөрөмж цэвэрлэж чадсангүй");
   }
   return response.json() as Promise<{ ok: boolean; user: AdminUser }>;
 }

@@ -50,7 +50,11 @@ def test_google_login_access_token(monkeypatch, tmp_path) -> None:
 
     monkeypatch.setattr("app.api.routes_auth.httpx.get", lambda *args, **kwargs: FakeResponse())
     client = TestClient(app)
-    response = client.post("/api/v1/auth/google", json={"access_token": "ya29.fake-token-value"})
+    response = client.post(
+        "/api/v1/auth/google",
+        json={"access_token": "ya29.fake-token-value"},
+        headers={"X-MW-Device-Id": "testdevice01"},
+    )
     assert response.status_code == 200
     body = response.json()
     assert body["ok"] is True
@@ -63,12 +67,14 @@ def test_admin_users_list_and_plan(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr("app.core.config.settings.admin_username", "admin")
     monkeypatch.setattr("app.core.config.settings.admin_password", "test-pass")
     monkeypatch.setattr("app.core.config.settings.secret_key", "test-secret")
+    monkeypatch.setattr("app.core.config.settings.app_env", "development")
 
-    from app.core.users import set_user_plan, upsert_google_user
+    from app.core.users import set_user_plan, touch_last_check, upsert_google_user
 
     upsert_google_user(sub="u1", email="free@example.com", name="Free User")
     upsert_google_user(sub="u2", email="pro@example.com", name="Pro User")
     set_user_plan("u2", "pro_year", plan_expires_at="2099-12-31")
+    touch_last_check("u2")
 
     client = TestClient(app)
     assert client.get("/api/v1/admin/users").status_code == 401
@@ -84,6 +90,8 @@ def test_admin_users_list_and_plan(monkeypatch, tmp_path) -> None:
     assert listed["counts"]["free"] == 1
     emails = {row["email"] for row in listed["items"]}
     assert emails == {"free@example.com", "pro@example.com"}
+    pro = next(row for row in listed["items"] if row["email"] == "pro@example.com")
+    assert pro["last_check_at"]
 
     paid = client.get("/api/v1/admin/users?plan=paid").json()
     assert paid["total"] == 1

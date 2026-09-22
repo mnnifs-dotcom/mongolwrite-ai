@@ -62,14 +62,28 @@ export function AuthButton() {
   const tokenClientRef = useRef<TokenClient | null>(null);
 
   const refresh = useCallback(async () => {
-    const me = await authMe();
-    setUser(me.user);
-    setClientId(me.google_client_id);
-    setReady(true);
+    try {
+      const me = await authMe();
+      setUser(me.user);
+      setClientId(me.google_client_id);
+      setError(null);
+    } catch (err) {
+      setUser(null);
+      setError(err instanceof Error ? err.message : "Нэвтэрч чадсангүй");
+      try {
+        const { getSettings } = await import("@/lib/api");
+        const settings = await getSettings();
+        if (settings.google_client_id) setClientId(settings.google_client_id);
+      } catch {
+        /* ignore */
+      }
+    } finally {
+      setReady(true);
+    }
   }, []);
 
   useEffect(() => {
-    void refresh().catch(() => setReady(true));
+    void refresh();
   }, [refresh]);
 
   useEffect(() => {

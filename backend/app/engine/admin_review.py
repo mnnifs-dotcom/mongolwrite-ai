@@ -10,13 +10,14 @@ from app.engine.dictionary import DictionaryProvider
 from app.engine.hunspell_candidates import (
     approve_words,
     forget_admin_added,
-    list_admin_added,
+    in_curated_lexicon,
     list_candidates,
     record_admin_added,
     reject_words,
 )
 from app.engine.pending import list_pending, pop_pending_many
 from app.engine.pipeline import LanguageEngine
+from app.engine.runtime import get_engine
 from app.engine.text import is_cyrillic_letter
 
 _WORD_SPLIT = re.compile(r"[\s,;|]+")
@@ -88,13 +89,20 @@ def collect_review_words(
     since: str = "",
     until: str = "",
     q: str = "",
+    dictionary: DictionaryProvider | None = None,
 ) -> dict[str, Any]:
-    """Gather pending + hunspell + admin-added (+ legal-sourced) words in a date range."""
+    """Gather pending + hunspell/legal candidates not already in the curated lexicon.
+
+    Admin-added (already-in-lexicon) words are intentionally excluded — once a word
+    is in the seed, it does not belong in the review batch.
+    """
     since_dt = _parse_bound(since, end=False)
     until_dt = _parse_bound(until, end=True)
     query = q.strip().casefold()
+    dictionary = dictionary or get_engine().dictionary
 
     by_folded: dict[str, dict[str, Any]] = {}
+    skipped_curated = 0
 
     def upsert(
         *,
@@ -106,6 +114,12 @@ def collect_review_words(
         ref: str = "",
         extra: dict[str, Any] | None = None,
     ) -> None:
+        nonlocal skipped_curated
+        if not word or not folded:
+            return
+        if in_curated_lexicon(dictionary, word) or in_curated_lexicon(dictionary, folded):
+            skipped_curated += 1
+            return
         if query and query not in folded and query not in word.casefold():
             return
         if not _in_range(when, since_dt, until_dt):
@@ -162,20 +176,6 @@ def collect_review_words(
             },
         )
 
-    for item in list_admin_added(since=since, until=until, q=q):
-        source = str(item.get("source") or "added")
-        kind = "added"
-        if source.startswith("legal"):
-            kind = "legalinfo"
-        upsert(
-            word=str(item.get("word") or ""),
-            folded=str(item.get("folded") or "").casefold(),
-            kind=kind,
-            when=str(item.get("added_at") or ""),
-            source=source or "added",
-            ref=str(item.get("ref") or ""),
-        )
-
     items = sorted(
         by_folded.values(),
         key=lambda row: (str(row.get("when") or ""), str(row.get("folded") or "")),
@@ -186,6 +186,7 @@ def collect_review_words(
         "items": items,
         "words": words,
         "count": len(items),
+        "skipped_curated": skipped_curated,
         "since": since,
         "until": until,
         "text": "\n".join(words),

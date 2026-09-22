@@ -10,12 +10,15 @@ from pydantic import BaseModel, Field
 from app.core.auth import (
     clear_session_cookie,
     credentials_ok,
+    production_admin_misconfigured,
     require_admin,
     set_session_cookie,
 )
 from app.core.config import settings
+from app.core.devices import clear_devices, list_devices
 from app.core.plans import get_plan, list_plans
 from app.core.users import list_users, set_user_plan
+
 from app.engine.admin_review import collect_review_words, confirm_review, preview_keep_drop
 from app.engine.hunspell_candidates import (
     admin_lists_payload,
@@ -80,8 +83,11 @@ class UserPlanUpdate(BaseModel):
 
 @router.post("/login")
 def login(body: LoginRequest, response: Response) -> dict[str, bool]:
-    if not settings.admin_password:
-        raise HTTPException(status_code=503, detail="Админ нууц үг тохируулаагүй")
+    if production_admin_misconfigured() or not settings.admin_password:
+        raise HTTPException(
+            status_code=503,
+            detail="Админ нэвтрэлт тохируулаагүй (нууц үг / secret солиогүй)",
+        )
     if not credentials_ok(body.username, body.password):
         raise HTTPException(status_code=401, detail="Нэвтрэх нэр эсвэл нууц үг буруу")
     set_session_cookie(response)
@@ -435,6 +441,30 @@ def admin_user_set_plan(user_id: str, body: UserPlanUpdate, _: AdminDep) -> dict
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if not row:
+        raise HTTPException(status_code=404, detail="Хэрэглэгч олдсонгүй")
+    from app.core.users import admin_user
+
+    return {"ok": True, "user": admin_user(row)}
+
+
+@router.get("/users/{user_id}/devices")
+def admin_user_devices(user_id: str, _: AdminDep) -> dict[str, Any]:
+    if not user_id.strip():
+        raise HTTPException(status_code=400, detail="Хэрэглэгч олдсонгүй")
+    from app.core.users import get_user
+
+    if not get_user(user_id):
+        raise HTTPException(status_code=404, detail="Хэрэглэгч олдсонгүй")
+    devices = list_devices(user_id)
+    return {"items": devices, "count": len(devices), "max": 2}
+
+
+@router.post("/users/{user_id}/devices/clear")
+def admin_user_clear_devices(user_id: str, _: AdminDep) -> dict[str, Any]:
+    if not user_id.strip():
+        raise HTTPException(status_code=400, detail="Хэрэглэгч олдсонгүй")
+    row = clear_devices(user_id)
     if not row:
         raise HTTPException(status_code=404, detail="Хэрэглэгч олдсонгүй")
     from app.core.users import admin_user

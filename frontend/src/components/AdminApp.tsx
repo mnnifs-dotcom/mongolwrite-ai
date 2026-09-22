@@ -28,6 +28,7 @@ import {
   adminRejectPending,
   adminRejectPendingMany,
   adminSetUserPlan,
+  adminClearUserDevices,
   adminUsers,
   type AdminAddedWord,
   type AdminUser,
@@ -375,6 +376,24 @@ export function AdminApp() {
       await loadUsers();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Төлөвлөгөө шинэчлэгдсэнгүй");
+    } finally {
+      setActing(null);
+    }
+  }
+
+  async function onClearUserDevices() {
+    if (!editingUser || acting) return;
+    setActing(`user-dev-${editingUser.id}`);
+    setError(null);
+    try {
+      const result = await adminClearUserDevices(editingUser.id);
+      setStatus(
+        `«${result.user.email || result.user.name || result.user.id}» · төхөөрөмж цэвэрлэгдлээ`,
+      );
+      setEditingUser({ ...editingUser, device_count: 0 });
+      await loadUsers();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Төхөөрөмж цэвэрлэж чадсангүй");
     } finally {
       setActing(null);
     }
@@ -1784,6 +1803,7 @@ export function AdminApp() {
                           <th>Төлөв</th>
                           <th>Дуусах</th>
                           <th>Сүүлд нэвтэрсэн</th>
+                          <th>Сүүлд шалгасан</th>
                           <th />
                         </tr>
                       </thead>
@@ -1821,6 +1841,7 @@ export function AdminApp() {
                                   : "—"}
                             </td>
                             <td>{formatWhen(user.last_login_at)}</td>
+                            <td>{user.last_check_at ? formatWhen(user.last_check_at) : "—"}</td>
                             <td>
                               <button
                                 type="button"
@@ -1916,6 +1937,21 @@ export function AdminApp() {
                       onClick={() => void onSaveUserPlan()}
                     >
                       Хадгалах
+                    </button>
+                    <button
+                      type="button"
+                      className="mw-btn"
+                      disabled={
+                        acting === `user-dev-${editingUser.id}` ||
+                        !(editingUser.device_count && editingUser.device_count > 0)
+                      }
+                      onClick={() => void onClearUserDevices()}
+                      title="Төхөөрөмжийн бүртгэлийг цэвэрлэж дахин нэвтрэх боломжтой болгоно"
+                    >
+                      Төхөөрөмж цэвэрлэх
+                      {editingUser.device_count
+                        ? ` (${editingUser.device_count}/2)`
+                        : ""}
                     </button>
                     <button type="button" className="mw-btn" onClick={() => setEditingUser(null)}>
                       Болих

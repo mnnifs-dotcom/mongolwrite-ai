@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import threading
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -12,6 +13,8 @@ from app.core.plans import DEFAULT_PLAN, get_plan, is_paid_plan, normalize_plan_
 from app.engine.dictionary import persist_dir
 
 _lock = threading.Lock()
+MAX_DEVICES = 2
+DEVICE_ID_RE = re.compile(r"^[A-Za-z0-9_-]{8,128}$")
 
 
 def _users_path() -> Path:
@@ -169,6 +172,104 @@ def get_user(user_id: str) -> dict[str, Any] | None:
         return dict(row) if row else None
 
 
+def update_user_fields(user_id: str, **fields: Any) -> dict[str, Any] | None:
+    """Patch arbitrary persisted fields on a user row."""
+    with _lock:
+        users = _load()
+        row = users.get(user_id)
+        if not row:
+            return None
+        for key, value in fields.items():
+            row[key] = value
+        users[user_id] = row
+        _save(users)
+        return dict(row)
+
+
+def touch_last_check(user_id: str) -> dict[str, Any] | None:
+    """Record the latest spelling-check timestamp for admin visibility."""
+    now = datetime.now(timezone.utc).isoformat()
+    return update_user_fields(user_id, last_check_at=now)
+
+
+def normalize_device_id(raw: str | None) -> str | None:
+    value = (raw or "").strip()
+    if not value or not DEVICE_ID_RE.fullmatch(value):
+        return None
+    return value
+
+
+def _devices_from_row(row: dict[str, Any]) -> list[dict[str, Any]]:
+    devices = row.get("devices")
+    if not isinstance(devices, list):
+        return []
+    out: list[dict[str, Any]] = []
+    for item in devices:
+        if not isinstance(item, dict):
+            continue
+        device_id = normalize_device_id(str(item.get("id") or ""))
+        if not device_id:
+            continue
+        out.append(
+            {
+                "id": device_id,
+                "first_seen_at": str(item.get("first_seen_at") or ""),
+                "last_seen_at": str(item.get("last_seen_at") or ""),
+            }
+        )
+    return out
+
+
+def list_user_devices(user_id: str) -> list[dict[str, Any]]:
+    row = get_user(user_id)
+    if not row:
+        return []
+    return _devices_from_row(row)
+
+
+def clear_user_devices(user_id: str) -> dict[str, Any] | None:
+    """Admin helper: wipe registered devices so the user can sign in again."""
+    return update_user_fields(user_id, devices=[])
+
+
+def register_or_touch_device(user_id: str, device_id: str) -> list[dict[str, Any]]:
+    """Register a device or refresh last_seen. Raises ValueError when over the limit."""
+    normalized = normalize_device_id(device_id)
+    if not normalized:
+        raise ValueError("Төхөөрөмжийн дугаар дутуу эсвэл буруу байна")
+    now = datetime.now(timezone.utc).isoformat()
+    with _lock:
+        users = _load()
+        row = users.get(user_id)
+        if not row:
+            raise ValueError("Нэвтрэх шаардлагатай")
+        devices = _devices_from_row(row)
+        for item in devices:
+            if item["id"] == normalized:
+                item["last_seen_at"] = now
+                row["devices"] = devices
+                users[user_id] = row
+                _save(users)
+                return list(devices)
+        if len(devices) >= MAX_DEVICES:
+            raise PermissionError(
+                f"Нэг бүртгэлээр дээд тал нь {MAX_DEVICES} төхөөрөмжөөс "
+                "хандах боломжтой. Өөр төхөөрөмжөөс гарна уу, эсвэл "
+                "дэмжлэгт хандана уу."
+            )
+        devices.append(
+            {
+                "id": normalized,
+                "first_seen_at": now,
+                "last_seen_at": now,
+            }
+        )
+        row["devices"] = devices
+        users[user_id] = row
+        _save(users)
+        return list(devices)
+
+
 def list_users(
     *,
     q: str = "",
@@ -289,4 +390,6 @@ def admin_user(row: dict[str, Any]) -> dict[str, Any]:
         "status": status,
         "created_at": row.get("created_at", ""),
         "last_login_at": row.get("last_login_at", ""),
+        "last_check_at": row.get("last_check_at", ""),
+        "device_count": len(_devices_from_row(row)),
     }

@@ -3,10 +3,11 @@ from __future__ import annotations
 from typing import Annotated, Any
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, Header, HTTPException, Response
 from pydantic import BaseModel, Field
 
 from app.core.config import settings
+from app.core.devices import DEVICE_HEADER, enforce_device, register_device_or_raise
 from app.core.plans import list_plans
 from app.core.user_auth import (
     clear_user_cookie,
@@ -81,7 +82,11 @@ def _verify_google_access_token(access_token: str) -> dict[str, str]:
 
 
 @router.post("/google")
-def login_google(body: GoogleLoginRequest, response: Response) -> dict[str, Any]:
+def login_google(
+    body: GoogleLoginRequest,
+    response: Response,
+    x_mw_device_id: Annotated[str | None, Header(alias=DEVICE_HEADER)] = None,
+) -> dict[str, Any]:
     access_token = body.access_token.strip()
     credential = body.credential.strip()
     if access_token:
@@ -96,12 +101,16 @@ def login_google(body: GoogleLoginRequest, response: Response) -> dict[str, Any]
         name=identity["name"],
         picture=identity["picture"],
     )
+    register_device_or_raise(str(row["id"]), x_mw_device_id or "")
     set_user_cookie(response, str(row["id"]))
     return {"ok": True, "user": public_user(row)}
 
 
 @router.get("/me")
-def me(user: Annotated[dict | None, Depends(optional_user)]) -> dict[str, Any]:
+def me(
+    user: Annotated[dict | None, Depends(optional_user)],
+    x_mw_device_id: Annotated[str | None, Header(alias=DEVICE_HEADER)] = None,
+) -> dict[str, Any]:
     if not user:
         return {
             "authenticated": False,
@@ -109,6 +118,7 @@ def me(user: Annotated[dict | None, Depends(optional_user)]) -> dict[str, Any]:
             "google_client_id": settings.google_client_id or None,
             "plans": list_plans(),
         }
+    enforce_device(str(user["id"]), x_mw_device_id)
     return {
         "authenticated": True,
         "user": user,
