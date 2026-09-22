@@ -4,11 +4,13 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from app.ai.keys import ai_enabled, save_api_key
+from app.core.auth import require_admin
 from app.core.config import settings
 from app.core.plans import effective_check_max_chars
 from app.core.user_auth import optional_user
 
 router = APIRouter(prefix="/api/v1", tags=["ai"])
+AdminDep = Annotated[None, Depends(require_admin)]
 
 
 class SettingsResponse(BaseModel):
@@ -35,6 +37,7 @@ def get_settings(
 @router.post("/settings/ai-key", response_model=SettingsResponse)
 def set_ai_key(
     body: KeyRequest,
+    _: AdminDep,
     user: Annotated[dict | None, Depends(optional_user)] = None,
 ) -> SettingsResponse:
     save_api_key(body.key)

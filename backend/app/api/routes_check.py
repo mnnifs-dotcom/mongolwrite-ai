@@ -3,15 +3,16 @@ from __future__ import annotations
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 
 from app.ai.keys import ai_enabled
 from app.ai.provider import OpenAIProvider
 from app.ai.validate import filter_bad_suggestions
-from app.core.config import settings
+from app.core.devices import DEVICE_HEADER, enforce_device
 from app.core.plans import effective_check_max_chars
 from app.core.user_auth import optional_user
+from app.core.users import touch_last_check
 from app.engine.improve import improve_text
 from app.engine.models import Correction
 from app.engine.ranker import rank_corrections
@@ -22,6 +23,7 @@ _ai = OpenAIProvider()
 _log = logging.getLogger(__name__)
 
 UserDep = Annotated[dict | None, Depends(optional_user)]
+DeviceHeader = Annotated[str | None, Header(alias=DEVICE_HEADER)]
 
 
 class CheckRequest(BaseModel):
@@ -48,6 +50,17 @@ def _assert_char_limit(text: str, user: dict | None) -> None:
                 "Бичвэрийг хувааж (бүлэг/хэсгээр) оруулна уу."
             ),
         )
+
+
+def _note_user_check(user: dict | None, device_id: str | None) -> None:
+    """Enforce device limit and stamp last_check_at for signed-in users."""
+    if not user:
+        return
+    user_id = str(user.get("id") or "")
+    if not user_id:
+        return
+    enforce_device(user_id, device_id)
+    touch_last_check(user_id)
 
 
 def _word_count(text: str) -> int:
@@ -77,8 +90,13 @@ def run_check(text: str, style: str) -> list[Correction]:
 
 
 @router.post("/deterministic", response_model=CheckResponse)
-def check_deterministic(body: CheckRequest, user: UserDep) -> CheckResponse:
+def check_deterministic(
+    body: CheckRequest,
+    user: UserDep,
+    x_mw_device_id: DeviceHeader = None,
+) -> CheckResponse:
     _assert_char_limit(body.text, user)
+    _note_user_check(user, x_mw_device_id)
     try:
         corrections = run_engine_check(body.text, style=body.style)
     except Exception:
@@ -93,8 +111,13 @@ def check_deterministic(body: CheckRequest, user: UserDep) -> CheckResponse:
 
 
 @router.post("/all", response_model=CheckResponse)
-def check_all(body: CheckRequest, user: UserDep) -> CheckResponse:
+def check_all(
+    body: CheckRequest,
+    user: UserDep,
+    x_mw_device_id: DeviceHeader = None,
+) -> CheckResponse:
     _assert_char_limit(body.text, user)
+    _note_user_check(user, x_mw_device_id)
     corrections = run_check(body.text, body.style)
     return CheckResponse(
         corrections=corrections,
@@ -105,15 +128,23 @@ def check_all(body: CheckRequest, user: UserDep) -> CheckResponse:
 
 
 @router.post("/spelling", response_model=CheckResponse)
-def check_spelling(body: CheckRequest, user: UserDep) -> CheckResponse:
-    result = check_deterministic(body, user)
+def check_spelling(
+    body: CheckRequest,
+    user: UserDep,
+    x_mw_device_id: DeviceHeader = None,
+) -> CheckResponse:
+    result = check_deterministic(body, user, x_mw_device_id)
     result.corrections = [c for c in result.corrections if c.category == "SPELLING"]
     return result
 
 
 @router.post("/grammar", response_model=CheckResponse)
-def check_grammar(body: CheckRequest, user: UserDep) -> CheckResponse:
-    result = check_deterministic(body, user)
+def check_grammar(
+    body: CheckRequest,
+    user: UserDep,
+    x_mw_device_id: DeviceHeader = None,
+) -> CheckResponse:
+    result = check_deterministic(body, user, x_mw_device_id)
     result.corrections = [
         c for c in result.corrections if c.category in {"GRAMMAR", "REDUNDANCY"}
     ]
@@ -121,8 +152,12 @@ def check_grammar(body: CheckRequest, user: UserDep) -> CheckResponse:
 
 
 @router.post("/style", response_model=CheckResponse)
-def check_style(body: CheckRequest, user: UserDep) -> CheckResponse:
-    result = check_deterministic(body, user)
+def check_style(
+    body: CheckRequest,
+    user: UserDep,
+    x_mw_device_id: DeviceHeader = None,
+) -> CheckResponse:
+    result = check_deterministic(body, user, x_mw_device_id)
     result.corrections = [
         c for c in result.corrections if c.category in {"STYLE", "FORMALITY", "CLARITY"}
     ]
@@ -135,8 +170,13 @@ class ImproveResponse(CheckResponse):
 
 
 @router.post("/improve", response_model=ImproveResponse)
-def improve_document(body: CheckRequest, user: UserDep) -> ImproveResponse:
+def improve_document(
+    body: CheckRequest,
+    user: UserDep,
+    x_mw_device_id: DeviceHeader = None,
+) -> ImproveResponse:
     _assert_char_limit(body.text, user)
+    _note_user_check(user, x_mw_device_id)
     engine = get_engine()
     text = body.text
     applied = 0
@@ -162,8 +202,13 @@ def improve_document(body: CheckRequest, user: UserDep) -> ImproveResponse:
 
 
 @router.post("/ai", response_model=CheckResponse)
-def check_ai(body: CheckRequest, user: UserDep) -> CheckResponse:
+def check_ai(
+    body: CheckRequest,
+    user: UserDep,
+    x_mw_device_id: DeviceHeader = None,
+) -> CheckResponse:
     _assert_char_limit(body.text, user)
+    _note_user_check(user, x_mw_device_id)
     if not ai_enabled():
         raise HTTPException(
             status_code=503,
