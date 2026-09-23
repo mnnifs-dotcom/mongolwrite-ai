@@ -357,3 +357,53 @@ def test_live_harvest_skips_unfinished_trailing_token(monkeypatch, tmp_path) -> 
     folded = {row["folded"] for row in list_candidates()}
     assert coined in folded
     assert "сургууль" not in folded
+
+
+def test_prune_removes_typing_prefix_candidates(monkeypatch, tmp_path) -> None:
+    """Existing fragment rows (сургуу) are dropped when admin lists reload."""
+    persist = tmp_path / "persist"
+    persist.mkdir()
+    monkeypatch.setattr("app.engine.hunspell_candidates.persist_dir", lambda: persist)
+
+    import json
+
+    from app.engine.dictionary import DictionaryProvider
+    from app.engine.hunspell_candidates import prune_clear_error_candidates, list_candidates
+
+    path = persist / "hunspell_candidates.json"
+    path.write_text(
+        json.dumps(
+            {
+                "words": [
+                    {
+                        "word": "сургуу",
+                        "folded": "сургуу",
+                        "tier": "doubt",
+                        "reason": "old fragment",
+                        "suggestion": "",
+                        "count": 5,
+                        "seen_at": "2026-01-01T00:00:00+00:00",
+                        "updated_at": "2026-01-01T00:00:00+00:00",
+                    },
+                    {
+                        "word": "эргэлзээтэйтэстүг",
+                        "folded": "эргэлзээтэйтэстүг",
+                        "tier": "doubt",
+                        "reason": "keep",
+                        "suggestion": "",
+                        "count": 1,
+                        "seen_at": "2026-01-01T00:00:00+00:00",
+                        "updated_at": "2026-01-01T00:00:00+00:00",
+                    },
+                ]
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    dictionary = DictionaryProvider(frozenset({"сургууль"}))
+    removed = prune_clear_error_candidates(dictionary)
+    assert removed >= 1
+    folded = {row["folded"] for row in list_candidates()}
+    assert "сургуу" not in folded
+    assert "эргэлзээтэйтэстүг" in folded

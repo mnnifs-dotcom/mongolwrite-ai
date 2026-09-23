@@ -641,7 +641,7 @@ def list_candidates(tier: Tier | str | None = None) -> list[dict[str, Any]]:
 
 
 def prune_clear_error_candidates(dictionary: DictionaryProvider | None = None) -> int:
-    """Drop queued words that are clear errors or obvious junk (one-shot cleanup)."""
+    """Drop queued words that are clear errors, junk, or typing prefixes of known lemmas."""
     from app.engine.runtime import get_engine
 
     dict_provider = dictionary or get_engine().dictionary
@@ -654,6 +654,7 @@ def prune_clear_error_candidates(dictionary: DictionaryProvider | None = None) -
             for folded, row in rows.items()
             if is_obvious_junk(str(row.get("word") or folded))
             or is_clear_orthography_error(dict_provider, str(row.get("word") or folded))
+            or dict_provider.is_proper_prefix_of_known(str(row.get("word") or folded))
         ]
         if not drop:
             return 0
