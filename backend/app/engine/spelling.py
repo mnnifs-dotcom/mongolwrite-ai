@@ -71,16 +71,11 @@ def _is_cyrillic_word(word: str) -> bool:
 
 
 def _apply_case(original: str, suggested: str) -> str:
+    """Offer suggestions in dictionary (lowercase) form — never ALL CAPS."""
     if not suggested:
         return suggested
-    letters = [ch for ch in original if ch.isalpha()]
-    if letters and all(ch.isupper() for ch in letters):
-        return suggested.upper()
-    if original[:1].isupper():
-        head, sep, tail = suggested.partition(" ")
-        cased = head[:1].upper() + head[1:]
-        return cased + sep + tail
-    return suggested
+    # Keep spacing/punctuation from the suggestion, fold Cyrillic letter case.
+    return suggested.casefold()
 
 
 _VOWELS = frozenset("аэиоуөүяёеюы")
