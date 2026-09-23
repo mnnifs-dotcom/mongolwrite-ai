@@ -449,6 +449,9 @@ def classify_candidate(dictionary: DictionaryProvider, word: str) -> dict[str, A
         return None
     if is_clear_orthography_error(dictionary, cleaned):
         return None
+    # Typing mid-word produces «сургуу» while «сургууль» is already known — drop those.
+    if dictionary.is_proper_prefix_of_known(cleaned):
+        return None
 
     hun_ok = hunspell_knows(dictionary, cleaned)
     wiki = dictionary.wiki_frequency(cleaned)
@@ -495,12 +498,32 @@ def classify_candidate(dictionary: DictionaryProvider, word: str) -> dict[str, A
     }
 
 
-def extract_missing_words(engine: LanguageEngine, text: str) -> list[str]:
+def _text_has_unfinished_trailing_word(text: str) -> bool:
+    """True when the buffer likely ends mid-word (user still typing)."""
+    stripped = text.rstrip(" \t")
+    if not stripped:
+        return False
+    # Newline / sentence end → treat as finished even without trailing space.
+    if stripped.endswith(("\n", "\r", ".", "!", "?", "…", ":", ";", ",", ")", "]", "»", "”", '"')):
+        return False
+    last = stripped[-1]
+    return last.isalpha() or last in "'’-"
+
+
+def extract_missing_words(
+    engine: LanguageEngine,
+    text: str,
+    *,
+    skip_unfinished_trailing: bool = False,
+) -> list[str]:
     """Cyrillic tokens missing from the curated lexicon (Hunspell-only or unknown)."""
     dictionary = engine.dictionary
     found: list[str] = []
     seen: set[str] = set()
-    for token in tokenize(text):
+    tokens = tokenize(text)
+    if skip_unfinished_trailing and tokens and _text_has_unfinished_trailing_word(text):
+        tokens = tokens[:-1]
+    for token in tokens:
         letters = [ch for ch in token.text if ch.isalpha()]
         if len(token.text) < 2 or not letters:
             continue
@@ -511,6 +534,9 @@ def extract_missing_words(engine: LanguageEngine, text: str) -> list[str]:
             continue
         seen.add(folded)
         if in_curated_lexicon(dictionary, folded):
+            continue
+        # Prefix of a known lemma is a typing fragment, not a new word.
+        if dictionary.is_proper_prefix_of_known(folded):
             continue
         found.append(token.text)
     return found
@@ -564,11 +590,20 @@ def _flush_pending() -> int:
         return changed
 
 
-def record_from_text(engine: LanguageEngine, text: str) -> int:
+def record_from_text(
+    engine: LanguageEngine,
+    text: str,
+    *,
+    skip_unfinished_trailing: bool = False,
+) -> int:
     """Harvest curated-missing words from text into candidate lists. Returns queued count."""
     if not text.strip():
         return 0
-    words = extract_missing_words(engine, text)
+    words = extract_missing_words(
+        engine,
+        text,
+        skip_unfinished_trailing=skip_unfinished_trailing,
+    )
     if not words:
         return 0
     dictionary = engine.dictionary
@@ -759,8 +794,12 @@ def queue_review_words(
 
 
 def harvest_safe(engine: LanguageEngine, text: str) -> None:
-    """Best-effort harvest for check path — never raises."""
+    """Best-effort harvest for check path — never raises.
+
+    Skips the unfinished trailing token so mid-typing prefixes
+    («сур», «сургуу») are not queued while the user finishes «сургууль».
+    """
     try:
-        record_from_text(engine, text)
+        record_from_text(engine, text, skip_unfinished_trailing=True)
     except Exception:
         _log.exception("hunspell candidate harvest failed")
