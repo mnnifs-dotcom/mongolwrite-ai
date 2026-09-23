@@ -268,20 +268,67 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-right: 6px;
 }
 
 .mw-auth-login {
-  font-weight: 650;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 38px;
+  padding: 7px 16px 7px 11px;
+  border-radius: 11px;
+  border: 1.5px solid color-mix(in srgb, var(--accent) 48%, #fff);
+  background: linear-gradient(180deg, #fff 0%, color-mix(in srgb, var(--accent) 10%, #fff) 100%);
   color: var(--accent-deep);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  cursor: pointer;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.85) inset,
+    0 4px 14px rgba(31, 111, 173, 0.16);
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    transform 0.16s ease;
 }
 
-.mw-auth-login:hover {
-  background: color-mix(in srgb, var(--accent) 12%, #fff);
-  border: 0;
+.mw-auth-login:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: linear-gradient(180deg, #fff 0%, color-mix(in srgb, var(--accent) 18%, #fff) 100%);
   color: var(--link-hover);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 8px 20px rgba(31, 111, 173, 0.22);
+  transform: translateY(-1px);
+}
+
+.mw-auth-login:disabled {
+  opacity: 0.72;
+  cursor: wait;
+}
+
+.mw-auth-google {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  background: #fff;
+  border: 1px solid color-mix(in srgb, var(--accent) 16%, transparent);
+  flex: 0 0 auto;
+}
+
+.mw-auth-google svg {
+  display: block;
+}
+
+.mw-auth-login-text {
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .mw-auth-user {
@@ -505,13 +552,15 @@ body {
 
 .mw-top-actions .mw-btn,
 .mw-top-actions .mw-btn-primary,
-.mw-top-actions .mw-auth-login,
 .mw-top-actions .mw-menu-trigger {
   min-height: 36px;
 }
 
-.mw-top-actions .mw-btn,
 .mw-top-actions .mw-auth-login {
+  min-height: 38px;
+}
+
+.mw-top-actions .mw-btn {
   border: 0;
   background: transparent;
   box-shadow: none;
@@ -533,8 +582,7 @@ body {
   transform: translateY(-1px);
 }
 
-.mw-top-actions .mw-btn:hover,
-.mw-top-actions .mw-auth-login:hover {
+.mw-top-actions .mw-btn:hover {
   border: 0;
   background: color-mix(in srgb, var(--accent) 12%, #fff);
 }
