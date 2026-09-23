@@ -57,7 +57,7 @@ type AdminSection =
   | "legal"
   | "health";
 
-const PAGE_SIZE = 80;
+const PAGE_SIZE = 200;
 const USERS_PAGE = 50;
 const LAWS_PAGE = 40;
 
