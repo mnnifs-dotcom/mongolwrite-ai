@@ -118,11 +118,11 @@ def billing_order_detail(
     order_id: str,
     user: Annotated[dict, Depends(require_user)],
 ) -> dict[str, Any]:
+    """Return stored order status only — do not hit QPay payment/check (docs forbid polling)."""
     order = get_order(order_id)
     if not order or str(order.get("user_id")) != str(user["id"]):
         raise HTTPException(status_code=404, detail="Захиалга олдсонгүй")
-    synced = sync_order_payment(order)
-    return {"order": public_order(synced), "checkout_ready": qpay_configured()}
+    return {"order": public_order(order), "checkout_ready": qpay_configured()}
 
 
 @router.post("/orders/{order_id}/sync")
@@ -130,7 +130,7 @@ def billing_order_sync(
     order_id: str,
     user: Annotated[dict, Depends(require_user)],
 ) -> dict[str, Any]:
-    """Client poll — re-check QPay and activate if paid."""
+    """Manual verify — call payment/check once (after callback or user tap)."""
     order = get_order(order_id)
     if not order or str(order.get("user_id")) != str(user["id"]):
         raise HTTPException(status_code=404, detail="Захиалга олдсонгүй")

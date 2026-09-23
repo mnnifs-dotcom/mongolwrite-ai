@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import logging
-import secrets
 import threading
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -119,7 +118,8 @@ def create_checkout(
     if not is_paid_plan(plan["id"]):
         raise ValueError("Зөвхөн төлбөртэй багц сонгоно")
     order_id = str(uuid.uuid4())
-    sender_invoice_no = f"MW-{secrets.token_hex(4).upper()}"
+    # Docs: sender_invoice_no must be unique — never reuse.
+    sender_invoice_no = f"MW-{order_id.replace('-', '').upper()[:20]}"
     stamped = _now()
     order: dict[str, Any] = {
         "id": order_id,
@@ -154,6 +154,7 @@ def create_checkout(
                 amount_mnt=int(plan["price_mnt"]),
                 description=f"MongolWrite · {plan['name']}",
                 receiver_code="terminal",
+                order_id=order_id,
             )
             order["status"] = "awaiting_payment"
             order["qpay_invoice_id"] = invoice["invoice_id"]

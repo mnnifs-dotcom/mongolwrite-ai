@@ -1102,6 +1102,22 @@ export async function createBillingCheckout(
   }>;
 }
 
+export async function fetchBillingOrder(orderId: string): Promise<{
+  order: BillingOrder;
+  checkout_ready: boolean;
+}> {
+  const response = await fetch(
+    apiUrl(`/api/v1/billing/orders/${encodeURIComponent(orderId)}`),
+    {
+      method: "GET",
+      credentials: "include",
+      headers: authHeaders(),
+    },
+  );
+  if (!response.ok) throw new Error("Захиалга олдсонгүй");
+  return response.json() as Promise<{ order: BillingOrder; checkout_ready: boolean }>;
+}
+
 export async function syncBillingOrder(
   orderId: string,
 ): Promise<{ order: BillingOrder; paid: boolean }> {

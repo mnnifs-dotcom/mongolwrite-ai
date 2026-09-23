@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { syncBillingOrder, type BillingOrder } from "@/lib/api";
+import { fetchBillingOrder, syncBillingOrder, type BillingOrder } from "@/lib/api";
 
 function formatPrice(mnt: number): string {
   return `₮${mnt.toLocaleString("mn-MN")}`;
@@ -26,9 +26,13 @@ type Props = {
   onPaid?: (order: BillingOrder) => void;
 };
 
-/** Poll gently — гэрээ 6.3.4: bill/check-ийг тасралтгүй дуудахгүй. */
-const POLL_MS = 8_000;
-const POLL_MAX_MS = 30 * 60 * 1000;
+/**
+ * Poll our stored order status only (no QPay payment/check).
+ * Docs forbid cron/continuous payment/check — activation comes from
+ * QPay callback; manual "Төлбөр шалгах" is the user-initiated fallback.
+ */
+const LOCAL_POLL_MS = 5_000;
+const LOCAL_POLL_MAX_MS = 30 * 60 * 1000;
 
 export function QpayCheckoutPanel({ order: initial, checkoutReady, onPaid }: Props) {
   const [order, setOrder] = useState(initial);
@@ -46,24 +50,24 @@ export function QpayCheckoutPanel({ order: initial, checkoutReady, onPaid }: Pro
     let cancelled = false;
     const started = Date.now();
     const tick = async () => {
-      if (Date.now() - started > POLL_MAX_MS) return;
+      if (Date.now() - started > LOCAL_POLL_MAX_MS) return;
       try {
-        const result = await syncBillingOrder(order.id);
+        const result = await fetchBillingOrder(order.id);
         if (cancelled) return;
         setOrder(result.order);
-        if (result.paid) onPaidRef.current?.(result.order);
+        if (result.order.status === "paid") onPaidRef.current?.(result.order);
       } catch {
         /* ignore transient poll errors */
       }
     };
     void tick();
     const id = window.setInterval(() => {
-      if (Date.now() - started > POLL_MAX_MS) {
+      if (Date.now() - started > LOCAL_POLL_MAX_MS) {
         window.clearInterval(id);
         return;
       }
       void tick();
-    }, POLL_MS);
+    }, LOCAL_POLL_MS);
     return () => {
       cancelled = true;
       window.clearInterval(id);
@@ -109,7 +113,8 @@ export function QpayCheckoutPanel({ order: initial, checkoutReady, onPaid }: Pro
         <>
           <p className="mw-muted">
             QR кодыг банкны аппаар уншуулна уу. Утаснаас бол доорх бүх төлбөрийн холбоосоос
-            сонгоно уу.
+            сонгоно уу. Төлсний дараа автоматаар баталгаажна; хэрэв удаан бол
+            «Төлбөр шалгах» дар.
           </p>
           {qrSrc ? (
             // eslint-disable-next-line @next/next/no-img-element

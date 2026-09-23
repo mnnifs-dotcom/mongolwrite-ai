@@ -18,12 +18,59 @@ def test_token_expiry_accepts_unix_timestamp(monkeypatch) -> None:
         text = ""
 
         def json(self):
-            return {"access_token": "tok-ts", "expires_in": 1_900_000_000}
+            return {
+                "access_token": "tok-ts",
+                "refresh_token": "ref-ts",
+                "expires_in": 1_900_000_000,
+            }
 
     monkeypatch.setattr(qpay_mod.httpx, "post", lambda *a, **k: FakeResponse())
     token = qpay_mod.get_access_token()
     assert token == "tok-ts"
     assert qpay_mod._token_expires_at == 1_900_000_000.0
+    assert qpay_mod._refresh_token == "ref-ts"
+
+
+def test_token_refresh_preferred_over_reauth(monkeypatch) -> None:
+    monkeypatch.setattr("app.core.config.settings.qpay_client_id", "merchant")
+    monkeypatch.setattr("app.core.config.settings.qpay_client_secret", "secret")
+    qpay_mod._clear_token()
+    qpay_mod._token = "old"
+    qpay_mod._refresh_token = "ref-1"
+    qpay_mod._token_expires_at = 1.0  # expired
+    calls: list[str] = []
+
+    class FakeResponse:
+        def __init__(self, payload: dict):
+            self.status_code = 200
+            self.text = ""
+            self._payload = payload
+
+        def json(self):
+            return self._payload
+
+    def fake_post(url, *args, **kwargs):
+        calls.append(url)
+        if url.endswith("/auth/refresh"):
+            assert kwargs.get("headers", {}).get("Authorization") == "Bearer ref-1"
+            return FakeResponse(
+                {
+                    "access_token": "tok-refreshed",
+                    "refresh_token": "ref-2",
+                    "expires_in": 1_900_000_100,
+                }
+            )
+        raise AssertionError(f"unexpected {url}")
+
+    monkeypatch.setattr(qpay_mod.httpx, "post", fake_post)
+    assert qpay_mod.get_access_token() == "tok-refreshed"
+    assert any("/auth/refresh" in u for u in calls)
+    assert not any("/auth/token" in u for u in calls)
+
+
+def test_callback_url_embeds_order_id() -> None:
+    url = qpay_mod.callback_url(order_id="ord-abc")
+    assert "order_id=ord-abc" in url
 
 
 def test_qpay_create_invoice_and_check(monkeypatch, tmp_path) -> None:
@@ -54,11 +101,18 @@ def test_qpay_create_invoice_and_check(monkeypatch, tmp_path) -> None:
     def fake_post(url, *args, **kwargs):
         calls.append(url)
         if url.endswith("/auth/token"):
-            return FakeResponse(200, {"access_token": "tok-1", "expires_in": 3600})
+            return FakeResponse(
+                200,
+                {
+                    "access_token": "tok-1",
+                    "refresh_token": "ref-1",
+                    "expires_in": 3600,
+                },
+            )
         if url.endswith("/invoice"):
             body = kwargs.get("json") or {}
             assert body["invoice_code"] == "MW_INVOICE"
-            assert body["callback_url"].endswith("/api/v1/billing/qpay/callback")
+            assert "order_id=order-xyz" in body["callback_url"]
             assert body["amount"] == 6000.0
             return FakeResponse(
                 200,
@@ -71,6 +125,8 @@ def test_qpay_create_invoice_and_check(monkeypatch, tmp_path) -> None:
                 },
             )
         if url.endswith("/payment/check"):
+            body = kwargs.get("json") or {}
+            assert body["offset"] == {"page_number": 1, "page_limit": 100}
             return FakeResponse(
                 200,
                 {
@@ -87,6 +143,7 @@ def test_qpay_create_invoice_and_check(monkeypatch, tmp_path) -> None:
         sender_invoice_no="MW-TEST",
         amount_mnt=6000,
         description="MongolWrite · 3 сар",
+        order_id="order-xyz",
     )
     assert invoice["invoice_id"] == "inv-abc"
     assert invoice["qr_text"] == "QRDATA"
