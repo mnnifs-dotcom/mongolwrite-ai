@@ -1758,8 +1758,10 @@ body {
   margin: 8px 0 12px;
 }
 
-.mw-lex-scroll {
-  max-height: min(58vh, 560px);
+/* Lexicon word list: taller than generic admin scrolls so letter browsing
+   shows many more entries per screen. Must beat `.mw-admin-scroll`. */
+.mw-admin-scroll.mw-lex-scroll {
+  max-height: min(72vh, 780px);
 }
 
 .mw-lex-list li {
@@ -2245,8 +2247,8 @@ body {
     max-height: 220px;
   }
 
-  .mw-lex-scroll {
-    max-height: 40vh;
+  .mw-admin-scroll.mw-lex-scroll {
+    max-height: min(62vh, 640px);
   }
 }
 
