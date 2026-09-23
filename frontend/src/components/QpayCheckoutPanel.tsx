@@ -103,76 +103,89 @@ export function QpayCheckoutPanel({
 
   return (
     <div className="mw-qpay-panel" role="status" ref={panelRef} tabIndex={-1}>
-      <div className="mw-qpay-panel-head">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/qpay-mark.svg" alt="QPay" width={72} height={22} className="mw-qpay-mark" />
-        <strong>
-          {paid
-            ? "Төлбөр амжилттай"
-            : `${order.plan_name} · ${formatPrice(order.amount_mnt)}`}
-        </strong>
+      <header className="mw-qpay-panel-head">
+        <div className="mw-qpay-brand">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/qpay-mark.svg" alt="QPay" width={72} height={22} className="mw-qpay-mark" />
+        </div>
+        <div className="mw-qpay-order">
+          <strong>
+            {paid
+              ? "Төлбөр амжилттай"
+              : `${order.plan_name} · ${formatPrice(order.amount_mnt)}`}
+          </strong>
+        </div>
         {onBack && !paid ? (
           <button type="button" className="mw-qpay-back" onClick={onBack}>
             Буцах
           </button>
         ) : null}
-      </div>
+      </header>
 
       {paid ? (
-        <p className="mw-muted">Эрх идэвхжлээ.</p>
+        <p className="mw-qpay-note">Эрх идэвхжлээ.</p>
       ) : ready ? (
-        <>
+        <div className="mw-qpay-body">
           {qrSrc ? (
-            <div className="mw-qpay-qr-wrap">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={qrSrc} alt="QPay QR" className="mw-qpay-qr" width={260} height={260} />
-            </div>
+            <section className="mw-qpay-section mw-qpay-section-qr" aria-label="QR код">
+              <h3 className="mw-qpay-section-title">QR код уншуулах</h3>
+              <div className="mw-qpay-qr-wrap">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={qrSrc} alt="QPay QR" className="mw-qpay-qr" width={240} height={240} />
+              </div>
+            </section>
           ) : null}
 
-          <div className="mw-qpay-actions">
-            {order.qpay_short_url ? (
-              <a
-                href={order.qpay_short_url}
-                target="_blank"
-                rel="noreferrer"
-                className="mw-seo-cta mw-seo-cta-inline"
+          <section className="mw-qpay-section mw-qpay-section-actions" aria-label="Төлбөрийн үйлдэл">
+            <h3 className="mw-qpay-section-title">Төлбөр</h3>
+            <div className="mw-qpay-actions">
+              {order.qpay_short_url ? (
+                <a
+                  href={order.qpay_short_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mw-qpay-action-primary"
+                >
+                  Аппаар нээх
+                </a>
+              ) : null}
+              <button
+                type="button"
+                className="mw-qpay-action-secondary"
+                disabled={syncing}
+                onClick={() => void onManualSync()}
               >
-                Аппаар нээх
-              </a>
-            ) : null}
-            <button
-              type="button"
-              className="mw-btn"
-              disabled={syncing}
-              onClick={() => void onManualSync()}
-            >
-              {syncing ? "Шалгаж байна…" : "Төлбөр шалгах"}
-            </button>
-          </div>
+                {syncing ? "Шалгаж байна…" : "Төлбөр шалгах"}
+              </button>
+            </div>
+          </section>
 
           {urls.length ? (
-            <ul className="mw-qpay-banks" aria-label="Банкны апп">
-              {urls.map((row) => {
-                const href = row.link || "";
-                const label = row.name || row.description || "Банк";
-                if (!href) return null;
-                return (
-                  <li key={`${label}-${href}`}>
-                    <a href={href} target="_blank" rel="noreferrer">
-                      {row.logo ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={row.logo} alt="" width={20} height={20} />
-                      ) : null}
-                      <span>{label}</span>
-                    </a>
-                  </li>
-                );
-              })}
-            </ul>
+            <section className="mw-qpay-section mw-qpay-section-banks" aria-label="Банкны апп">
+              <h3 className="mw-qpay-section-title">Банкны апп</h3>
+              <ul className="mw-qpay-banks">
+                {urls.map((row) => {
+                  const href = row.link || "";
+                  const label = row.name || row.description || "Банк";
+                  if (!href) return null;
+                  return (
+                    <li key={`${label}-${href}`}>
+                      <a href={href} target="_blank" rel="noreferrer">
+                        {row.logo ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={row.logo} alt="" width={20} height={20} />
+                        ) : null}
+                        <span>{label}</span>
+                      </a>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
           ) : null}
-        </>
+        </div>
       ) : (
-        <p className="mw-muted">{order.note || "Нэхэмжлэх үүсгэж байна…"}</p>
+        <p className="mw-qpay-note">{order.note || "Нэхэмжлэх үүсгэж байна…"}</p>
       )}
     </div>
   );
