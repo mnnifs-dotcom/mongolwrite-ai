@@ -89,7 +89,10 @@ def test_editor_fp_batch_survives_sealed_lookups() -> None:
         assert lemma not in flagged, f"{lemma} falsely flagged under sealed lookups"
 
 
-def test_apply_case_preserves_all_caps() -> None:
-    assert _apply_case("ҮНДЭСНИЙ", "үндэсний") == "ҮНДЭСНИЙ"
-    assert _apply_case("Үндэсний", "үндэсний") == "Үндэсний"
+def test_apply_case_offers_lowercase_suggestions() -> None:
+    """Users should see dictionary-style lowercase suggestions (аав, not ААВ)."""
+    assert _apply_case("ҮНДЭСНИЙ", "үндэсний") == "үндэсний"
+    assert _apply_case("Үндэсний", "үндэсний") == "үндэсний"
     assert _apply_case("үндэсний", "үндэсний") == "үндэсний"
+    assert _apply_case("ААВВ", "аав") == "аав"
+    assert _apply_case("ӨДРЭЭС", "өдрөөс") == "өдрөөс"

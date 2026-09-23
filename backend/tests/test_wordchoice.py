@@ -104,7 +104,7 @@ def test_style_redundancy() -> None:
 
 def test_style_tiim_bolohor() -> None:
     found = engine.check("Тийм болохоор хариу хүргүүлнэ.")
-    assert any(item.suggested_text == "Иймд" for item in found)
+    assert any(item.suggested_text.casefold() == "иймд" for item in found)
 
 
 def test_style_keeps_official_sentence() -> None:
