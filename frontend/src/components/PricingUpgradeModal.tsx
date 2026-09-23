@@ -108,7 +108,7 @@ export function PricingUpgradeModal({ open, onClose, limit }: PricingUpgradeModa
         </button>
         <header className="mw-upgrade-header">
           <p className="mw-upgrade-kicker" id={titleId}>
-            {order ? "Төлбөр" : "Багц сонгох"}
+            {order ? "ТӨЛБӨР" : "БАГЦ СОНГОХ"}
           </p>
           {order ? null : (
             <p>
