@@ -420,6 +420,29 @@ class DictionaryProvider:
             return False
         return word in self._words or folded in self._words
 
+    def is_proper_prefix_of_known(self, word: str, *, max_extra: int = 18) -> bool:
+        """True when ``word`` is a strict prefix of a curated seed lemma.
+
+        Blocks typing fragments like «сургуу» while the user is finishing «сургууль».
+        Only seed lemmas count — synthetic case-form expansions in ``_words``
+        must not make the full lemma look like a prefix of itself.
+        """
+        folded = word.casefold()
+        if len(folded) < 2:
+            return False
+        first = folded[:1]
+        n = len(folded)
+        for length in range(n + 1, n + max_extra + 1):
+            for candidate in self._near.get((first, length), ()):
+                cf = candidate.casefold()
+                if not cf.startswith(folded) or cf == folded:
+                    continue
+                if cf in self._removed:
+                    continue
+                if cf in self._seed or candidate in self._seed:
+                    return True
+        return False
+
     def seal_lookups(self) -> None:
         """Stop Hunspell probes for forms not already in the lookup cache."""
         self._lookups_sealed = True
