@@ -7,6 +7,25 @@ from app.main import app
 from fastapi.testclient import TestClient
 
 
+def test_token_expiry_accepts_unix_timestamp(monkeypatch) -> None:
+    """QPay email: expires_in may be an absolute unix timestamp."""
+    monkeypatch.setattr("app.core.config.settings.qpay_client_id", "merchant")
+    monkeypatch.setattr("app.core.config.settings.qpay_client_secret", "secret")
+    qpay_mod._clear_token()
+
+    class FakeResponse:
+        status_code = 200
+        text = ""
+
+        def json(self):
+            return {"access_token": "tok-ts", "expires_in": 1_900_000_000}
+
+    monkeypatch.setattr(qpay_mod.httpx, "post", lambda *a, **k: FakeResponse())
+    token = qpay_mod.get_access_token()
+    assert token == "tok-ts"
+    assert qpay_mod._token_expires_at == 1_900_000_000.0
+
+
 def test_qpay_create_invoice_and_check(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr("app.core.config.settings.qpay_client_id", "merchant")
     monkeypatch.setattr("app.core.config.settings.qpay_client_secret", "secret")

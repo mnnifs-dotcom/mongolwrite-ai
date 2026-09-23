@@ -71,10 +71,14 @@ def get_access_token(*, force: bool = False) -> str:
         token = str(data.get("access_token") or "").strip()
         if not token:
             raise QPayError("QPay access_token олдсонгүй")
-        # QPay typically returns expires_in ~3600s.
+        # QPay V2 may return expires_in as a unix timestamp (absolute) or as
+        # relative seconds — detect by magnitude (>1e9 ≈ year 2001+).
         expires_in = int(data.get("expires_in") or 3500)
+        if expires_in > 1_000_000_000:
+            _token_expires_at = float(expires_in)
+        else:
+            _token_expires_at = now + max(60, expires_in)
         _token = token
-        _token_expires_at = now + max(60, expires_in)
         return token
 
 
