@@ -40,6 +40,12 @@ export default function PricingPage() {
 
       <article className="mw-seo-article">
         <h1>Төлбөрийн багц</h1>
+        <p className="mw-seo-lead mw-tolbor-lead">
+          Төлбөртэй эрхийг{" "}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/qpay-mark.svg" alt="QPay" width={56} height={17} className="mw-qpay-inline" />{" "}
+          QR болон банкны аппаар төлнө. Нэмэлт шимтгэлгүй.
+        </p>
         <Suspense fallback={<p className="mw-muted">Уншиж байна…</p>}>
           <PricingPlans />
         </Suspense>

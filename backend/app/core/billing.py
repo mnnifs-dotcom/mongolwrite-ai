@@ -47,15 +47,30 @@ def _load_orders() -> dict[str, dict[str, Any]]:
     return {str(key): value for key, value in items.items() if isinstance(value, dict)}
 
 
+def _append_event(order: dict[str, Any], kind: str, detail: str = "") -> None:
+    events = order.get("events")
+    if not isinstance(events, list):
+        events = []
+    events.append(
+        {
+            "at": _iso(_now()),
+            "kind": kind,
+            "detail": detail[:240],
+        }
+    )
+    order["events"] = events[-50:]
+
+
 def _save_orders(orders: dict[str, dict[str, Any]]) -> None:
     path = _orders_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    if len(orders) > 2000:
+    # Keep newest ~5000 orders for dispute / audit retention (гэрээ 6.2.6).
+    if len(orders) > 5000:
         ranked = sorted(
             orders.items(),
             key=lambda pair: str(pair[1].get("created_at") or ""),
             reverse=True,
-        )[:2000]
+        )[:5000]
         orders = dict(ranked)
     path.write_text(
         json.dumps({"orders": orders}, ensure_ascii=False, indent=2),
@@ -127,7 +142,10 @@ def create_checkout(
         "updated_at": _iso(stamped),
         "paid_at": None,
         "expires_at": _iso(stamped + timedelta(hours=2)),
+        "product": f"MongolWrite · {plan['name']}",
+        "events": [],
     }
+    _append_event(order, "created", f"plan={plan['id']} amount={plan['price_mnt']}")
 
     if qpay_configured():
         try:
@@ -144,13 +162,16 @@ def create_checkout(
             order["qpay_short_url"] = invoice.get("short_url")
             order["qpay_urls"] = invoice.get("urls") or []
             order["note"] = "QPay нэхэмжлэх үүссэн. QR эсвэл банкны аппаар төлнө үү."
+            _append_event(order, "invoice_created", str(invoice["invoice_id"]))
         except QPayError as exc:
             _log.exception("QPay invoice create failed")
             order["status"] = "provider_error"
             order["note"] = str(exc)
+            _append_event(order, "invoice_error", str(exc))
     else:
         order["status"] = "pending_provider"
         order["note"] = "QPay код хүлээгдэж байна. Захиалга бүртгэгдлээ."
+        _append_event(order, "pending_provider")
 
     with _lock:
         orders = _load_orders()
@@ -230,6 +251,7 @@ def mark_order_paid(order_id: str, *, qpay_payment_id: str = "") -> dict[str, An
         order["note"] = "Төлбөр амжилттай. Эрх идэвхжүүлэгдлээ."
         if qpay_payment_id:
             order["qpay_payment_id"] = qpay_payment_id
+        _append_event(order, "paid", qpay_payment_id or "")
         orders[order_id] = order
         _save_orders(orders)
         snapshot = dict(order)
