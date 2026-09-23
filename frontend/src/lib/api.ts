@@ -1058,15 +1058,22 @@ export type BillingOrder = {
   amount_mnt: number;
   currency: string;
   status: string;
+  qpay_invoice_id?: string | null;
   qpay_qr_text?: string | null;
+  qpay_qr_image?: string | null;
+  qpay_short_url?: string | null;
   qpay_urls?: unknown[];
   created_at?: string;
   expires_at?: string;
+  paid_at?: string | null;
   note?: string;
 };
 
 export async function fetchBillingPlans(): Promise<BillingStatus> {
-  const response = await fetch(apiUrl("/api/v1/billing/plans"));
+  const response = await fetch(apiUrl("/api/v1/billing/plans"), {
+    credentials: "include",
+    headers: authHeaders(),
+  });
   if (!response.ok) throw new Error("Багц уншигдсангүй");
   return response.json() as Promise<BillingStatus>;
 }
@@ -1076,7 +1083,7 @@ export async function createBillingCheckout(
 ): Promise<{ ok: boolean; order: BillingOrder; checkout_ready: boolean; provider: string }> {
   const response = await fetch(apiUrl("/api/v1/billing/checkout"), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: jsonHeaders(),
     credentials: "include",
     body: JSON.stringify({ plan_id: planId }),
   });
@@ -1093,4 +1100,35 @@ export async function createBillingCheckout(
     checkout_ready: boolean;
     provider: string;
   }>;
+}
+
+export async function fetchBillingOrder(orderId: string): Promise<{
+  order: BillingOrder;
+  checkout_ready: boolean;
+}> {
+  const response = await fetch(
+    apiUrl(`/api/v1/billing/orders/${encodeURIComponent(orderId)}`),
+    {
+      method: "GET",
+      credentials: "include",
+      headers: authHeaders(),
+    },
+  );
+  if (!response.ok) throw new Error("Захиалга олдсонгүй");
+  return response.json() as Promise<{ order: BillingOrder; checkout_ready: boolean }>;
+}
+
+export async function syncBillingOrder(
+  orderId: string,
+): Promise<{ order: BillingOrder; paid: boolean }> {
+  const response = await fetch(
+    apiUrl(`/api/v1/billing/orders/${encodeURIComponent(orderId)}/sync`),
+    {
+      method: "POST",
+      credentials: "include",
+      headers: authHeaders(),
+    },
+  );
+  if (!response.ok) throw new Error("Төлбөрийн төлөв шалгаж чадсангүй");
+  return response.json() as Promise<{ order: BillingOrder; paid: boolean }>;
 }

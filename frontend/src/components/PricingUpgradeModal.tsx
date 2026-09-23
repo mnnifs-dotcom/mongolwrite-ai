@@ -12,6 +12,7 @@ import {
   type BillingPlan,
 } from "@/lib/api";
 import { PlanIconFree, PlanIconQuarter, PlanIconYear } from "@/components/PlanIcons";
+import { QpayCheckoutPanel } from "@/components/QpayCheckoutPanel";
 
 function formatPrice(mnt: number): string {
   return `₮${mnt.toLocaleString("mn-MN")}`;
@@ -189,17 +190,11 @@ export function PricingUpgradeModal({ open, onClose, limit }: PricingUpgradeModa
         </div>
 
         {order ? (
-          <div className="mw-upgrade-order" role="status">
-            <strong>Захиалга бүртгэгдлээ</strong>
-            <p>
-              {order.plan_name} · {formatPrice(order.amount_mnt)} · {order.sender_invoice_no}
-            </p>
-            <p className="mw-muted">
-              {checkoutReady
-                ? "QPay төлбөрийн цонх удахгүй нээгдэнэ."
-                : "QPay код холбогдсны дараа төлбөр идэвхжинэ. Таны захиалга хадгалагдсан."}
-            </p>
-          </div>
+          <QpayCheckoutPanel
+            order={order}
+            checkoutReady={checkoutReady}
+            onPaid={(next) => setOrder(next)}
+          />
         ) : null}
       </div>
     </div>,
