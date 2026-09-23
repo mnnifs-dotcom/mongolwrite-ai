@@ -1758,12 +1758,41 @@ body {
   margin: 8px 0 12px;
 }
 
-.mw-lex-scroll {
-  max-height: min(58vh, 560px);
+/* Lexicon word list: fill leftover viewport and beat `.mw-admin-scroll` (280px). */
+.mw-admin-scroll.mw-lex-scroll {
+  max-height: calc(100dvh - 280px);
+  min-height: min(52vh, 460px);
 }
 
-.mw-lex-list li {
-  padding: 6px 4px;
+.mw-admin-scroll.mw-lex-scroll .mw-admin-list,
+.mw-admin-scroll.mw-lex-scroll .mw-lex-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: 0 10px;
+  align-content: start;
+}
+
+.mw-admin-scroll.mw-lex-scroll .mw-admin-list li {
+  padding: 3px 4px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  min-height: 26px;
+}
+
+.mw-admin-scroll.mw-lex-scroll .mw-lex-list li {
+  padding: 3px 4px;
+}
+
+.mw-admin-scroll.mw-lex-scroll .mw-admin-list li strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.mw-admin-scroll.mw-lex-scroll .mw-candidate-main {
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
 }
 
 .mw-admin-bar .mw-brand {
@@ -2245,8 +2274,9 @@ body {
     max-height: 220px;
   }
 
-  .mw-lex-scroll {
-    max-height: 40vh;
+  .mw-admin-scroll.mw-lex-scroll {
+    max-height: calc(100dvh - 260px);
+    min-height: 40vh;
   }
 }
 
