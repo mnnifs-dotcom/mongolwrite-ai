@@ -3183,6 +3183,23 @@ label {
   .mw-upgrade-dialog {
     padding: 24px 14px 16px;
   }
+
+  .mw-qpay-panel-head {
+    grid-template-columns: 1fr auto;
+    gap: 8px 10px;
+  }
+
+  .mw-qpay-brand {
+    grid-column: 1 / -1;
+  }
+
+  .mw-qpay-panel-head strong {
+    white-space: normal;
+  }
+
+  .mw-qpay-banks {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
 }
 
 .mw-auth-upgrade {
