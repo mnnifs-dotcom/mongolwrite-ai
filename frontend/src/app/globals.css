@@ -1760,25 +1760,39 @@ body {
 
 /* Lexicon word list: fill leftover viewport and beat `.mw-admin-scroll` (280px). */
 .mw-admin-scroll.mw-lex-scroll {
-  max-height: calc(100dvh - 300px);
-  min-height: min(48vh, 420px);
+  max-height: calc(100dvh - 280px);
+  min-height: min(52vh, 460px);
 }
 
 .mw-admin-scroll.mw-lex-scroll .mw-admin-list {
-  gap: 2px;
+  gap: 0;
 }
 
 .mw-admin-scroll.mw-lex-scroll .mw-admin-list li {
-  padding: 4px 8px;
-  border-radius: 8px;
+  padding: 2px 6px;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  border-radius: 0;
+  background: transparent;
+  min-height: 28px;
+}
+
+.mw-admin-scroll.mw-lex-scroll .mw-admin-list li:last-child {
+  border-bottom: 0;
 }
 
 .mw-admin-scroll.mw-lex-scroll .mw-lex-list li {
-  padding: 4px 8px;
+  padding: 2px 6px;
 }
 
 .mw-admin-scroll.mw-lex-scroll .mw-admin-list li strong {
   font-size: 13px;
+  font-weight: 600;
+}
+
+.mw-admin-scroll.mw-lex-scroll .mw-candidate-main {
+  gap: 6px;
+  width: 100%;
 }
 
 .mw-admin-bar .mw-brand {
