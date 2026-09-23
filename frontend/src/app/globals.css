@@ -2602,6 +2602,9 @@ label {
   justify-content: center;
   gap: 10px;
   flex-wrap: wrap;
+  position: relative;
+  min-height: 28px;
+  padding: 0 4.5rem;
 }
 
 .mw-qpay-panel-head strong {
@@ -2609,7 +2612,10 @@ label {
 }
 
 .mw-qpay-back {
-  margin-left: auto;
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
   border: 0;
   background: transparent;
   color: var(--muted, #5a6570);
