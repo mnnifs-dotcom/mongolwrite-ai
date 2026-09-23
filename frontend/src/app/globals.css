@@ -668,6 +668,19 @@ body {
   /* Extra bottom pad so the last line’s descenders aren’t clipped by the footer. */
   padding: 28px 32px 40px;
   scroll-padding-bottom: 32px;
+  /* Fill the pane so clicks/paste work anywhere, not only on the first line. */
+  display: flex;
+  flex-direction: column;
+  cursor: text;
+}
+
+/* TipTap wraps ProseMirror in a div — stretch both to the full editor surface. */
+.mw-editor-scroll > div {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  width: 100%;
 }
 
 .mw-editor-footer {
@@ -920,14 +933,18 @@ body {
 
 .mw-prose {
   outline: none;
+  flex: 1 1 auto;
   min-height: 100%;
+  width: 100%;
+  height: 100%;
   font-size: 18px;
   line-height: 1.8;
   max-width: none;
-  width: 100%;
   font-family: var(--font-sans);
   text-align: justify;
   text-justify: inter-word;
+  cursor: text;
+  box-sizing: border-box;
 }
 
 /* When bichig panel is open, keep readable line length inside the narrowed editor. */
@@ -950,7 +967,9 @@ body {
   margin-bottom: 1.25em;
 }
 
-.mw-editor.is-empty .mw-prose > p:first-child::before {
+/* Placeholder lives on the first empty paragraph inside ProseMirror (.mw-prose). */
+.mw-editor.is-empty .mw-prose > p:first-child::before,
+.mw-editor.is-empty .ProseMirror > p:first-child::before {
   content: "Энд бичнэ үү";
   float: left;
   height: 0;

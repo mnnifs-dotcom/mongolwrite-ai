@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ClipboardEvent, type MouseEvent } from "react";
 import { createPortal } from "react-dom";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -326,6 +326,32 @@ export function EditorApp() {
       },
     },
   });
+
+  /** Focus editor when the user presses anywhere in the text pane (for paste/type). */
+  function focusEditorSurface(event: MouseEvent) {
+    if (!editor) return;
+    const target = event.target as HTMLElement | null;
+    if (!target) return;
+    // Already inside the editable — ProseMirror places the caret itself.
+    if (target.closest(".ProseMirror")) return;
+    // Footer/links/overlays live outside mw-editor-scroll.
+    event.preventDefault();
+    const isBlank = !plainTextFromDoc(editor.state.doc).trim();
+    editor.commands.focus(isBlank ? "start" : "end");
+  }
+
+  function pasteIntoEditor(event: ClipboardEvent) {
+    if (!editor) return;
+    // If PM already has focus, let it handle paste natively.
+    if (editor.isFocused) return;
+    const text = event.clipboardData.getData("text/plain");
+    if (!text) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const isBlank = !plainTextFromDoc(editor.state.doc).trim();
+    editor.commands.focus(isBlank ? "start" : "end");
+    editor.commands.insertContent(textToHtml(text));
+  }
 
   const applyResult = useCallback((result: Awaited<ReturnType<typeof checkText>>) => {
     const kept = result.corrections.filter((item) => !dismissed.current.has(dismissKey(item)));
@@ -868,7 +894,11 @@ export function EditorApp() {
         {error ? <p className="mw-banner">{error}</p> : null}
         <div className="mw-stage">
           <div className={empty ? "mw-editor is-empty" : "mw-editor"} aria-busy={checking}>
-            <div className="mw-editor-scroll">
+            <div
+              className="mw-editor-scroll"
+              onMouseDown={focusEditorSurface}
+              onPaste={pasteIntoEditor}
+            >
               <EditorContent editor={editor} />
             </div>
             <footer className="mw-editor-footer" aria-live="polite">
