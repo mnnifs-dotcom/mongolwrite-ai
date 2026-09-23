@@ -2662,6 +2662,7 @@ label {
   -webkit-hyphens: none;
   overflow-wrap: normal;
   word-break: keep-all;
+  white-space: pre-line;
 }
 
 .mw-pricing-card li::before {
@@ -3101,6 +3102,7 @@ label {
   -webkit-hyphens: none;
   overflow-wrap: normal;
   word-break: keep-all;
+  white-space: pre-line;
 }
 
 .mw-upgrade-card li::before {
