@@ -108,17 +108,27 @@ export function PricingUpgradeModal({ open, onClose, limit }: PricingUpgradeModa
         </button>
         <header className="mw-upgrade-header">
           <p className="mw-upgrade-kicker" id={titleId}>
-            Багц сонгох
+            {order ? "Төлбөр" : "Багц сонгох"}
           </p>
-          <p>
-            {limit
-              ? `Таны хязгаар ${limit.toLocaleString("mn-MN")} тэмдэгт. Илүү урт бичвэр шалгах эсвэл монгол бичиг рүү хөрвүүлэхийн тулд эрхээ өргөжүүлнэ үү.`
-              : "Илүү урт бичвэр шалгах эсвэл монгол бичиг рүү хөрвүүлэхийн тулд тохирох багцаа сонгоно уу."}
-          </p>
+          {order ? null : (
+            <p>
+              {limit
+                ? `Таны хязгаар ${limit.toLocaleString("mn-MN")} тэмдэгт.`
+                : "Тохирох багцаа сонгоно уу."}
+            </p>
+          )}
         </header>
 
         {error ? <p className="mw-report-error">{error}</p> : null}
 
+        {order ? (
+          <QpayCheckoutPanel
+            order={order}
+            checkoutReady={checkoutReady}
+            onPaid={(next) => setOrder(next)}
+            onBack={() => setOrder(null)}
+          />
+        ) : (
         <div className="mw-upgrade-grid">
           {free ? (
             <article className="mw-upgrade-card">
@@ -188,14 +198,7 @@ export function PricingUpgradeModal({ open, onClose, limit }: PricingUpgradeModa
             );
           })}
         </div>
-
-        {order ? (
-          <QpayCheckoutPanel
-            order={order}
-            checkoutReady={checkoutReady}
-            onPaid={(next) => setOrder(next)}
-          />
-        ) : null}
+        )}
       </div>
     </div>,
     document.body,

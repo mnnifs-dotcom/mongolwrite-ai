@@ -59,6 +59,14 @@ export function PricingPlans() {
     <div className="mw-pricing">
       {error ? <p className="mw-report-error">{error}</p> : null}
 
+      {order ? (
+        <QpayCheckoutPanel
+          order={order}
+          checkoutReady={Boolean(status?.checkout_ready)}
+          onPaid={(next) => setOrder(next)}
+          onBack={() => setOrder(null)}
+        />
+      ) : (
       <div className="mw-pricing-grid">
         {free ? (
           <article className="mw-pricing-card">
@@ -108,14 +116,7 @@ export function PricingPlans() {
           </article>
         ))}
       </div>
-
-      {order ? (
-        <QpayCheckoutPanel
-          order={order}
-          checkoutReady={Boolean(status?.checkout_ready)}
-          onPaid={(next) => setOrder(next)}
-        />
-      ) : null}
+      )}
     </div>
   );
 }

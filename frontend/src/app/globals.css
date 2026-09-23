@@ -2585,21 +2585,47 @@ label {
 }
 
 .mw-qpay-panel {
-  margin: 18px 0;
-  padding: 16px 18px;
+  margin: 0 0 18px;
+  padding: 18px 16px 20px;
   border-radius: 12px;
   background: color-mix(in srgb, var(--accent) 10%, #fff);
   border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
-  text-align: left;
+  text-align: center;
   display: grid;
-  gap: 10px;
+  gap: 14px;
+  scroll-margin-top: 16px;
 }
 
 .mw-qpay-panel-head {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 10px;
   flex-wrap: wrap;
+  position: relative;
+  min-height: 28px;
+  padding: 0 4.5rem;
+}
+
+.mw-qpay-panel-head strong {
+  font-size: 1.05rem;
+}
+
+.mw-qpay-back {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  color: var(--muted, #5a6570);
+  cursor: pointer;
+  font: inherit;
+  padding: 4px 8px;
+}
+
+.mw-qpay-back:hover {
+  color: var(--ink, #15202b);
 }
 
 .mw-qpay-mark,
@@ -2613,29 +2639,28 @@ label {
   margin-bottom: 18px;
 }
 
-.mw-qpay-fee-note {
-  font-size: 0.92em;
+.mw-qpay-qr-wrap {
+  display: grid;
+  place-items: center;
+  padding: 8px 0;
 }
 
 .mw-qpay-qr {
   display: block;
-  width: 220px;
-  max-width: 100%;
+  width: min(280px, 72vw);
   height: auto;
-  border-radius: 8px;
+  aspect-ratio: 1;
+  border-radius: 10px;
   background: #fff;
   border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
-.mw-qpay-banks-wrap {
-  display: grid;
-  gap: 6px;
-}
-
-.mw-qpay-banks-label {
-  margin: 0;
-  font-size: 0.9em;
-  color: var(--muted, #5a6570);
+.mw-qpay-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  align-items: center;
 }
 
 .mw-qpay-banks {
@@ -2645,6 +2670,7 @@ label {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  justify-content: center;
 }
 
 .mw-qpay-banks a {
@@ -2670,7 +2696,7 @@ label {
 
 .mw-upgrade-order,
 .mw-upgrade-dialog .mw-qpay-panel {
-  margin-top: 14px;
+  margin-top: 0;
 }
 
 .mw-upgrade-overlay {
