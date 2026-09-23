@@ -20,12 +20,12 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     openai_base_url: str = "https://api.openai.com/v1"
     openai_model: str = "gpt-4o"
-    # QPay — leave empty until credentials are provided; checkout stays stub-ready.
+    # QPay — leave empty until merchant credentials arrive; checkout stays stub-ready.
     qpay_client_id: str = ""
     qpay_client_secret: str = ""
     qpay_invoice_code: str = ""
     qpay_base_url: str = "https://merchant.qpay.mn/v2"
-    qpay_callback_url: str = ""
+    qpay_callback_url: str = "https://mongolwrite.com/api/v1/billing/qpay/callback"
     # Background legalinfo ingest bot (one law every min–max seconds).
     legal_ingest_bot: bool = True
     legal_ingest_min_seconds: int = 20 * 60

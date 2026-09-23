@@ -85,7 +85,11 @@ def test_free_user_check_limit(tmp_path, monkeypatch) -> None:
 
     monkeypatch.setattr("app.api.routes_auth.httpx.get", lambda *args, **kwargs: FakeResponse())
     client = TestClient(app)
-    login = client.post("/api/v1/auth/google", json={"access_token": "ya29.fake"})
+    login = client.post(
+        "/api/v1/auth/google",
+        json={"access_token": "ya29.fake"},
+        headers={"X-MW-Device-Id": "testdevice01"},
+    )
     assert login.status_code == 200
     assert login.json()["user"]["entitlements"]["check_max_chars"] == FREE_CHECK_MAX_CHARS
 
@@ -94,6 +98,7 @@ def test_free_user_check_limit(tmp_path, monkeypatch) -> None:
 
     ok = client.post(
         "/api/v1/check/deterministic",
+        headers={"X-MW-Device-Id": "testdevice01"},
         json={
             "text": "а" * FREE_CHECK_MAX_CHARS,
             "document_type": "general",
@@ -104,6 +109,7 @@ def test_free_user_check_limit(tmp_path, monkeypatch) -> None:
 
     over = client.post(
         "/api/v1/check/deterministic",
+        headers={"X-MW-Device-Id": "testdevice01"},
         json={
             "text": "а" * (FREE_CHECK_MAX_CHARS + 1),
             "document_type": "general",
