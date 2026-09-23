@@ -16,6 +16,22 @@ def test_hunspell_accepts_common_word() -> None:
     assert provider.contains("танилцана")
 
 
+def test_letter_case_does_not_change_membership() -> None:
+    """аав / ААВ / Аав are the same dictionary word (casefold)."""
+    provider = DictionaryProvider()
+    forms = ("аав", "ААВ", "Аав", "ААв")
+    assert all(provider.contains(word) for word in forms)
+    assert all(provider.in_seed(word) for word in forms)
+    assert all(provider.hunspell_knows(word) for word in forms)
+
+    engine = LanguageEngine()
+    for word in forms:
+        assert not any(
+            item.original_text == word and item.category == "SPELLING" and item.rule_id != "repeated_word"
+            for item in engine.check(word)
+        ), word
+
+
 def test_hunspell_files_present() -> None:
     base = hunspell_base_path()
     assert Path(f"{base}.dic").exists()
