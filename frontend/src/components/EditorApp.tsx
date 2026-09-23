@@ -1,6 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ClipboardEvent, type MouseEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ClipboardEvent as ReactClipboardEvent,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
 import { createPortal } from "react-dom";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -328,7 +337,7 @@ export function EditorApp() {
   });
 
   /** Focus editor when the user presses anywhere in the text pane (for paste/type). */
-  function focusEditorSurface(event: MouseEvent) {
+  function focusEditorSurface(event: ReactMouseEvent) {
     if (!editor) return;
     const target = event.target as HTMLElement | null;
     if (!target) return;
@@ -340,7 +349,7 @@ export function EditorApp() {
     editor.commands.focus(isBlank ? "start" : "end");
   }
 
-  function pasteIntoEditor(event: ClipboardEvent) {
+  function pasteIntoEditor(event: ReactClipboardEvent) {
     if (!editor) return;
     // If PM already has focus, let it handle paste natively.
     if (editor.isFocused) return;
