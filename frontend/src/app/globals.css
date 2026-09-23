@@ -2977,7 +2977,8 @@ label {
 
 /* Beat `.mw-upgrade-header p` muted color so БАГЦ СОНГОХ / ТӨЛБӨР stay white. */
 .mw-upgrade-header .mw-upgrade-kicker {
-  color: #ffffff;
+  color: #ffffff !important;
+  background: var(--accent-deep, #0d3a66);
 }
 
 .mw-upgrade-header h2 {
