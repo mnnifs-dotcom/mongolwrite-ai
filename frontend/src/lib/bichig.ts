@@ -81,6 +81,8 @@ const WORD_OVERRIDES: Record<string, string> = {
   хамтдаа: `ᠬᠠᠮᠲᠤ${NNBSP}ᠳ${FVS1}ᠤ${NNBSP}ᠪᠠᠨ`,
   олондтоо: `ᠣᠯᠠᠨ${NNBSP}ᠳ${FVS1}ᠤ${NNBSP}ᠲ${FVS1}ᠤ${NNBSP}ᠪᠠᠨ`,
   өөртөө: `ᠥᠪᠡᠷ${NNBSP}ᠲ${FVS1}ᠦ${NNBSP}ᠪᠡᠨ`,
+  // Gege lexicon falsely splits as kele-tü-eče (хэл+т+эс); keep solid stem keltes.
+  хэлтэс: "ᢈᠡᠯᠲᠡᠰ",
 };
 
 /** Cyrillic case/particle endings → traditional suffixes (front / back). Longer first. */
@@ -104,6 +106,15 @@ const DECLENSIONS: Array<{
   { re: /тэй$/u, front: `${NNBSP}ᠲᠡᠶᠢ`, back: `${NNBSP}ᠲᠠᠶᠢ` },
   { re: /тай$/u, front: `${NNBSP}ᠲᠡᠶᠢ`, back: `${NNBSP}ᠲᠠᠶᠢ` },
   { re: /той$/u, front: `${NNBSP}ᠲᠡᠶᠢ`, back: `${NNBSP}ᠲᠣᠶᠢ` },
+  // Front/back dative after consonant stems (хэлтэсэд, газарт) — before bare д/т.
+  { re: /энд$/u, front: `${NNBSP}ᠳ${FVS1}ᠦ`, back: `${NNBSP}ᠳ${FVS1}ᠤ` },
+  { re: /анд$/u, front: `${NNBSP}ᠳ${FVS1}ᠦ`, back: `${NNBSP}ᠳ${FVS1}ᠤ` },
+  { re: /өнд$/u, front: `${NNBSP}ᠳ${FVS1}ᠦ`, back: `${NNBSP}ᠳ${FVS1}ᠤ` },
+  { re: /онд$/u, front: `${NNBSP}ᠳ${FVS1}ᠦ`, back: `${NNBSP}ᠳ${FVS1}ᠤ` },
+  { re: /эд$/u, front: `${NNBSP}ᠳ${FVS1}ᠦ`, back: `${NNBSP}ᠳ${FVS1}ᠤ` },
+  { re: /ад$/u, front: `${NNBSP}ᠳ${FVS1}ᠦ`, back: `${NNBSP}ᠳ${FVS1}ᠤ` },
+  { re: /өд$/u, front: `${NNBSP}ᠳ${FVS1}ᠦ`, back: `${NNBSP}ᠳ${FVS1}ᠤ` },
+  { re: /од$/u, front: `${NNBSP}ᠳ${FVS1}ᠦ`, back: `${NNBSP}ᠳ${FVS1}ᠤ` },
   { re: /д$/u, front: `${NNBSP}ᠳ${FVS1}ᠦ`, back: `${NNBSP}ᠳ${FVS1}ᠤ` },
   { re: /т$/u, front: `${NNBSP}ᠲ${FVS1}ᠦ`, back: `${NNBSP}ᠲ${FVS1}ᠤ` },
 ];
@@ -193,6 +204,7 @@ function toAliGaliFront(script: string): string {
  *   гандболд → γandbul-du   (д as dative)
  *   оюунчимэг → oyunčime-yi (г as accusative)
  *   төгөлдөр → töγel-dü-ber (д+өр over-segmentation)
+ *   хэлтэс → kele-tü-eče   (т+эс as dative+ablative of хэл)
  *
  * Legitimate case forms (номын, онд, дундаа) keep their score.
  */
@@ -223,9 +235,12 @@ function scoreCandidate(c: Candidate): number {
   if (sep.length >= 2) {
     const firstShort = (sep[0].cyrillic?.length ?? 0) <= 1;
     const secondShort = (sep[1].cyrillic?.length ?? 0) <= 2;
-    // төгөлдөр-style: single-letter piece + short second piece
-    if (firstShort && secondShort) s -= 0.5;
-    else if (firstShort) s -= 0.35;
+    // төгөлдөр / хэлтэс-style: single-letter piece + short second piece
+    if (firstShort && secondShort) s -= 0.55;
+    else if (firstShort) s -= 0.4;
+    // Lexicon multi-suffix with a 1-letter first piece (т/д/г) is usually a false
+    // morphology split of a solid stem (хэлтэс → хэл+т+эс).
+    if ((prov === "lexicon" || prov === "harvested") && firstShort) s -= 0.5;
   }
 
   return s;
