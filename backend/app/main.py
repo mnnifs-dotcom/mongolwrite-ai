@@ -105,52 +105,38 @@ if _frontend is None:
 else:
     # Next static export writes page.html; Starlette StaticFiles(html=True) does not
     # map /page → page.html, so register explicit page routes before the mount.
-    _admin_html = _frontend / "admin.html"
-    if _admin_html.is_file():
+    # Include HEAD so crawlers probing with HEAD do not fall through to 404.html.
+    def _html_page(file_path: Path, *paths: str):
+        if not file_path.is_file():
+            return
 
-        @app.get("/admin")
-        @app.get("/admin/")
-        def admin_page() -> FileResponse:
-            return FileResponse(_admin_html)
+        async def _serve() -> FileResponse:
+            return FileResponse(file_path)
 
-    _seo_html = _frontend / "ugiin-aldaga-shalgah.html"
-    if _seo_html.is_file():
+        for route in paths:
+            app.add_api_route(route, _serve, methods=["GET", "HEAD"])
 
-        @app.get("/ugiin-aldaga-shalgah")
-        @app.get("/ugiin-aldaga-shalgah/")
-        def ugiin_aldaga_shalgah_page() -> FileResponse:
-            return FileResponse(_seo_html)
-
-    _aldaga_html = _frontend / "aldaga-shalgah.html"
-    if _aldaga_html.is_file():
-
-        @app.get("/aldaga-shalgah")
-        @app.get("/aldaga-shalgah/")
-        def aldaga_shalgah_page() -> FileResponse:
-            return FileResponse(_aldaga_html)
-
-    _terms_html = _frontend / "uilchilgeenii-nokhtsol.html"
-    if _terms_html.is_file():
-
-        @app.get("/uilchilgeenii-nokhtsol")
-        @app.get("/uilchilgeenii-nokhtsol/")
-        def terms_page() -> FileResponse:
-            return FileResponse(_terms_html)
-
-    _report_html = _frontend / "aldaa-medegdeh.html"
-    if _report_html.is_file():
-
-        @app.get("/aldaa-medegdeh")
-        @app.get("/aldaa-medegdeh/")
-        def report_error_page() -> FileResponse:
-            return FileResponse(_report_html)
-
-    _tolbor_html = _frontend / "tolbor.html"
-    if _tolbor_html.is_file():
-
-        @app.get("/tolbor")
-        @app.get("/tolbor/")
-        def tolbor_page() -> FileResponse:
-            return FileResponse(_tolbor_html)
+    _html_page(_frontend / "admin.html", "/admin", "/admin/")
+    _html_page(
+        _frontend / "ugiin-aldaga-shalgah.html",
+        "/ugiin-aldaga-shalgah",
+        "/ugiin-aldaga-shalgah/",
+    )
+    _html_page(
+        _frontend / "aldaga-shalgah.html",
+        "/aldaga-shalgah",
+        "/aldaga-shalgah/",
+    )
+    _html_page(
+        _frontend / "uilchilgeenii-nokhtsol.html",
+        "/uilchilgeenii-nokhtsol",
+        "/uilchilgeenii-nokhtsol/",
+    )
+    _html_page(
+        _frontend / "aldaa-medegdeh.html",
+        "/aldaa-medegdeh",
+        "/aldaa-medegdeh/",
+    )
+    _html_page(_frontend / "tolbor.html", "/tolbor", "/tolbor/")
 
     app.mount("/", StaticFiles(directory=_frontend, html=True), name="frontend")
