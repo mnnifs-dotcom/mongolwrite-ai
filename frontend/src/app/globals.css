@@ -697,6 +697,29 @@ body {
   border: 1px solid #f0c4c4;
 }
 
+.mw-banner-device {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  background: linear-gradient(180deg, #fff8f8 0%, #fce8e8 100%);
+  border-color: color-mix(in srgb, #c62828 28%, #f0c4c4);
+  color: color-mix(in srgb, var(--ink) 82%, transparent);
+}
+
+.mw-banner-device strong {
+  font-size: 13px;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+  color: #9b1c1c;
+}
+
+.mw-banner-device p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: color-mix(in srgb, var(--ink) 78%, transparent);
+}
+
 .mw-banner-ok {
   color: #0f4f46;
   background: var(--ready-bg);
