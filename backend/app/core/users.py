@@ -236,7 +236,7 @@ def register_or_touch_device(user_id: str, device_id: str) -> list[dict[str, Any
     """Register a device or refresh last_seen. Raises ValueError when over the limit."""
     normalized = normalize_device_id(device_id)
     if not normalized:
-        raise ValueError("Төхөөрөмжийн дугаар дутуу эсвэл буруу байна")
+        raise ValueError("Төхөөрөмжийн мэдээлэл олдсонгүй. Хуудсыг дахин ачаална уу.")
     now = datetime.now(timezone.utc).isoformat()
     with _lock:
         users = _load()
@@ -253,9 +253,9 @@ def register_or_touch_device(user_id: str, device_id: str) -> list[dict[str, Any
                 return list(devices)
         if len(devices) >= MAX_DEVICES:
             raise PermissionError(
-                f"Нэг бүртгэлээр дээд тал нь {MAX_DEVICES} төхөөрөмжөөс "
-                "хандах боломжтой. Өөр төхөөрөмжөөс гарна уу, эсвэл "
-                "дэмжлэгт хандана уу."
+                f"Нэг бүртгэлээр зэрэг дээд тал нь {MAX_DEVICES} төхөөрөмжөөс "
+                "хандах боломжтой. Өмнө нэвтэрсэн төхөөрөмж дээрээсээ "
+                "гараад дахин оролдоно уу."
             )
         devices.append(
             {

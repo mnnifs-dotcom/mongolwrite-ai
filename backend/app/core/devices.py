@@ -43,7 +43,7 @@ def require_device_header(
     if not normalized:
         raise HTTPException(
             status_code=400,
-            detail="Төхөөрөмжийн дугаар дутуу эсвэл буруу байна",
+            detail="Төхөөрөмжийн мэдээлэл олдсонгүй. Хуудсыг дахин ачаална уу.",
         )
     return normalized
 
@@ -63,6 +63,6 @@ def enforce_device(user_id: str, device_id: str | None) -> None:
     if not normalized:
         raise HTTPException(
             status_code=400,
-            detail="Төхөөрөмжийн дугаар дутуу эсвэл буруу байна",
+            detail="Төхөөрөмжийн мэдээлэл олдсонгүй. Хуудсыг дахин ачаална уу.",
         )
     register_device_or_raise(user_id, normalized)
