@@ -32,6 +32,10 @@ import { type Correction } from "@/lib/types";
 import { AuthButton } from "@/components/AuthButton";
 import { BrandLogo } from "@/components/BrandLogo";
 import { PricingUpgradeModal } from "@/components/PricingUpgradeModal";
+import {
+  DeviceLimitDialog,
+  isDeviceLimitMessage,
+} from "@/components/DeviceLimitDialog";
 
 const STYLE = "government_official";
 const DOC_TYPE = "official_letter";
@@ -277,6 +281,7 @@ export function EditorApp() {
   const [maxChars, setMaxChars] = useState(500);
   const [isPaid, setIsPaid] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deviceLimitOpen, setDeviceLimitOpen] = useState(false);
   const [aiEnabled, setAiEnabled] = useState(false);
   const [empty, setEmpty] = useState(true);
   const [shown, setShown] = useState(false);
@@ -290,6 +295,15 @@ export function EditorApp() {
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const reportError = useCallback((message: string | null) => {
+    if (message && isDeviceLimitMessage(message)) {
+      setError(null);
+      setDeviceLimitOpen(true);
+      return;
+    }
+    setError(message);
+  }, []);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const checkSeq = useRef(0);
@@ -428,14 +442,14 @@ export function EditorApp() {
               setError(null);
             }
           } else {
-            setError(err instanceof Error ? err.message : "Алдаа");
+            reportError(err instanceof Error ? err.message : "Алдаа");
           }
         }
       }
     })();
     inflight.current = work;
     await work;
-  }, [applyResult]);
+  }, [applyResult, reportError]);
 
   const runThink = useCallback(async (text: string) => {
     if (!text.trim() || !aiEnabledRef.current || !shownRef.current) return;
@@ -721,7 +735,7 @@ export function EditorApp() {
       setShown(true);
       applyResult(result);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Сайжруулж чадсангүй");
+      reportError(err instanceof Error ? err.message : "Сайжруулж чадсангүй");
     }
   }
 
@@ -1065,6 +1079,10 @@ export function EditorApp() {
         open={upgradeOpen}
         onClose={() => setUpgradeOpen(false)}
         limit={maxChars}
+      />
+      <DeviceLimitDialog
+        open={deviceLimitOpen}
+        onClose={() => setDeviceLimitOpen(false)}
       />
     </div>
   );

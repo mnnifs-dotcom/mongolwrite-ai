@@ -253,8 +253,8 @@ def register_or_touch_device(user_id: str, device_id: str) -> list[dict[str, Any
                 return list(devices)
         if len(devices) >= MAX_DEVICES:
             raise PermissionError(
-                "Зэрэг 2 төхөөрөмжийн хязгаар дүүрсэн байна. "
-                "Өмнөх төхөөрөмжөөсөө гарч энд дахин нэвтэрнэ үү."
+                "Нэг бүртгэлээр зэрэг зөвхөн 2 төхөөрөмжөөс нэвтэрч болно. "
+                "Өөр төхөөрөмж дээрх нэвтрэлтээ хаагаад энд дахин оролдоно уу."
             )
         devices.append(
             {

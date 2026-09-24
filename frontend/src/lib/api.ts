@@ -97,7 +97,8 @@ async function postCheck(
           .then((body: { detail?: string }) => body.detail)
           .catch(() => null);
         lastError = new Error(
-          detail || "Зэрэг 2 төхөөрөмжийн хязгаар дүүрсэн байна.",
+          detail ||
+            "Нэг бүртгэлээр зэрэг зөвхөн 2 төхөөрөмжөөс нэвтэрч болно. Өөр төхөөрөмж дээрх нэвтрэлтээ хаагаад энд дахин оролдоно уу.",
         );
       } else {
         lastError = new Error(
@@ -184,7 +185,10 @@ export async function improveText(
         .json()
         .then((body: { detail?: string }) => body.detail)
         .catch(() => null);
-      throw new Error(detail || "Зэрэг 2 төхөөрөмжийн хязгаар дүүрсэн байна.");
+      throw new Error(
+        detail ||
+          "Нэг бүртгэлээр зэрэг зөвхөн 2 төхөөрөмжөөс нэвтэрч болно. Өөр төхөөрөмж дээрх нэвтрэлтээ хаагаад энд дахин оролдоно уу.",
+      );
     }
     throw new Error(`Сайжруулалт амжилтгүй (${response.status})`);
   }
@@ -261,7 +265,10 @@ export async function authMe(): Promise<AuthMeResponse> {
       .json()
       .then((body: { detail?: string }) => body.detail)
       .catch(() => null);
-    throw new Error(detail || "Зэрэг 2 төхөөрөмжийн хязгаар дүүрсэн байна.");
+    throw new Error(
+      detail ||
+        "Нэг бүртгэлээр зэрэг зөвхөн 2 төхөөрөмжөөс нэвтэрч болно. Өөр төхөөрөмж дээрх нэвтрэлтээ хаагаад энд дахин оролдоно уу.",
+    );
   }
   if (!response.ok) {
     return { authenticated: false, user: null, google_client_id: null, plans: [] };
