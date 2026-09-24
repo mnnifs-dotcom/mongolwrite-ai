@@ -235,7 +235,23 @@ export function AuthButton() {
           {busy ? "Нэвтэрч байна…" : "Нэвтрэх"}
         </span>
       </button>
-      {error ? <span className="mw-auth-error">{error}</span> : null}
+      {error ? (
+        <div
+          className={
+            error.includes("төхөөрөмж") ? "mw-auth-notice" : "mw-auth-error"
+          }
+          role="alert"
+        >
+          {error.includes("төхөөрөмж") ? (
+            <>
+              <strong>Төхөөрөмжийн хязгаар</strong>
+              <p>{error}</p>
+            </>
+          ) : (
+            error
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }

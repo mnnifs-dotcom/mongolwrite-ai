@@ -420,6 +420,41 @@ body {
   max-width: 160px;
 }
 
+.mw-auth-notice {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 45;
+  width: min(320px, calc(100vw - 24px));
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid color-mix(in srgb, #c62828 22%, var(--line));
+  box-shadow:
+    0 10px 28px rgba(13, 27, 42, 0.12),
+    0 1px 0 rgba(255, 255, 255, 0.8) inset;
+  text-align: left;
+}
+
+.mw-auth-notice strong {
+  display: block;
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+  color: #9b1c1c;
+}
+
+.mw-auth-notice p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: color-mix(in srgb, var(--ink) 78%, transparent);
+  hyphens: none;
+  -webkit-hyphens: none;
+  text-align: left;
+}
+
 .mw-title {
   font-size: 15px;
   font-weight: 500;

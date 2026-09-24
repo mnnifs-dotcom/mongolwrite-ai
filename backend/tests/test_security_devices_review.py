@@ -121,7 +121,7 @@ def test_google_login_device_limit(monkeypatch, tmp_path) -> None:
     assert blocked.status_code == 403
     detail = blocked.json()["detail"]
     assert "2 төхөөрөмж" in detail
-    assert "гараад дахин оролдоно" in detail
+    assert "дахин нэвтэрнэ" in detail
     assert "дэмжлэг" not in detail
 
 
