@@ -249,8 +249,18 @@ def unregister_device(user_id: str, device_id: str) -> list[dict[str, Any]]:
         return list(devices)
 
 
-def register_or_touch_device(user_id: str, device_id: str) -> list[dict[str, Any]]:
-    """Register a device or refresh last_seen. Raises PermissionError when over the limit."""
+def register_or_touch_device(
+    user_id: str,
+    device_id: str,
+    *,
+    replace_lru: bool = False,
+) -> list[dict[str, Any]]:
+    """Register a device or refresh last_seen.
+
+    When the account is already at MAX_DEVICES:
+    - replace_lru=True (Google login): drop the least-recently-seen device and add this one
+    - replace_lru=False (session checks): raise PermissionError
+    """
     normalized = normalize_device_id(device_id)
     if not normalized:
         raise ValueError("Төхөөрөмжийн мэдээлэл олдсонгүй. Хуудсыг дахин ачаална уу.")
@@ -269,10 +279,14 @@ def register_or_touch_device(user_id: str, device_id: str) -> list[dict[str, Any
                 _save(users)
                 return list(devices)
         if len(devices) >= MAX_DEVICES:
-            raise PermissionError(
-                "Нэг бүртгэлээр зэрэг зөвхөн 2 төхөөрөмжөөс нэвтэрч болно. "
-                "Өөр төхөөрөмж дээрээсээ «Гарах» дарж нэвтрэлтээ хаагаад энд дахин оролдоно уу."
-            )
+            if not replace_lru:
+                raise PermissionError(
+                    "Нэг бүртгэлээр зэрэг зөвхөн 2 төхөөрөмжөөс нэвтэрч болно. "
+                    "Өөр төхөөрөмж дээрээсээ «Гарах» дарж нэвтрэлтээ хаагаад энд дахин оролдоно уу."
+                )
+            # Owner proved identity via Google — free the coldest slot for this browser.
+            devices.sort(key=lambda item: str(item.get("last_seen_at") or ""))
+            devices = devices[-(MAX_DEVICES - 1) :] if MAX_DEVICES > 1 else []
         devices.append(
             {
                 "id": normalized,

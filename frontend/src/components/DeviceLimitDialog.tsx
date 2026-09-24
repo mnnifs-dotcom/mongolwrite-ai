@@ -5,9 +5,9 @@ import { createPortal } from "react-dom";
 
 export const DEVICE_LIMIT_TITLE = "Төхөөрөмжийн хязгаар";
 export const DEVICE_LIMIT_BODY =
-  "Нэг бүртгэлээр зэрэг зөвхөн 2 төхөөрөмжөөс нэвтэрч болно.";
+  "Нэг бүртгэлээр зэрэг зөвхөн 2 төхөөрөмжөөс ашиглана.";
 export const DEVICE_LIMIT_HINT =
-  "Өөр төхөөрөмж дээрээсээ «Гарах» дарж нэвтрэлтээ хаагаад энд дахин оролдоно уу.";
+  "Шинэ төхөөрөмжөөс «Нэвтрэх» дарвал хамгийн удаан ашиглаагүй төхөөрөмжийн нэвтрэлт автоматаар хаагдана. Эсвэл өөр төхөөрөмж дээрээсээ «Гарах» дарна уу.";
 /** Fallback when API omits detail — keep in sync with backend copy. */
 export const DEVICE_LIMIT_FALLBACK = `${DEVICE_LIMIT_BODY} ${DEVICE_LIMIT_HINT}`;
 

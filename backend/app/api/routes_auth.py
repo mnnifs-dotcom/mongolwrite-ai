@@ -101,7 +101,7 @@ def login_google(
         name=identity["name"],
         picture=identity["picture"],
     )
-    register_device_or_raise(str(row["id"]), x_mw_device_id or "")
+    register_device_or_raise(str(row["id"]), x_mw_device_id or "", replace_lru=True)
     set_user_cookie(response, str(row["id"]))
     return {"ok": True, "user": public_user(row)}
 

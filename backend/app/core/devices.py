@@ -58,9 +58,14 @@ def require_device_header(
     return normalized
 
 
-def register_device_or_raise(user_id: str, device_id: str) -> list[dict[str, Any]]:
+def register_device_or_raise(
+    user_id: str,
+    device_id: str,
+    *,
+    replace_lru: bool = False,
+) -> list[dict[str, Any]]:
     try:
-        return register_or_touch_device(user_id, device_id)
+        return register_or_touch_device(user_id, device_id, replace_lru=replace_lru)
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
     except ValueError as exc:
@@ -75,4 +80,4 @@ def enforce_device(user_id: str, device_id: str | None) -> None:
             status_code=400,
             detail="Төхөөрөмжийн мэдээлэл олдсонгүй. Хуудсыг дахин ачаална уу.",
         )
-    register_device_or_raise(user_id, normalized)
+    register_device_or_raise(user_id, normalized, replace_lru=False)
