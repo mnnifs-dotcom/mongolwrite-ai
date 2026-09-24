@@ -74,7 +74,7 @@ def test_collect_review_skips_curated(monkeypatch, tmp_path) -> None:
     assert result["skipped_curated"] >= 1
 
 
-def test_google_login_replaces_oldest_device(monkeypatch, tmp_path) -> None:
+def test_google_login_device_limit(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr("app.core.users.persist_dir", lambda: tmp_path)
     monkeypatch.setattr(
         "app.api.routes_auth.settings.google_client_id",
@@ -113,20 +113,19 @@ def test_google_login_replaces_oldest_device(monkeypatch, tmp_path) -> None:
         ).status_code
         == 200
     )
-    # Third Google login replaces the least-recently-seen device (device 1).
-    allowed = client.post(
+    blocked = client.post(
         "/api/v1/auth/google",
         json={"access_token": "ya29.fake"},
         headers=headers3,
     )
-    assert allowed.status_code == 200
-    ids = {item["id"] for item in list_user_devices("google-sub-1")}
-    assert ids == {"devicebbbb02", "devicecccc03"}
-    assert "дэмжлэг" not in str(allowed.json())
+    assert blocked.status_code == 403
+    detail = blocked.json()["detail"]
+    assert "2 төхөөрөмж" in detail
+    assert "Гарах" in detail
+    assert "дэмжлэг" not in detail
+    assert "автоматаар" not in detail.lower()
 
-    # Logout on device 2 frees a slot without needing LRU.
-    assert client.post("/api/v1/auth/logout", headers=headers2).status_code == 200
-    assert {item["id"] for item in list_user_devices("google-sub-1")} == {"devicecccc03"}
+    # Logout on device 1 frees a slot so device 3 can sign in.
     assert (
         client.post(
             "/api/v1/auth/google",
@@ -135,11 +134,20 @@ def test_google_login_replaces_oldest_device(monkeypatch, tmp_path) -> None:
         ).status_code
         == 200
     )
-    assert len(list_user_devices("google-sub-1")) == 2
+    assert client.post("/api/v1/auth/logout", headers=headers1).status_code == 200
+    assert len(list_user_devices("google-sub-1")) == 1
+    allowed = client.post(
+        "/api/v1/auth/google",
+        json={"access_token": "ya29.fake"},
+        headers=headers3,
+    )
+    assert allowed.status_code == 200
+    ids = {item["id"] for item in list_user_devices("google-sub-1")}
+    assert ids == {"devicebbbb02", "devicecccc03"}
 
 
 def test_session_check_still_blocks_unknown_device(monkeypatch, tmp_path) -> None:
-    """Authenticated session checks do not silently take over a third device."""
+    """Authenticated session checks refuse a third device without kicking others."""
     monkeypatch.setattr("app.core.users.persist_dir", lambda: tmp_path)
     monkeypatch.setattr(
         "app.api.routes_auth.settings.google_client_id",
@@ -164,7 +172,6 @@ def test_session_check_still_blocks_unknown_device(monkeypatch, tmp_path) -> Non
     h3 = {"X-MW-Device-Id": "devicecccc03"}
     assert client.post("/api/v1/auth/google", json={"access_token": "t"}, headers=h1).status_code == 200
     assert client.post("/api/v1/auth/google", json={"access_token": "t"}, headers=h2).status_code == 200
-    # Steal cookie onto a third device id → /me must still refuse without LRU replace.
     blocked = client.get("/api/v1/auth/me", headers=h3)
     assert blocked.status_code == 403
     detail = blocked.json()["detail"]
