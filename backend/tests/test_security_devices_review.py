@@ -119,6 +119,98 @@ def test_google_login_device_limit(monkeypatch, tmp_path) -> None:
         headers=headers3,
     )
     assert blocked.status_code == 403
+    detail = blocked.json()["detail"]
+    assert "2 төхөөрөмж" in detail
+    assert "Гарах" in detail
+    assert "дэмжлэг" not in detail
+    assert "автоматаар" not in detail.lower()
+
+    # Logout on device 1 frees a slot so device 3 can sign in.
+    assert (
+        client.post(
+            "/api/v1/auth/google",
+            json={"access_token": "ya29.fake"},
+            headers=headers1,
+        ).status_code
+        == 200
+    )
+    assert client.post("/api/v1/auth/logout", headers=headers1).status_code == 200
+    assert len(list_user_devices("google-sub-1")) == 1
+    allowed = client.post(
+        "/api/v1/auth/google",
+        json={"access_token": "ya29.fake"},
+        headers=headers3,
+    )
+    assert allowed.status_code == 200
+    ids = {item["id"] for item in list_user_devices("google-sub-1")}
+    assert ids == {"devicebbbb02", "devicecccc03"}
+
+
+def test_session_check_still_blocks_unknown_device(monkeypatch, tmp_path) -> None:
+    """Authenticated session checks refuse a third device without kicking others."""
+    monkeypatch.setattr("app.core.users.persist_dir", lambda: tmp_path)
+    monkeypatch.setattr(
+        "app.api.routes_auth.settings.google_client_id",
+        "test-client.apps.googleusercontent.com",
+    )
+
+    class FakeResponse:
+        status_code = 200
+
+        def json(self):
+            return {
+                "sub": "google-sub-block",
+                "email": "block@example.com",
+                "name": "Block",
+                "picture": "",
+            }
+
+    monkeypatch.setattr("app.api.routes_auth.httpx.get", lambda *args, **kwargs: FakeResponse())
+    client = TestClient(app)
+    h1 = {"X-MW-Device-Id": "deviceaaaa01"}
+    h2 = {"X-MW-Device-Id": "devicebbbb02"}
+    h3 = {"X-MW-Device-Id": "devicecccc03"}
+    assert client.post("/api/v1/auth/google", json={"access_token": "t"}, headers=h1).status_code == 200
+    assert client.post("/api/v1/auth/google", json={"access_token": "t"}, headers=h2).status_code == 200
+    blocked = client.get("/api/v1/auth/me", headers=h3)
+    assert blocked.status_code == 403
+    detail = blocked.json()["detail"]
+    assert "2 төхөөрөмж" in detail
+    assert "дэмжлэг" not in detail
+
+
+def test_logout_unregisters_current_device(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr("app.core.users.persist_dir", lambda: tmp_path)
+    monkeypatch.setattr(
+        "app.api.routes_auth.settings.google_client_id",
+        "test-client.apps.googleusercontent.com",
+    )
+
+    class FakeResponse:
+        status_code = 200
+
+        def json(self):
+            return {
+                "sub": "google-sub-2",
+                "email": "two@example.com",
+                "name": "Two",
+                "picture": "",
+            }
+
+    monkeypatch.setattr("app.api.routes_auth.httpx.get", lambda *args, **kwargs: FakeResponse())
+    client = TestClient(app)
+    headers = {"X-MW-Device-Id": "deviceonly01"}
+    assert (
+        client.post(
+            "/api/v1/auth/google",
+            json={"access_token": "ya29.fake"},
+            headers=headers,
+        ).status_code
+        == 200
+    )
+    assert len(list_user_devices("google-sub-2")) == 1
+    assert client.post("/api/v1/auth/logout", headers=headers).status_code == 200
+    assert list_user_devices("google-sub-2") == []
 
 
 def test_ai_key_requires_admin(monkeypatch, tmp_path) -> None:

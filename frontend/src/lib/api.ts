@@ -97,7 +97,8 @@ async function postCheck(
           .then((body: { detail?: string }) => body.detail)
           .catch(() => null);
         lastError = new Error(
-          detail || "Энэ бүртгэлээр төхөөрөмжийн хязгаар хэтэрсэн байна.",
+          detail ||
+            "Нэг бүртгэлээр зэрэг зөвхөн 2 төхөөрөмжөөс нэвтэрч болно. Өөр төхөөрөмж дээрээсээ «Гарах» дарж нэвтрэлтээ хаагаад энд дахин оролдоно уу.",
         );
       } else {
         lastError = new Error(
@@ -184,7 +185,10 @@ export async function improveText(
         .json()
         .then((body: { detail?: string }) => body.detail)
         .catch(() => null);
-      throw new Error(detail || "Энэ бүртгэлээр төхөөрөмжийн хязгаар хэтэрсэн байна.");
+      throw new Error(
+        detail ||
+          "Нэг бүртгэлээр зэрэг зөвхөн 2 төхөөрөмжөөс нэвтэрч болно. Өөр төхөөрөмж дээрээсээ «Гарах» дарж нэвтрэлтээ хаагаад энд дахин оролдоно уу.",
+      );
     }
     throw new Error(`Сайжруулалт амжилтгүй (${response.status})`);
   }
@@ -261,7 +265,10 @@ export async function authMe(): Promise<AuthMeResponse> {
       .json()
       .then((body: { detail?: string }) => body.detail)
       .catch(() => null);
-    throw new Error(detail || "Энэ бүртгэлээр төхөөрөмжийн хязгаар хэтэрсэн байна.");
+    throw new Error(
+      detail ||
+        "Нэг бүртгэлээр зэрэг зөвхөн 2 төхөөрөмжөөс нэвтэрч болно. Өөр төхөөрөмж дээрээсээ «Гарах» дарж нэвтрэлтээ хаагаад энд дахин оролдоно уу.",
+    );
   }
   if (!response.ok) {
     return { authenticated: false, user: null, google_client_id: null, plans: [] };
@@ -311,6 +318,7 @@ export async function authLogout(): Promise<void> {
   await fetch(apiUrl("/api/v1/auth/logout"), {
     method: "POST",
     credentials: "include",
+    headers: authHeaders(),
   });
 }
 

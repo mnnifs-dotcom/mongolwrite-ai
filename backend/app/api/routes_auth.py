@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Response
 from pydantic import BaseModel, Field
 
 from app.core.config import settings
-from app.core.devices import DEVICE_HEADER, enforce_device, register_device_or_raise
+from app.core.devices import DEVICE_HEADER, enforce_device, register_device_or_raise, unregister_user_device
 from app.core.plans import list_plans
 from app.core.user_auth import (
     clear_user_cookie,
@@ -128,6 +128,13 @@ def me(
 
 
 @router.post("/logout")
-def logout(response: Response) -> dict[str, bool]:
+def logout(
+    response: Response,
+    user: Annotated[dict | None, Depends(optional_user)] = None,
+    x_mw_device_id: Annotated[str | None, Header(alias=DEVICE_HEADER)] = None,
+) -> dict[str, bool]:
+    """End the session and free this browser's device slot."""
+    if user:
+        unregister_user_device(str(user["id"]), x_mw_device_id)
     clear_user_cookie(response)
     return {"ok": True}

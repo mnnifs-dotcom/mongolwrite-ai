@@ -420,6 +420,116 @@ body {
   max-width: 160px;
 }
 
+.mw-device-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 20px 16px;
+  background: color-mix(in srgb, #0b1220 42%, transparent);
+  backdrop-filter: blur(4px);
+  animation: mw-fade-in 0.2s ease both;
+}
+
+.mw-device-dialog {
+  position: relative;
+  width: min(400px, 100%);
+  padding: 32px 28px 24px;
+  border-radius: 20px;
+  background: linear-gradient(165deg, #ffffff 0%, #f4f8fc 100%);
+  border: 1px solid color-mix(in srgb, var(--line) 80%, #fff);
+  box-shadow:
+    0 28px 64px rgba(13, 27, 42, 0.22),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset;
+  text-align: center;
+  animation: mw-success-pop 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.mw-device-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: color-mix(in srgb, var(--ink) 45%, transparent);
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.mw-device-close:hover {
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+  color: var(--ink);
+}
+
+.mw-device-icon {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 16px;
+  border-radius: 20px;
+  color: var(--accent-deep);
+  background: color-mix(in srgb, var(--accent) 12%, #fff);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.mw-device-dialog h2 {
+  margin: 0 0 10px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  text-align: center;
+}
+
+.mw-device-lead {
+  margin: 0 0 8px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: color-mix(in srgb, var(--ink) 82%, transparent);
+  text-align: center;
+  text-wrap: pretty;
+  hyphens: none;
+  -webkit-hyphens: none;
+}
+
+.mw-device-hint {
+  margin: 0 0 22px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--muted);
+  text-align: center;
+  text-wrap: pretty;
+  hyphens: none;
+  -webkit-hyphens: none;
+}
+
+.mw-device-ok {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 148px;
+  min-height: 44px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: var(--btn-radius);
+  background: linear-gradient(180deg, var(--btn-primary-from), var(--btn-primary-to));
+  color: #fff;
+  font-size: 15px;
+  font-weight: 650;
+  cursor: pointer;
+  box-shadow: var(--btn-primary-shadow);
+}
+
+.mw-device-ok:hover {
+  filter: brightness(1.04);
+}
+
 .mw-title {
   font-size: 15px;
   font-weight: 500;

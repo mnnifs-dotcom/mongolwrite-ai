@@ -232,11 +232,28 @@ def clear_user_devices(user_id: str) -> dict[str, Any] | None:
     return update_user_fields(user_id, devices=[])
 
 
-def register_or_touch_device(user_id: str, device_id: str) -> list[dict[str, Any]]:
-    """Register a device or refresh last_seen. Raises ValueError when over the limit."""
+def unregister_device(user_id: str, device_id: str) -> list[dict[str, Any]]:
+    """Remove one device from the account registry (e.g. on logout)."""
     normalized = normalize_device_id(device_id)
     if not normalized:
-        raise ValueError("Төхөөрөмжийн дугаар дутуу эсвэл буруу байна")
+        return list_user_devices(user_id)
+    with _lock:
+        users = _load()
+        row = users.get(user_id)
+        if not row:
+            return []
+        devices = [item for item in _devices_from_row(row) if item["id"] != normalized]
+        row["devices"] = devices
+        users[user_id] = row
+        _save(users)
+        return list(devices)
+
+
+def register_or_touch_device(user_id: str, device_id: str) -> list[dict[str, Any]]:
+    """Register a device or refresh last_seen. Raises PermissionError at the 2-device cap."""
+    normalized = normalize_device_id(device_id)
+    if not normalized:
+        raise ValueError("Төхөөрөмжийн мэдээлэл олдсонгүй. Хуудсыг дахин ачаална уу.")
     now = datetime.now(timezone.utc).isoformat()
     with _lock:
         users = _load()
@@ -253,9 +270,8 @@ def register_or_touch_device(user_id: str, device_id: str) -> list[dict[str, Any
                 return list(devices)
         if len(devices) >= MAX_DEVICES:
             raise PermissionError(
-                f"Нэг бүртгэлээр дээд тал нь {MAX_DEVICES} төхөөрөмжөөс "
-                "хандах боломжтой. Өөр төхөөрөмжөөс гарна уу, эсвэл "
-                "дэмжлэгт хандана уу."
+                "Нэг бүртгэлээр зэрэг зөвхөн 2 төхөөрөмжөөс нэвтэрч болно. "
+                "Өөр төхөөрөмж дээрээсээ «Гарах» дарж нэвтрэлтээ хаагаад энд дахин оролдоно уу."
             )
         devices.append(
             {

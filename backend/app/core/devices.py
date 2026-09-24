@@ -12,6 +12,7 @@ from app.core.users import (
     list_user_devices,
     normalize_device_id,
     register_or_touch_device,
+    unregister_device,
 )
 
 DEVICE_HEADER = "X-MW-Device-Id"
@@ -25,6 +26,7 @@ __all__ = [
     "normalize_device_id",
     "register_device_or_raise",
     "require_device_header",
+    "unregister_user_device",
 ]
 
 
@@ -36,6 +38,14 @@ def clear_devices(user_id: str) -> dict[str, Any] | None:
     return clear_user_devices(user_id)
 
 
+def unregister_user_device(user_id: str, device_id: str | None) -> list[dict[str, Any]]:
+    """Drop a device slot on logout so another browser can sign in."""
+    normalized = normalize_device_id(device_id)
+    if not normalized:
+        return list_user_devices(user_id)
+    return unregister_device(user_id, normalized)
+
+
 def require_device_header(
     x_mw_device_id: str | None = Header(default=None, alias=DEVICE_HEADER),
 ) -> str:
@@ -43,7 +53,7 @@ def require_device_header(
     if not normalized:
         raise HTTPException(
             status_code=400,
-            detail="Төхөөрөмжийн дугаар дутуу эсвэл буруу байна",
+            detail="Төхөөрөмжийн мэдээлэл олдсонгүй. Хуудсыг дахин ачаална уу.",
         )
     return normalized
 
@@ -63,6 +73,6 @@ def enforce_device(user_id: str, device_id: str | None) -> None:
     if not normalized:
         raise HTTPException(
             status_code=400,
-            detail="Төхөөрөмжийн дугаар дутуу эсвэл буруу байна",
+            detail="Төхөөрөмжийн мэдээлэл олдсонгүй. Хуудсыг дахин ачаална уу.",
         )
     register_device_or_raise(user_id, normalized)
