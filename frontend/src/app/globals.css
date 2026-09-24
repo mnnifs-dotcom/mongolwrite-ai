@@ -2508,6 +2508,13 @@ body {
   text-align: left;
 }
 
+.mw-seo-article h3 {
+  font-size: 1.02rem;
+  margin: 18px 0 8px;
+  color: var(--ink);
+  text-align: left;
+}
+
 .mw-seo-lead {
   font-size: 1.05rem;
   color: color-mix(in srgb, var(--ink) 88%, var(--muted));

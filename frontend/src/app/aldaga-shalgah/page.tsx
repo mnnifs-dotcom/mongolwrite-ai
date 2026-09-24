@@ -8,10 +8,10 @@ const SITE = "https://mongolwrite.com";
 
 export const metadata: Metadata = {
   title: {
-    absolute: "Алдаа шалгах | Монгол үгийн алдаа шалгагч — MongolWrite",
+    absolute: "Алдаа шалгах | Үгийн алдаа шалгах — MongolWrite",
   },
   description:
-    "Монгол кирилл бичвэрийн үгийн алдааг онлайнаар шалгаж засаарай. Монгол бичиг рүү хөрвүүлэх, Word файлаар татах. Программ суулгахгүй.",
+    "Алдаа шалгах, үгийн алдаа шалгах онлайн. Монгол кирилл бичвэрийн үгийн алдааг онлайнаар шалгаж засаарай. Монгол бичиг рүү хөрвүүлэх, Word файлаар татах.",
   keywords: [
     "алдаа шалгах",
     "үгийн алдаа шалгах",
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   ],
   alternates: { canonical: "/aldaga-shalgah" },
   openGraph: {
-    title: "Алдаа шалгах | MongolWrite",
+    title: "Алдаа шалгах | Үгийн алдаа шалгах — MongolWrite",
     description: "Монгол кирилл бичвэрийн үгийн алдааг онлайнаар шалгаж засаарай.",
     url: `${SITE}/aldaga-shalgah`,
     type: "website",
@@ -101,6 +101,10 @@ export default function AldagaShalgahPage() {
           хэрэглэгч бага хэмжээний текстээр туршиж үзэж болно. Илүү урт бичвэр шалгах,
           монгол бичиг хөрвүүлэх зэрэг бүрэн боломжийг төлбөртэй эрхээр нээнэ. Дэлгэрэнгүйг{" "}
           <Link href="/tolbor">төлбөрийн багц</Link> хуудаснаас үзнэ үү.
+        </p>
+        <p>
+          «Үгийн алдаа шалгах» гэж хайж байгаа бол{" "}
+          <Link href="/ugiin-aldaga-shalgah">үгийн алдаа шалгах</Link> хуудсыг мөн үзнэ үү.
         </p>
 
         <p className="mw-seo-foot-cta">

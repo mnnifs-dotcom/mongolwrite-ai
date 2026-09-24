@@ -7,9 +7,9 @@ export const viewport: Viewport = {
   themeColor: "#1f6fad",
 };
 
-const titleDefault = "Алдаа шалгах | MongolWrite — монгол үгийн алдаа шалгагч";
+const titleDefault = "Үгийн алдаа шалгах | MongolWrite — монгол үгийн алдаа шалгагч";
 const descriptionDefault =
-  "Монгол бичвэрийн үгийн алдааг онлайнаар шалгаж засаарай. Монгол бичиг рүү хөрвүүлэх, Word файлаар татах.";
+  "Үгийн алдаа шалгах онлайн. Монгол кирилл бичвэрийн үгийн алдааг онлайнаар шалгаж засаарай. Монгол бичиг рүү хөрвүүлэх, Word файлаар татах.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE),
@@ -20,13 +20,16 @@ export const metadata: Metadata = {
   description: descriptionDefault,
   applicationName: "MongolWrite",
   keywords: [
-    "алдаа шалгах",
     "үгийн алдаа шалгах",
     "үгийн алдаа шалгагч",
+    "монгол үгийн алдаа шалгах",
+    "монгол үгийн алдаа шалгагч",
+    "алдаа шалгах",
     "монгол алдаа шалгах",
     "бичгийн алдаа шалгах",
     "монгол хэлний алдаа шалгагч",
     "монгол зөв бичих",
+    "онлайн алдаа шалгагч",
     "монгол бичиг хөрвүүлэх",
     "spellcheck",
     "MongolWrite",
@@ -83,13 +86,23 @@ const jsonLd = {
       "@id": `${SITE}/#website`,
       url: SITE,
       name: "MongolWrite",
+      alternateName: [
+        "Үгийн алдаа шалгах",
+        "Монгол үгийн алдаа шалгагч",
+        "Алдаа шалгах",
+      ],
       description: descriptionDefault,
       inLanguage: "mn",
+      potentialAction: {
+        "@type": "ReadAction",
+        target: `${SITE}/ugiin-aldaga-shalgah`,
+      },
     },
     {
       "@type": "WebApplication",
       "@id": `${SITE}/#app`,
       name: "MongolWrite",
+      alternateName: "Үгийн алдаа шалгах — MongolWrite",
       url: SITE,
       applicationCategory: "BusinessApplication",
       operatingSystem: "Web",
