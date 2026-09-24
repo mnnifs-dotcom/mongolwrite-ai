@@ -81,7 +81,7 @@ export function AuthButton() {
       setUser(me.user);
       setClientId(me.google_client_id);
       setError(null);
-      setDeviceLimitOpen(false);
+      if (me.user) setDeviceLimitOpen(false);
     } catch (err) {
       setUser(null);
       const message = err instanceof Error ? err.message : "Нэвтэрч чадсангүй";
