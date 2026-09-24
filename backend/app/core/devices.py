@@ -12,6 +12,7 @@ from app.core.users import (
     list_user_devices,
     normalize_device_id,
     register_or_touch_device,
+    unregister_device,
 )
 
 DEVICE_HEADER = "X-MW-Device-Id"
@@ -25,6 +26,7 @@ __all__ = [
     "normalize_device_id",
     "register_device_or_raise",
     "require_device_header",
+    "unregister_user_device",
 ]
 
 
@@ -34,6 +36,14 @@ def list_devices(user_id: str) -> list[dict[str, Any]]:
 
 def clear_devices(user_id: str) -> dict[str, Any] | None:
     return clear_user_devices(user_id)
+
+
+def unregister_user_device(user_id: str, device_id: str | None) -> list[dict[str, Any]]:
+    """Drop a device slot on logout so another browser can sign in."""
+    normalized = normalize_device_id(device_id)
+    if not normalized:
+        return list_user_devices(user_id)
+    return unregister_device(user_id, normalized)
 
 
 def require_device_header(

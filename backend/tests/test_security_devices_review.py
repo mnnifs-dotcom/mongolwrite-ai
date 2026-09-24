@@ -124,6 +124,58 @@ def test_google_login_device_limit(monkeypatch, tmp_path) -> None:
     assert "дахин оролдоно" in detail
     assert "дэмжлэг" not in detail
 
+    # Logout on device 1 must free a slot so device 3 can sign in.
+    logged_in = client.post(
+        "/api/v1/auth/google",
+        json={"access_token": "ya29.fake"},
+        headers=headers1,
+    )
+    assert logged_in.status_code == 200
+    logout = client.post("/api/v1/auth/logout", headers=headers1)
+    assert logout.status_code == 200
+    assert len(list_user_devices("google-sub-1")) == 1
+    allowed = client.post(
+        "/api/v1/auth/google",
+        json={"access_token": "ya29.fake"},
+        headers=headers3,
+    )
+    assert allowed.status_code == 200
+    assert len(list_user_devices("google-sub-1")) == 2
+
+
+def test_logout_unregisters_current_device(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr("app.core.users.persist_dir", lambda: tmp_path)
+    monkeypatch.setattr(
+        "app.api.routes_auth.settings.google_client_id",
+        "test-client.apps.googleusercontent.com",
+    )
+
+    class FakeResponse:
+        status_code = 200
+
+        def json(self):
+            return {
+                "sub": "google-sub-2",
+                "email": "two@example.com",
+                "name": "Two",
+                "picture": "",
+            }
+
+    monkeypatch.setattr("app.api.routes_auth.httpx.get", lambda *args, **kwargs: FakeResponse())
+    client = TestClient(app)
+    headers = {"X-MW-Device-Id": "deviceonly01"}
+    assert (
+        client.post(
+            "/api/v1/auth/google",
+            json={"access_token": "ya29.fake"},
+            headers=headers,
+        ).status_code
+        == 200
+    )
+    assert len(list_user_devices("google-sub-2")) == 1
+    assert client.post("/api/v1/auth/logout", headers=headers).status_code == 200
+    assert list_user_devices("google-sub-2") == []
+
 
 def test_ai_key_requires_admin(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr("app.core.config.settings.admin_username", "admin")

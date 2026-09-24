@@ -232,8 +232,25 @@ def clear_user_devices(user_id: str) -> dict[str, Any] | None:
     return update_user_fields(user_id, devices=[])
 
 
+def unregister_device(user_id: str, device_id: str) -> list[dict[str, Any]]:
+    """Remove one device from the account registry (e.g. on logout)."""
+    normalized = normalize_device_id(device_id)
+    if not normalized:
+        return list_user_devices(user_id)
+    with _lock:
+        users = _load()
+        row = users.get(user_id)
+        if not row:
+            return []
+        devices = [item for item in _devices_from_row(row) if item["id"] != normalized]
+        row["devices"] = devices
+        users[user_id] = row
+        _save(users)
+        return list(devices)
+
+
 def register_or_touch_device(user_id: str, device_id: str) -> list[dict[str, Any]]:
-    """Register a device or refresh last_seen. Raises ValueError when over the limit."""
+    """Register a device or refresh last_seen. Raises PermissionError when over the limit."""
     normalized = normalize_device_id(device_id)
     if not normalized:
         raise ValueError("Төхөөрөмжийн мэдээлэл олдсонгүй. Хуудсыг дахин ачаална уу.")
@@ -254,7 +271,7 @@ def register_or_touch_device(user_id: str, device_id: str) -> list[dict[str, Any
         if len(devices) >= MAX_DEVICES:
             raise PermissionError(
                 "Нэг бүртгэлээр зэрэг зөвхөн 2 төхөөрөмжөөс нэвтэрч болно. "
-                "Өөр төхөөрөмж дээрх нэвтрэлтээ хаагаад энд дахин оролдоно уу."
+                "Өөр төхөөрөмж дээрээсээ «Гарах» дарж нэвтрэлтээ хаагаад энд дахин оролдоно уу."
             )
         devices.append(
             {

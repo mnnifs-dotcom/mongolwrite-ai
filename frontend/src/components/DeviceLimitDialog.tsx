@@ -7,7 +7,7 @@ export const DEVICE_LIMIT_TITLE = "Төхөөрөмжийн хязгаар";
 export const DEVICE_LIMIT_BODY =
   "Нэг бүртгэлээр зэрэг зөвхөн 2 төхөөрөмжөөс нэвтэрч болно.";
 export const DEVICE_LIMIT_HINT =
-  "Өөр төхөөрөмж дээрх нэвтрэлтээ хаагаад энд дахин оролдоно уу.";
+  "Өөр төхөөрөмж дээрээсээ «Гарах» дарж нэвтрэлтээ хаагаад энд дахин оролдоно уу.";
 /** Fallback when API omits detail — keep in sync with backend copy. */
 export const DEVICE_LIMIT_FALLBACK = `${DEVICE_LIMIT_BODY} ${DEVICE_LIMIT_HINT}`;
 
