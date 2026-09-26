@@ -1657,6 +1657,105 @@ body {
   max-height: min(58vh, 640px);
 }
 
+.mw-admin-scroll.mw-added-scroll {
+  max-height: calc(100dvh - 300px);
+  min-height: min(52vh, 460px);
+}
+
+.mw-added-list li {
+  align-items: flex-start;
+  padding: 10px 12px;
+  gap: 12px;
+}
+
+.mw-added-word-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mw-added-word-block strong {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.mw-added-folded {
+  font-size: 12px;
+}
+
+.mw-added-when {
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  padding-top: 2px;
+}
+
+.mw-admin-scroll.mw-feedback-scroll {
+  max-height: calc(100dvh - 240px);
+  min-height: min(52vh, 460px);
+}
+
+.mw-feedback-list li {
+  align-items: stretch;
+  padding: 12px 14px;
+}
+
+.mw-feedback-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+
+.mw-feedback-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 14px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.mw-feedback-cat {
+  display: inline-block;
+  font-weight: 650;
+  color: var(--ink);
+  font-size: 12px;
+  letter-spacing: 0.01em;
+}
+
+.mw-feedback-word {
+  font-size: 15px;
+  font-weight: 650;
+  overflow: visible;
+  text-overflow: unset;
+  white-space: normal;
+}
+
+.mw-feedback-message {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--ink);
+}
+
+.mw-feedback-extra {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  font-size: 12px;
+}
+
 .mw-users-table {
   width: 100%;
   border-collapse: collapse;
@@ -2386,6 +2485,12 @@ body {
 
   .mw-admin-scroll.mw-lex-scroll {
     max-height: calc(100dvh - 260px);
+    min-height: 40vh;
+  }
+
+  .mw-admin-scroll.mw-added-scroll,
+  .mw-admin-scroll.mw-feedback-scroll {
+    max-height: calc(100dvh - 280px);
     min-height: 40vh;
   }
 }

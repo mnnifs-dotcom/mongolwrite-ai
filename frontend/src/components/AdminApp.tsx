@@ -30,7 +30,9 @@ import {
   adminSetUserPlan,
   adminClearUserDevices,
   adminUsers,
+  adminFeedbackList,
   type AdminAddedWord,
+  type AdminFeedbackItem,
   type AdminUser,
   type AdminUsersPage,
   type FailedLawItem,
@@ -52,6 +54,7 @@ type AdminSection =
   | "hunspell"
   | "pending"
   | "added"
+  | "feedback"
   | "review"
   | "users"
   | "legal"
@@ -60,6 +63,13 @@ type AdminSection =
 const PAGE_SIZE = 400;
 const USERS_PAGE = 50;
 const LAWS_PAGE = 40;
+
+const FEEDBACK_LABELS: Record<string, string> = {
+  spelling: "Зөв бичиг",
+  bichig: "Монгол бичиг",
+  site: "Сайт",
+  other: "Бусад",
+};
 
 function formatWhen(value: string): string {
   if (!value) return "—";
@@ -104,6 +114,8 @@ export function AdminApp() {
   const [addedSelected, setAddedSelected] = useState<Set<string>>(new Set());
   const [addedLoading, setAddedLoading] = useState(false);
   const [addedCopied, setAddedCopied] = useState(false);
+  const [feedbackItems, setFeedbackItems] = useState<AdminFeedbackItem[]>([]);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [pendingSkipped, setPendingSkipped] = useState<PendingSkippedWord[]>([]);
   const [pendingSelected, setPendingSelected] = useState<Set<string>>(new Set());
   const [pendingCopied, setPendingCopied] = useState(false);
@@ -195,6 +207,19 @@ export function AdminApp() {
     },
     [addedSince, addedUntil, addedQuery],
   );
+
+  const loadFeedback = useCallback(async () => {
+    setFeedbackLoading(true);
+    setError(null);
+    try {
+      const page = await adminFeedbackList(300);
+      setFeedbackItems(page.items);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Алдааны мэдэгдэл уншигдсангүй");
+    } finally {
+      setFeedbackLoading(false);
+    }
+  }, []);
 
   const loadLexicon = useCallback(async (opts?: { q?: string; letter?: string; offset?: number }) => {
     const q = opts?.q ?? lexQuery;
@@ -301,6 +326,7 @@ export function AdminApp() {
           await loadLexicon({ offset: 0 });
           await loadUsers({ offset: 0 });
           await loadLaws({ offset: 0 });
+          await loadFeedback();
         }
       } catch {
         setAuthed(false);
@@ -316,6 +342,12 @@ export function AdminApp() {
     if (!authed || section !== "added") return;
     void loadAddedWords();
     // Reload when opening the section; filter fields apply via form submit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authed, section]);
+
+  useEffect(() => {
+    if (!authed || section !== "feedback") return;
+    void loadFeedback();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authed, section]);
 
@@ -972,6 +1004,7 @@ export function AdminApp() {
     { id: "hunspell", label: "Hunspell үгс", count: hunspellWords.length },
     { id: "pending", label: "Алгассан", count: pendingSkipped.length },
     { id: "added", label: "Нэмсэн", count: addedWords.length },
+    { id: "feedback", label: "Алдаа мэдэгдэл", count: feedbackItems.length },
     { id: "review", label: "Шалгах багц" },
     { id: "users", label: "Хэрэглэгчид", count: usersCounts.total },
     {
@@ -997,6 +1030,8 @@ export function AdminApp() {
             void loadLists();
             void loadLexicon();
             void loadUsers();
+            if (section === "added") void loadAddedWords();
+            if (section === "feedback") void loadFeedback();
           }}
         >
           Шинэчлэх
@@ -1721,8 +1756,8 @@ export function AdminApp() {
                       </button>
                     </div>
                   </div>
-                  <div className="mw-admin-scroll">
-                    <ul className="mw-admin-list mw-lex-list">
+                  <div className="mw-admin-scroll mw-added-scroll">
+                    <ul className="mw-admin-list mw-added-list">
                       {addedFiltered.map((item) => (
                         <li key={`${item.folded}-${item.added_at || "file"}`}>
                           <label className="mw-candidate-main">
@@ -1733,14 +1768,67 @@ export function AdminApp() {
                                 toggleAddedWord(item.folded, event.target.checked)
                               }
                             />
-                            <strong>{item.word}</strong>
+                            <span className="mw-added-word-block">
+                              <strong>{item.word}</strong>
+                              {item.folded && item.folded !== item.word.toLocaleLowerCase("mn") ? (
+                                <span className="mw-muted mw-added-folded">{item.folded}</span>
+                              ) : null}
+                            </span>
                           </label>
-                          <span className="mw-muted">{formatWhen(item.added_at)}</span>
+                          <time className="mw-added-when" dateTime={item.added_at || undefined}>
+                            {formatWhen(item.added_at)}
+                          </time>
                         </li>
                       ))}
                     </ul>
                   </div>
                 </>
+              )}
+            </section>
+          ) : null}
+
+          {section === "feedback" ? (
+            <section className="mw-admin-card" id="admin-feedback">
+              <h2>
+                Алдааны мэдэгдэл
+                {feedbackItems.length
+                  ? ` · ${feedbackItems.length.toLocaleString("mn-MN")}`
+                  : ""}
+              </h2>
+              <p className="mw-muted">
+                Хэрэглэгчдийн «Алдаа мэдэгдэх» хуудаснаас илгээсэн мэдээлэл.
+              </p>
+              {feedbackLoading && !feedbackItems.length ? (
+                <p className="mw-muted">Уншиж байна…</p>
+              ) : feedbackItems.length === 0 ? (
+                <p className="mw-muted">Мэдэгдэл алга</p>
+              ) : (
+                <div className="mw-admin-scroll mw-feedback-scroll">
+                  <ul className="mw-admin-list mw-feedback-list">
+                    {feedbackItems.map((item) => (
+                      <li key={item.id}>
+                        <div className="mw-feedback-item">
+                          <div className="mw-feedback-meta">
+                            <span className="mw-feedback-cat">
+                              {FEEDBACK_LABELS[item.category] ?? item.category}
+                            </span>
+                            <time dateTime={item.created_at || undefined}>
+                              {formatWhen(item.created_at)}
+                            </time>
+                          </div>
+                          {item.word ? (
+                            <strong className="mw-feedback-word">{item.word}</strong>
+                          ) : null}
+                          <p className="mw-feedback-message">{item.message}</p>
+                          <div className="mw-feedback-extra mw-muted">
+                            {item.email ? <span>{item.email}</span> : null}
+                            {item.page ? <span>{item.page}</span> : null}
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
             </section>
           ) : null}

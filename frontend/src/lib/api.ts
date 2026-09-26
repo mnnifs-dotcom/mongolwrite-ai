@@ -431,6 +431,16 @@ export type AdminAddedWord = {
   added_at: string;
 };
 
+export type AdminFeedbackItem = {
+  id: string;
+  category: string;
+  word: string;
+  message: string;
+  email: string;
+  page: string;
+  created_at: string;
+};
+
 export type AdminUser = {
   id: string;
   email: string;
@@ -924,6 +934,17 @@ export async function adminAddedWords(opts?: {
   );
   if (!response.ok) throw new Error("Нэмсэн үгс уншигдсангүй");
   return response.json() as Promise<{ items: AdminAddedWord[]; count: number }>;
+}
+
+export async function adminFeedbackList(
+  limit = 200,
+): Promise<{ items: AdminFeedbackItem[]; count: number }> {
+  const response = await fetch(
+    apiUrl(`/api/v1/admin/feedback?limit=${encodeURIComponent(String(limit))}`),
+    { credentials: "include" },
+  );
+  if (!response.ok) throw new Error("Алдааны мэдэгдэл уншигдсангүй");
+  return response.json() as Promise<{ items: AdminFeedbackItem[]; count: number }>;
 }
 
 export async function adminApprovePending(
