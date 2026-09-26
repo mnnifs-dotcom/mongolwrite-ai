@@ -82,3 +82,64 @@ def list_feedback(*, limit: int = 100) -> list[dict[str, Any]]:
     cap = max(1, min(int(limit), 500))
     with _lock:
         return [dict(row) for row in _load()[:cap]]
+
+
+def delete_feedback(item_id: str) -> bool:
+    """Remove one report by id. Returns True if something was deleted."""
+    target = (item_id or "").strip()
+    if not target:
+        return False
+    with _lock:
+        items = _load()
+        kept = [row for row in items if str(row.get("id") or "") != target]
+        if len(kept) == len(items):
+            return False
+        _save(kept)
+    return True
+
+
+def delete_feedback_many(ids: list[str]) -> list[str]:
+    """Remove many reports; returns deleted ids."""
+    wanted = {str(i).strip() for i in ids if str(i).strip()}
+    if not wanted:
+        return []
+    with _lock:
+        items = _load()
+        deleted: list[str] = []
+        kept: list[dict[str, Any]] = []
+        for row in items:
+            rid = str(row.get("id") or "")
+            if rid in wanted:
+                deleted.append(rid)
+            else:
+                kept.append(row)
+        if deleted:
+            _save(kept)
+    return deleted
+
+
+_TEST_MARKERS = (
+    "smoke test",
+    "production smoke",
+    "тест мэдэгдэл",
+    "test мэдэгдэл",
+)
+
+
+def purge_test_feedback() -> list[str]:
+    """Drop obvious deploy/smoke-test leftover reports."""
+    with _lock:
+        items = _load()
+        deleted: list[str] = []
+        kept: list[dict[str, Any]] = []
+        for row in items:
+            text = f"{row.get('message') or ''} {row.get('word') or ''}".lower()
+            if any(marker in text for marker in _TEST_MARKERS):
+                rid = str(row.get("id") or "")
+                if rid:
+                    deleted.append(rid)
+                continue
+            kept.append(row)
+        if deleted:
+            _save(kept)
+    return deleted

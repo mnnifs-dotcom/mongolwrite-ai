@@ -31,6 +31,8 @@ import {
   adminClearUserDevices,
   adminUsers,
   adminFeedbackList,
+  adminFeedbackDelete,
+  adminFeedbackPurgeTests,
   type AdminAddedWord,
   type AdminFeedbackItem,
   type AdminUser,
@@ -347,7 +349,15 @@ export function AdminApp() {
 
   useEffect(() => {
     if (!authed || section !== "feedback") return;
-    void loadFeedback();
+    void (async () => {
+      // Drop leftover deploy/smoke-test rows so they don't clog the real queue.
+      try {
+        await adminFeedbackPurgeTests();
+      } catch {
+        /* ignore — still load whatever is there */
+      }
+      await loadFeedback();
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authed, section]);
 
@@ -888,6 +898,40 @@ export function AdminApp() {
     setAddedCopied(true);
     window.setTimeout(() => setAddedCopied(false), 2000);
     setStatus(`${addedSelected.size} үг хууллаа`);
+  }
+
+  async function onDeleteFeedback(id: string) {
+    if (!id || acting) return;
+    setActing(`fb-del-${id}`);
+    setError(null);
+    try {
+      await adminFeedbackDelete(id);
+      setFeedbackItems((current) => current.filter((row) => row.id !== id));
+      setStatus("Мэдэгдэл устгалаа");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Устгаж чадсангүй");
+    } finally {
+      setActing(null);
+    }
+  }
+
+  async function onPurgeTestFeedback() {
+    if (acting) return;
+    setActing("fb-purge");
+    setError(null);
+    try {
+      const result = await adminFeedbackPurgeTests();
+      await loadFeedback();
+      setStatus(
+        result.deleted_count
+          ? `Тест мэдэгдэл ${result.deleted_count} устгалаа`
+          : "Тест мэдэгдэл олдсонгүй",
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Цэвэрлэж чадсангүй");
+    } finally {
+      setActing(null);
+    }
   }
 
   async function copyAllLexiconWords() {
@@ -1788,44 +1832,86 @@ export function AdminApp() {
 
           {section === "feedback" ? (
             <section className="mw-admin-card" id="admin-feedback">
-              <h2>
-                Алдааны мэдэгдэл
-                {feedbackItems.length
-                  ? ` · ${feedbackItems.length.toLocaleString("mn-MN")}`
-                  : ""}
-              </h2>
-              <p className="mw-muted">
-                Хэрэглэгчдийн «Алдаа мэдэгдэх» хуудаснаас илгээсэн мэдээлэл.
-              </p>
+              <div className="mw-feedback-head">
+                <div>
+                  <h2>
+                    Алдааны мэдэгдэл
+                    {feedbackItems.length
+                      ? ` · ${feedbackItems.length.toLocaleString("mn-MN")}`
+                      : ""}
+                  </h2>
+                  <p className="mw-muted">
+                    Хэрэглэгчдийн «Алдаа мэдэгдэх» хуудаснаас илгээсэн мэдээлэл. Шийдсэний
+                    дараа устгана.
+                  </p>
+                </div>
+                <div className="mw-admin-row">
+                  <button
+                    type="button"
+                    className="mw-btn"
+                    disabled={feedbackLoading || acting === "fb-purge"}
+                    onClick={() => void loadFeedback()}
+                  >
+                    {feedbackLoading ? "…" : "Шинэчлэх"}
+                  </button>
+                  <button
+                    type="button"
+                    className="mw-btn"
+                    disabled={feedbackLoading || acting === "fb-purge" || !feedbackItems.length}
+                    onClick={() => void onPurgeTestFeedback()}
+                    title="Smoke / deploy тест мэдэгдлийг автоматаар хасна"
+                  >
+                    {acting === "fb-purge" ? "Цэвэрлэж байна…" : "Тест цэвэрлэх"}
+                  </button>
+                </div>
+              </div>
               {feedbackLoading && !feedbackItems.length ? (
                 <p className="mw-muted">Уншиж байна…</p>
               ) : feedbackItems.length === 0 ? (
-                <p className="mw-muted">Мэдэгдэл алга</p>
+                <p className="mw-muted">Шийдэгдээгүй мэдэгдэл алга — цэвэр.</p>
               ) : (
                 <div className="mw-admin-scroll mw-feedback-scroll">
                   <ul className="mw-admin-list mw-feedback-list">
-                    {feedbackItems.map((item) => (
-                      <li key={item.id}>
-                        <div className="mw-feedback-item">
-                          <div className="mw-feedback-meta">
-                            <span className="mw-feedback-cat">
-                              {FEEDBACK_LABELS[item.category] ?? item.category}
-                            </span>
-                            <time dateTime={item.created_at || undefined}>
-                              {formatWhen(item.created_at)}
-                            </time>
+                    {feedbackItems.map((item) => {
+                      const isTest = /smoke\s*test|production smoke|тест мэдэгдэл/i.test(
+                        `${item.message} ${item.word}`,
+                      );
+                      return (
+                        <li key={item.id}>
+                          <div className="mw-feedback-item">
+                            <div className="mw-feedback-meta">
+                              <span className="mw-feedback-cat">
+                                {FEEDBACK_LABELS[item.category] ?? item.category}
+                                {isTest ? (
+                                  <span className="mw-feedback-test-tag"> тест</span>
+                                ) : null}
+                              </span>
+                              <time dateTime={item.created_at || undefined}>
+                                {formatWhen(item.created_at)}
+                              </time>
+                            </div>
+                            {item.word ? (
+                              <strong className="mw-feedback-word">{item.word}</strong>
+                            ) : null}
+                            <p className="mw-feedback-message">{item.message}</p>
+                            <div className="mw-feedback-foot">
+                              <div className="mw-feedback-extra mw-muted">
+                                {item.email ? <span>{item.email}</span> : null}
+                                {item.page ? <span>{item.page}</span> : null}
+                              </div>
+                              <button
+                                type="button"
+                                className="mw-btn"
+                                disabled={acting === `fb-del-${item.id}`}
+                                onClick={() => void onDeleteFeedback(item.id)}
+                              >
+                                {acting === `fb-del-${item.id}` ? "…" : "Устгах"}
+                              </button>
+                            </div>
                           </div>
-                          {item.word ? (
-                            <strong className="mw-feedback-word">{item.word}</strong>
-                          ) : null}
-                          <p className="mw-feedback-message">{item.message}</p>
-                          <div className="mw-feedback-extra mw-muted">
-                            {item.email ? <span>{item.email}</span> : null}
-                            {item.page ? <span>{item.page}</span> : null}
-                          </div>
-                        </div>
-                      </li>
-                    ))}
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               )}
