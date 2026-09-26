@@ -16,6 +16,7 @@ from app.core.auth import (
 )
 from app.core.config import settings
 from app.core.devices import clear_devices, list_devices
+from app.core.feedback import list_feedback
 from app.core.plans import get_plan, list_plans
 from app.core.users import list_users, set_user_plan
 
@@ -221,6 +222,13 @@ def added_words(
     q: str = "",
 ) -> dict[str, Any]:
     items = list_admin_added(since=since, until=until, q=q)
+    return {"items": items, "count": len(items)}
+
+
+@router.get("/feedback")
+def feedback_list(_: AdminDep, limit: int = 200) -> dict[str, Any]:
+    """User error reports from «Алдаа мэдэгдэх»."""
+    items = list_feedback(limit=limit)
     return {"items": items, "count": len(items)}
 
 
