@@ -1792,6 +1792,40 @@ body {
   font-size: 12px;
 }
 
+.mw-feedback-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 16px;
+  margin-bottom: 8px;
+}
+
+.mw-feedback-head h2 {
+  margin-bottom: 4px;
+}
+
+.mw-feedback-head .mw-muted {
+  margin: 0;
+}
+
+.mw-feedback-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin-top: 2px;
+}
+
+.mw-feedback-test-tag {
+  margin-left: 6px;
+  font-weight: 600;
+  color: color-mix(in srgb, #b45309 85%, var(--ink));
+  font-size: 11px;
+  text-transform: lowercase;
+}
+
 .mw-users-table {
   width: 100%;
   border-collapse: collapse;

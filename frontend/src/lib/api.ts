@@ -947,6 +947,36 @@ export async function adminFeedbackList(
   return response.json() as Promise<{ items: AdminFeedbackItem[]; count: number }>;
 }
 
+export async function adminFeedbackDelete(
+  id: string,
+): Promise<{ ok: boolean; id: string; count: number }> {
+  const response = await fetch(
+    apiUrl(`/api/v1/admin/feedback/${encodeURIComponent(id)}`),
+    { method: "DELETE", credentials: "include" },
+  );
+  if (!response.ok) throw new Error("Мэдэгдэл устгаж чадсангүй");
+  return response.json() as Promise<{ ok: boolean; id: string; count: number }>;
+}
+
+export async function adminFeedbackPurgeTests(): Promise<{
+  ok: boolean;
+  deleted: string[];
+  deleted_count: number;
+  count: number;
+}> {
+  const response = await fetch(apiUrl("/api/v1/admin/feedback/purge-tests"), {
+    method: "POST",
+    credentials: "include",
+  });
+  if (!response.ok) throw new Error("Тест мэдэгдэл цэвэрлэж чадсангүй");
+  return response.json() as Promise<{
+    ok: boolean;
+    deleted: string[];
+    deleted_count: number;
+    count: number;
+  }>;
+}
+
 export async function adminApprovePending(
   word: string,
 ): Promise<{ added: string[]; added_count: number; word: string }> {

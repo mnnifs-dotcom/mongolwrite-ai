@@ -16,7 +16,12 @@ from app.core.auth import (
 )
 from app.core.config import settings
 from app.core.devices import clear_devices, list_devices
-from app.core.feedback import list_feedback
+from app.core.feedback import (
+    delete_feedback,
+    delete_feedback_many,
+    list_feedback,
+    purge_test_feedback,
+)
 from app.core.plans import get_plan, list_plans
 from app.core.users import list_users, set_user_plan
 
@@ -230,6 +235,42 @@ def feedback_list(_: AdminDep, limit: int = 200) -> dict[str, Any]:
     """User error reports from «Алдаа мэдэгдэх»."""
     items = list_feedback(limit=limit)
     return {"items": items, "count": len(items)}
+
+
+@router.delete("/feedback/{item_id}")
+def feedback_delete(item_id: str, _: AdminDep) -> dict[str, Any]:
+    if not delete_feedback(item_id):
+        raise HTTPException(status_code=404, detail="Мэдэгдэл олдсонгүй")
+    return {"ok": True, "id": item_id, "count": len(list_feedback(limit=500))}
+
+
+class FeedbackIdsAction(BaseModel):
+    ids: list[str] = Field(default_factory=list)
+
+
+@router.post("/feedback/delete-many")
+def feedback_delete_many(body: FeedbackIdsAction, _: AdminDep) -> dict[str, Any]:
+    if not body.ids:
+        raise HTTPException(status_code=400, detail="Мэдэгдэл сонгоогүй")
+    deleted = delete_feedback_many(body.ids)
+    return {
+        "ok": True,
+        "deleted": deleted,
+        "deleted_count": len(deleted),
+        "count": len(list_feedback(limit=500)),
+    }
+
+
+@router.post("/feedback/purge-tests")
+def feedback_purge_tests(_: AdminDep) -> dict[str, Any]:
+    """Remove smoke/deploy test leftovers from the queue."""
+    deleted = purge_test_feedback()
+    return {
+        "ok": True,
+        "deleted": deleted,
+        "deleted_count": len(deleted),
+        "count": len(list_feedback(limit=500)),
+    }
 
 
 @router.get("/candidates")
