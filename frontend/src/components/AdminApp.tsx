@@ -1643,9 +1643,6 @@ export function AdminApp() {
                   ? ` · ${addedFiltered.length.toLocaleString("mn-MN")}`
                   : ""}
               </h2>
-              <p className="mw-muted">
-                Огноогоор шүүж, хуулж шалгаад буруу үгийг сангаас хасна.
-              </p>
               <form
                 className="mw-lex-search mw-added-toolbar"
                 onSubmit={(event) => {
@@ -1701,60 +1698,46 @@ export function AdminApp() {
                 <p className="mw-muted">{addedLoading ? "Уншиж байна…" : "Олдсонгүй"}</p>
               ) : (
                 <>
-                  <div className="mw-select-box">
-                    <label className="mw-select-box-label" htmlFor="mw-added-selected-words">
-                      Хуулах / засах
+                  <div className="mw-added-toolbar-actions mw-admin-row">
+                    <button
+                      type="button"
+                      className="mw-btn"
+                      disabled={!addedFiltered.length}
+                      onClick={() =>
+                        setAddedSelected(new Set(addedFiltered.map((item) => item.folded)))
+                      }
+                    >
+                      Бүгдийг сонгох
+                    </button>
+                    <button
+                      type="button"
+                      className="mw-btn"
+                      disabled={!addedSelected.size}
+                      onClick={() => setAddedSelected(new Set())}
+                    >
+                      Сонголт арилгах
+                    </button>
+                    <button
+                      type="button"
+                      className="mw-btn"
+                      disabled={!addedSelected.size}
+                      onClick={() => void copyAddedSelected()}
+                    >
+                      {addedCopied ? "Хуулсан" : "Хуулах"}
                       {addedSelected.size ? ` · ${addedSelected.size}` : ""}
-                    </label>
-                    <textarea
-                      id="mw-added-selected-words"
-                      className="mw-selected-words"
-                      value={addedSelectedText()}
-                      onChange={(event) => applyAddedSelectedText(event.target.value)}
-                      rows={4}
-                      spellCheck={false}
-                      placeholder="Сонгосон үгс энд гарна — хуулж аваад өөр газар шалгана"
-                    />
-                    <div className="mw-admin-row mw-lex-actions">
-                      <button
-                        type="button"
-                        className="mw-btn"
-                        disabled={!addedFiltered.length}
-                        onClick={() =>
-                          setAddedSelected(new Set(addedFiltered.map((item) => item.folded)))
-                        }
-                      >
-                        Бүгдийг сонгох
-                      </button>
-                      <button
-                        type="button"
-                        className="mw-btn"
-                        disabled={!addedSelected.size}
-                        onClick={() => setAddedSelected(new Set())}
-                      >
-                        Сонголт арилгах
-                      </button>
-                      <button
-                        type="button"
-                        className="mw-btn"
-                        disabled={!addedSelected.size}
-                        onClick={() => void copyAddedSelected()}
-                      >
-                        {addedCopied ? "Хуулсан" : "Хуулах"}
-                      </button>
-                      <button
-                        type="button"
-                        className="mw-btn"
-                        disabled={!addedSelected.size || acting === "added-remove"}
-                        onClick={() => void onRemoveAddedFromLexicon()}
-                      >
-                        {acting === "added-remove"
-                          ? "Хасаж байна…"
-                          : addedSelected.size
-                            ? `Сангаас устгах · ${addedSelected.size}`
-                            : "Сангаас устгах"}
-                      </button>
-                    </div>
+                    </button>
+                    <button
+                      type="button"
+                      className="mw-btn"
+                      disabled={!addedSelected.size || acting === "added-remove"}
+                      onClick={() => void onRemoveAddedFromLexicon()}
+                    >
+                      {acting === "added-remove"
+                        ? "Хасаж байна…"
+                        : addedSelected.size
+                          ? `Сангаас устгах · ${addedSelected.size}`
+                          : "Сангаас устгах"}
+                    </button>
                   </div>
                   <div className="mw-admin-scroll mw-added-scroll">
                     <ul className="mw-admin-list mw-added-list">
@@ -1770,18 +1753,34 @@ export function AdminApp() {
                             />
                             <span className="mw-added-word-block">
                               <strong>{item.word}</strong>
-                              {item.folded && item.folded !== item.word.toLocaleLowerCase("mn") ? (
-                                <span className="mw-muted mw-added-folded">{item.folded}</span>
-                              ) : null}
+                              <time
+                                className="mw-added-when"
+                                dateTime={item.added_at || undefined}
+                              >
+                                {formatWhen(item.added_at)}
+                              </time>
                             </span>
                           </label>
-                          <time className="mw-added-when" dateTime={item.added_at || undefined}>
-                            {formatWhen(item.added_at)}
-                          </time>
                         </li>
                       ))}
                     </ul>
                   </div>
+                  {addedSelected.size > 0 ? (
+                    <div className="mw-select-box mw-added-select-box">
+                      <label className="mw-select-box-label" htmlFor="mw-added-selected-words">
+                        Сонгосон · {addedSelected.size}
+                      </label>
+                      <textarea
+                        id="mw-added-selected-words"
+                        className="mw-selected-words mw-added-selected-words"
+                        value={addedSelectedText()}
+                        onChange={(event) => applyAddedSelectedText(event.target.value)}
+                        rows={3}
+                        spellCheck={false}
+                        placeholder="Сонгосон үгс — хуулж аваад өөр газар шалгана"
+                      />
+                    </div>
+                  ) : null}
                 </>
               )}
             </section>
