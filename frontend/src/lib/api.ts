@@ -1149,7 +1149,7 @@ export async function createBillingCheckout(
   if (!response.ok) {
     const detail =
       response.status === 401 || response.status === 403
-        ? "Төлбөр хийхийн тулд нэвтэрнэ үү."
+        ? "Нэвтэрээд дахин оролдоно уу."
         : "Захиалга үүсгэж чадсангүй.";
     throw new Error(detail);
   }

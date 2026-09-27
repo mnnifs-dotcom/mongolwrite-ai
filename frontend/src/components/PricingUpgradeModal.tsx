@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useId, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -11,6 +10,7 @@ import {
   type BillingOrder,
   type BillingPlan,
 } from "@/lib/api";
+import { loginWithGooglePopup } from "@/lib/googleLogin";
 import { PlanIconFree, PlanIconQuarter, PlanIconYear } from "@/components/PlanIcons";
 import { QpayCheckoutPanel } from "@/components/QpayCheckoutPanel";
 
@@ -27,6 +27,7 @@ type PricingUpgradeModalProps = {
 export function PricingUpgradeModal({ open, onClose, limit }: PricingUpgradeModalProps) {
   const titleId = useId();
   const [authed, setAuthed] = useState(false);
+  const [clientId, setClientId] = useState<string | null>(null);
   const [plans, setPlans] = useState<BillingPlan[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [order, setOrder] = useState<BillingOrder | null>(null);
@@ -41,6 +42,7 @@ export function PricingUpgradeModal({ open, onClose, limit }: PricingUpgradeModa
       try {
         const [billing, me] = await Promise.all([fetchBillingPlans(), authMe()]);
         setAuthed(Boolean(me.authenticated));
+        setClientId(me.google_client_id);
         setCheckoutReady(Boolean(billing.checkout_ready));
         const free = (billing.all_plans || []).find((row) => row.id === "free");
         const paid = billing.plans || [];
@@ -67,18 +69,22 @@ export function PricingUpgradeModal({ open, onClose, limit }: PricingUpgradeModa
 
   async function onBuy(plan: BillingPlan) {
     if (plan.id !== "pro_3m" && plan.id !== "pro_year") return;
-    if (!authed) {
-      window.location.href = "/tolbor";
-      return;
-    }
     setBusy(plan.id);
     setError(null);
     setOrder(null);
     try {
+      if (!authed) {
+        if (!clientId) {
+          throw new Error("Google нэвтрэлт бэлэн биш. Хуудсыг шинэчилээд дахин оролдоно уу.");
+        }
+        await loginWithGooglePopup(clientId);
+        setAuthed(true);
+      }
       const result = await createBillingCheckout(plan.id);
       setOrder(result.order);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Захиалга амжилтгүй");
+      const message = err instanceof Error ? err.message : "Захиалга амжилтгүй";
+      if (!message.includes("цуцлагдлаа")) setError(message);
     } finally {
       setBusy(null);
     }
@@ -144,9 +150,32 @@ export function PricingUpgradeModal({ open, onClose, limit }: PricingUpgradeModa
                 ))}
               </ul>
               {!authed ? (
-                <Link className="mw-upgrade-btn mw-upgrade-btn-ghost" href="/">
-                  Нэвтэрч турших →
-                </Link>
+                <button
+                  type="button"
+                  className="mw-upgrade-btn mw-upgrade-btn-ghost"
+                  disabled={busy === "free-login"}
+                  onClick={() => {
+                    void (async () => {
+                      setBusy("free-login");
+                      setError(null);
+                      try {
+                        if (!clientId) {
+                          throw new Error("Google нэвтрэлт бэлэн биш");
+                        }
+                        await loginWithGooglePopup(clientId);
+                        setAuthed(true);
+                      } catch (err) {
+                        const message =
+                          err instanceof Error ? err.message : "Нэвтэрч чадсангүй";
+                        if (!message.includes("цуцлагдлаа")) setError(message);
+                      } finally {
+                        setBusy(null);
+                      }
+                    })();
+                  }}
+                >
+                  {busy === "free-login" ? "Нэвтэрч байна…" : "Нэвтэрч турших →"}
+                </button>
               ) : (
                 <button type="button" className="mw-upgrade-btn mw-upgrade-btn-ghost" onClick={onClose}>
                   Үргэлжлүүлэх →
@@ -189,7 +218,9 @@ export function PricingUpgradeModal({ open, onClose, limit }: PricingUpgradeModa
                   onClick={() => void onBuy(plan)}
                 >
                   {busy === plan.id
-                    ? "Захиалж байна…"
+                    ? authed
+                      ? "Захиалж байна…"
+                      : "Нэвтэрч байна…"
                     : authed
                       ? "Сонгох →"
                       : "Нэвтэрээд сонгох →"}
