@@ -10,18 +10,10 @@ import {
   type ReviewPreview,
   type ReviewWordItem,
 } from "@/lib/api";
+import { formatDateTimeMn } from "@/lib/formatDate";
 
 function formatWhen(value: string): string {
-  if (!value) return "—";
-  const stamp = Date.parse(value);
-  if (Number.isNaN(stamp)) return value;
-  return new Date(stamp).toLocaleString("mn-MN", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatDateTimeMn(value);
 }
 
 function kindLabel(kinds: string[]): string {

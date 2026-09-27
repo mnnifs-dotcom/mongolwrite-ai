@@ -13,22 +13,12 @@ import {
   type BillingStatus,
 } from "@/lib/api";
 import { loginWithGooglePopup } from "@/lib/googleLogin";
+import { formatDateMn } from "@/lib/formatDate";
 import { PlanIconFree, PlanIconQuarter, PlanIconYear } from "@/components/PlanIcons";
 import { QpayCheckoutPanel } from "@/components/QpayCheckoutPanel";
 
 function formatPrice(mnt: number): string {
   return `₮${mnt.toLocaleString("mn-MN")}`;
-}
-
-function formatExpiry(value: string | null | undefined): string {
-  if (!value) return "";
-  const stamp = Date.parse(value);
-  if (Number.isNaN(stamp)) return value;
-  return new Date(stamp).toLocaleDateString("mn-MN", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
 }
 
 export function PricingPlans() {
@@ -102,7 +92,7 @@ export function PricingPlans() {
   const paid = status?.plans ?? [];
   const authed = Boolean(user);
   const expiryLabel =
-    user?.is_paid && user.plan_expires_at ? formatExpiry(user.plan_expires_at) : "";
+    user?.is_paid && user.plan_expires_at ? formatDateMn(user.plan_expires_at) : "";
 
   return (
     <div className="mw-pricing">
