@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 
+import { AuthButton } from "@/components/AuthButton";
 import { PricingPlans } from "@/components/PricingPlans";
 import { BrandWordmark } from "@/components/BrandWordmark";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -33,9 +34,12 @@ export default function PricingPage() {
           <img src="/logo.png" alt="" width={36} height={33} />
           <BrandWordmark />
         </Link>
-        <Link href="/" className="mw-seo-cta">
-          Алдаа шалгах
-        </Link>
+        <div className="mw-tolbor-actions">
+          <AuthButton />
+          <Link href="/" className="mw-seo-cta">
+            Алдаа шалгах
+          </Link>
+        </div>
       </header>
 
       <article className="mw-seo-article">

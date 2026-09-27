@@ -189,3 +189,27 @@ def test_activate_year_plan(tmp_path, monkeypatch) -> None:
     assert row is not None
     assert plan_is_active(row)
     assert public_user(row)["plan"] == "pro_year"
+
+
+def test_activate_stacks_remaining_time(tmp_path, monkeypatch) -> None:
+    """Renewal adds duration on top of leftover paid days."""
+    from datetime import datetime, timedelta, timezone
+
+    monkeypatch.setattr("app.core.users.persist_dir", lambda: tmp_path)
+    upsert_google_user(sub="stack1", email="stack@example.com")
+    remaining = datetime.now(timezone.utc) + timedelta(days=30)
+    from app.core.users import set_user_plan, get_user
+
+    set_user_plan("stack1", "pro_3m", plan_expires_at=remaining.isoformat())
+    before = get_user("stack1")
+    assert before is not None
+    before_exp = datetime.fromisoformat(str(before["plan_expires_at"]).replace("Z", "+00:00"))
+
+    row = activate_plan_for_user("stack1", "pro_year")
+    assert row is not None
+    after_exp = datetime.fromisoformat(str(row["plan_expires_at"]).replace("Z", "+00:00"))
+    delta = after_exp - before_exp
+    # 365 days stacked (±1 day for clock skew)
+    assert 364 <= delta.days <= 366
+    assert public_user(row)["plan"] == "pro_year"
+    assert plan_is_active(row)

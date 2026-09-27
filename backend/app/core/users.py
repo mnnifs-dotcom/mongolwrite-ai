@@ -121,15 +121,25 @@ def activate_plan_for_user(
     *,
     duration_days: int | None = None,
 ) -> dict[str, Any] | None:
-    """Activate a paid plan from now + duration (billing callback)."""
+    """Activate a paid plan, stacking on any remaining paid time.
+
+    If the user still has an active paid expiry in the future, the new duration
+    is added on top of that date (not restarted from today).
+    """
     plan = get_plan(plan_id)
     if plan["id"] == "free":
         return set_user_plan(user_id, "free")
     days = duration_days if duration_days and duration_days > 0 else plan.get("duration_days")
     expires: str | None = None
     if days:
-        stamp = datetime.now(timezone.utc) + timedelta(days=int(days))
-        expires = stamp.isoformat()
+        now = datetime.now(timezone.utc)
+        base = now
+        existing = get_user(user_id)
+        if existing and plan_is_active(existing, now=now):
+            current = _parse_iso(str(existing.get("plan_expires_at") or "") or None)
+            if current is not None and current > now:
+                base = current
+        expires = (base + timedelta(days=int(days))).isoformat()
     return set_user_plan(user_id, plan["id"], plan_expires_at=expires)
 
 

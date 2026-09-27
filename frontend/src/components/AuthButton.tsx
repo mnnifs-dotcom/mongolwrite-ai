@@ -55,6 +55,17 @@ function loadGis(): Promise<void> {
   });
 }
 
+function formatPlanExpiry(value: string | null | undefined): string {
+  if (!value) return "";
+  const stamp = Date.parse(value);
+  if (Number.isNaN(stamp)) return value;
+  return new Date(stamp).toLocaleDateString("mn-MN", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
 export function AuthButton() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [clientId, setClientId] = useState<string | null>(null);
@@ -107,6 +118,14 @@ export function AuthButton() {
 
   useEffect(() => {
     void refresh();
+  }, [refresh]);
+
+  useEffect(() => {
+    const onAuth = () => {
+      void refresh();
+    };
+    window.addEventListener("mw-auth-changed", onAuth);
+    return () => window.removeEventListener("mw-auth-changed", onAuth);
   }, [refresh]);
 
   useEffect(() => {
@@ -218,9 +237,14 @@ export function AuthButton() {
           {menuOpen ? (
             <div className="mw-auth-menu">
               <p className="mw-auth-plan">{user.plan_name}</p>
+              {user.is_paid && user.plan_expires_at ? (
+                <p className="mw-auth-expiry">
+                  Дуусах: {formatPlanExpiry(user.plan_expires_at)}
+                </p>
+              ) : null}
               <p className="mw-auth-email">{user.email}</p>
               <a href="/tolbor" className="mw-auth-upgrade">
-                Төлбөрийн багц
+                {user.is_paid ? "Хугацаа сунгах" : "Төлбөрийн багц"}
               </a>
               <button type="button" className="mw-btn" onClick={() => void onLogout()} disabled={busy}>
                 Гарах
