@@ -8,6 +8,7 @@ import {
   loginWithGoogleAccessToken,
   type AuthUser,
 } from "@/lib/api";
+import { formatDateMn } from "@/lib/formatDate";
 import {
   DeviceLimitDialog,
   isDeviceLimitMessage,
@@ -52,17 +53,6 @@ function loadGis(): Promise<void> {
     script.onload = () => resolve();
     script.onerror = () => reject(new Error("GIS load failed"));
     document.head.appendChild(script);
-  });
-}
-
-function formatPlanExpiry(value: string | null | undefined): string {
-  if (!value) return "";
-  const stamp = Date.parse(value);
-  if (Number.isNaN(stamp)) return value;
-  return new Date(stamp).toLocaleDateString("mn-MN", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
   });
 }
 
@@ -239,7 +229,7 @@ export function AuthButton() {
               <p className="mw-auth-plan">{user.plan_name}</p>
               {user.is_paid && user.plan_expires_at ? (
                 <p className="mw-auth-expiry">
-                  Дуусах: {formatPlanExpiry(user.plan_expires_at)}
+                  Дуусах: {formatDateMn(user.plan_expires_at)}
                 </p>
               ) : null}
               <p className="mw-auth-email">{user.email}</p>
