@@ -99,19 +99,18 @@ export function PricingPlans() {
     <div className="mw-pricing">
       {!authed ? (
         <p className="mw-pricing-active" role="status">
-          Шинэ бүртгэлд <strong>14 хоногийн үнэгүй туршилт</strong> — төлбөртэйтэй адил эрх.
+          Шинэ бүртгэлд <strong>14 хоногийн үнэгүй туршилт</strong>.
         </p>
       ) : null}
       {user?.is_paid && expiryLabel ? (
         <p className="mw-pricing-active" role="status">
           {onTrial ? (
             <>
-              Таны туршилт: <strong>{user.plan_name}</strong> ·{" "}
-              <strong>{expiryLabel}</strong> хүртэл. Төлбөр хийвэл энэ хугацаан дээр нэмэгдэнэ.
+              Туршилт: <strong>{expiryLabel}</strong> хүртэл.
             </>
           ) : (
             <>
-              Таны төлбөртэй эрх: <strong>{user.plan_name}</strong> ·{" "}
+              Таны эрх: <strong>{user.plan_name}</strong> ·{" "}
               <strong>{expiryLabel}</strong> хүртэл. Дахин төлбөр хийвэл энэ хугацаан дээр
               нэмэгдэнэ.
             </>

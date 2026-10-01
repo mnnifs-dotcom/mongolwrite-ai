@@ -229,17 +229,12 @@ export function AuthButton() {
               <p className="mw-auth-plan">{user.plan_name}</p>
               {user.is_paid && user.plan_expires_at ? (
                 <p className="mw-auth-expiry">
-                  {user.is_trial ? "Туршилт дуусах" : "Дуусах"}:{" "}
-                  {formatDateMn(user.plan_expires_at)}
+                  Дуусах: {formatDateMn(user.plan_expires_at)}
                 </p>
               ) : null}
               <p className="mw-auth-email">{user.email}</p>
               <a href="/tolbor" className="mw-auth-upgrade">
-                {user.is_trial
-                  ? "Төлбөрийн багц сонгох"
-                  : user.is_paid
-                    ? "Хугацаа сунгах"
-                    : "Төлбөрийн багц"}
+                {user.is_paid && !user.is_trial ? "Хугацаа сунгах" : "Төлбөрийн багц"}
               </a>
               <button type="button" className="mw-btn" onClick={() => void onLogout()} disabled={busy}>
                 Гарах

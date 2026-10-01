@@ -12,7 +12,7 @@ GUEST_CHECK_MAX_CHARS = 500
 FREE_CHECK_MAX_CHARS = 1_500
 
 # Three user classes (+ one-time trial for new signups):
-#   0) trial — 14 хоног · төлбөртэйтэй адил эрх (зөвхөн анх бүртгүүлэхэд)
+#   0) trial — 14 хоног (зөвхөн анх бүртгүүлэхэд)
 #   1) free — үнэгүй
 #   2) pro_3m — 3 сар · ₮6,000
 #   3) pro_year — 1 жил · ₮19,900
@@ -31,9 +31,8 @@ PLANS: dict[str, dict[str, Any]] = {
             "Үгийн алдаа шалгах",
             "Монгол бичиг хөрвүүлэх",
             "Нэг удаа шалгахдаа\n500.000\u00a0хүртэлх\u00a0тэмдэгт",
-            f"Үнэгүй туршилт · {TRIAL_DURATION_DAYS} хоног",
         ],
-        "badge": f"{TRIAL_DURATION_DAYS} хоног үнэгүй",
+        "badge": f"{TRIAL_DURATION_DAYS} хоног",
         "blurb": "Шинэ бүртгэлд нэг удаа",
         "sort": -1,
     },
@@ -48,7 +47,6 @@ PLANS: dict[str, dict[str, Any]] = {
         "features": [
             "Үгийн алдаа шалгах",
             "Нэг удаа шалгахдаа\n1.500\u00a0хүртэлх\u00a0тэмдэгт",
-            "Шинэ бүртгэлд 14 хоног\nүнэгүй туршилт",
         ],
         "badge": "",
         "blurb": "Туршилтын дараа үлдэнэ",
