@@ -40,9 +40,20 @@ def test_max_two_devices(tmp_path, monkeypatch) -> None:
 
 
 def test_touch_last_check(tmp_path, monkeypatch) -> None:
+    import time
+
+    from app.core.users import get_user
+
     monkeypatch.setattr("app.core.users.persist_dir", lambda: tmp_path)
     upsert_google_user(sub="u1", email="a@example.com", name="A")
-    row = touch_last_check("u1")
+    # Fire-and-forget — wait briefly for the background write.
+    assert touch_last_check("u1") is None
+    row = None
+    for _ in range(50):
+        row = get_user("u1")
+        if row and row.get("last_check_at"):
+            break
+        time.sleep(0.02)
     assert row is not None
     assert row.get("last_check_at")
 

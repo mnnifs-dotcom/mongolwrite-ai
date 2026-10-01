@@ -100,9 +100,17 @@ def test_free_user_check_limit(tmp_path, monkeypatch) -> None:
         headers={"X-MW-Device-Id": "testdevice01"},
     )
     assert login.status_code == 200
-    assert login.json()["user"]["entitlements"]["check_max_chars"] == FREE_CHECK_MAX_CHARS
+    # New signups start on trial; demote to free to assert free ceilings.
+    assert login.json()["user"]["plan"] == "trial"
+    from app.core.users import set_user_plan
 
-    settings = client.get("/api/v1/settings")
+    set_user_plan("free-limit-1", "free")
+
+    me = client.get("/api/v1/auth/me", headers={"X-MW-Device-Id": "testdevice01"})
+    assert me.status_code == 200
+    assert me.json()["user"]["entitlements"]["check_max_chars"] == FREE_CHECK_MAX_CHARS
+
+    settings = client.get("/api/v1/settings", headers={"X-MW-Device-Id": "testdevice01"})
     assert settings.json()["check_max_chars"] == FREE_CHECK_MAX_CHARS
 
     ok = client.post(
@@ -126,6 +134,16 @@ def test_free_user_check_limit(tmp_path, monkeypatch) -> None:
         },
     )
     assert over.status_code == 413
+
+
+def test_trial_user_check_limit(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr("app.core.users.persist_dir", lambda: tmp_path)
+    user = upsert_google_user(sub="trial-limit-1", email="trial-limit@example.com")
+    pub = public_user(user)
+    assert pub["plan"] == "trial"
+    assert pub["is_trial"] is True
+    assert pub["entitlements"]["check_max_chars"] == PRACTICAL_CHECK_MAX_CHARS
+    assert effective_check_max_chars(pub) == PRACTICAL_CHECK_MAX_CHARS
 
 
 def test_paid_user_check_limit(tmp_path, monkeypatch) -> None:
