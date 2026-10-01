@@ -29,10 +29,10 @@ def get_engine() -> LanguageEngine:
 def _harvest_async(text: str) -> None:
     """Fire-and-forget so check latency stays low.
 
-    Very long documents only sample the start — full harvest of 1M chars
-    would compete with the live check for CPU/RAM.
+    Skip tiny docs (nothing useful to learn). Very long documents only sample
+    the start — full harvest of 1M chars would compete with the live check.
     """
-    if not text.strip():
+    if len(text.strip()) < 3_000:
         return
     sample = text if len(text) <= 500_000 else text[:500_000]
     engine = get_engine()

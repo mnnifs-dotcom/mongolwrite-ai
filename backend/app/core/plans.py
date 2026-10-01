@@ -11,11 +11,32 @@ GUEST_CHECK_MAX_CHARS = 500
 # Signed in on the free plan.
 FREE_CHECK_MAX_CHARS = 1_500
 
-# Three user classes:
+# Three user classes (+ one-time trial for new signups):
+#   0) trial — 14 хоног · төлбөртэйтэй адил эрх (зөвхөн анх бүртгүүлэхэд)
 #   1) free — үнэгүй
 #   2) pro_3m — 3 сар · ₮6,000
 #   3) pro_year — 1 жил · ₮19,900
+TRIAL_DURATION_DAYS = 14
+
 PLANS: dict[str, dict[str, Any]] = {
+    "trial": {
+        "id": "trial",
+        "name": "Туршилт",
+        "price_mnt": 0,
+        "duration_days": TRIAL_DURATION_DAYS,
+        "interval": "trial",
+        "check_max_chars": PRACTICAL_CHECK_MAX_CHARS,
+        "checks_per_day": None,
+        "features": [
+            "Үгийн алдаа шалгах",
+            "Монгол бичиг хөрвүүлэх",
+            "Нэг удаа шалгахдаа\n500.000\u00a0хүртэлх\u00a0тэмдэгт",
+            f"Үнэгүй туршилт · {TRIAL_DURATION_DAYS} хоног",
+        ],
+        "badge": f"{TRIAL_DURATION_DAYS} хоног үнэгүй",
+        "blurb": "Шинэ бүртгэлд нэг удаа",
+        "sort": -1,
+    },
     "free": {
         "id": "free",
         "name": "Үнэгүй",
@@ -27,9 +48,10 @@ PLANS: dict[str, dict[str, Any]] = {
         "features": [
             "Үгийн алдаа шалгах",
             "Нэг удаа шалгахдаа\n1.500\u00a0хүртэлх\u00a0тэмдэгт",
+            "Шинэ бүртгэлд 14 хоног\nүнэгүй туршилт",
         ],
         "badge": "",
-        "blurb": "Туршиж үзэхэд тохиромжтой",
+        "blurb": "Туршилтын дараа үлдэнэ",
         "sort": 0,
     },
     "pro_3m": {
@@ -74,7 +96,7 @@ PLANS: dict[str, dict[str, Any]] = {
 _ALIASES = {"pro": "pro_year"}
 
 DEFAULT_PLAN = "free"
-PAID_PLAN_IDS = frozenset({"pro_3m", "pro_year", "pro"})
+PAID_PLAN_IDS = frozenset({"pro_3m", "pro_year", "pro", "trial"})
 
 
 def normalize_plan_id(plan_id: str) -> str:
@@ -83,6 +105,7 @@ def normalize_plan_id(plan_id: str) -> str:
 
 
 def list_plans(*, include_free: bool = True) -> list[dict[str, Any]]:
+    """Public pricing catalog — trial is auto-granted, not sold."""
     keys = ("free", "pro_3m", "pro_year") if include_free else ("pro_3m", "pro_year")
     return [dict(PLANS[key]) for key in keys]
 
@@ -97,18 +120,24 @@ def get_plan(plan_id: str) -> dict[str, Any]:
 
 
 def is_paid_plan(plan_id: str) -> bool:
+    """True for paid SKUs and active-equivalent trial."""
+    return normalize_plan_id(plan_id) in {"pro_3m", "pro_year", "trial"}
+
+
+def is_purchasable_plan(plan_id: str) -> bool:
+    """True only for QPay-sold SKUs (trial is auto-granted, never sold)."""
     return normalize_plan_id(plan_id) in {"pro_3m", "pro_year"}
 
 
 def effective_check_max_chars(user: dict[str, Any] | None = None) -> int:
-    """Guest 500 · free 1,500 · paid 500,000 (capped by settings)."""
+    """Guest 500 · free 1,500 · paid/trial 500,000 (capped by settings)."""
     from app.core.config import settings
 
     hard_cap = min(int(settings.check_max_chars), PRACTICAL_CHECK_MAX_CHARS)
     if not user:
         return min(GUEST_CHECK_MAX_CHARS, hard_cap)
     plan_id = str(user.get("plan") or DEFAULT_PLAN)
-    # Paid plans always use the current catalog ceiling so raising PRACTICAL
+    # Paid/trial always use the current catalog ceiling so raising PRACTICAL
     # immediately applies (stored entitlements may still say 300k).
     if is_paid_plan(plan_id) or bool(user.get("is_paid")):
         return min(int(get_plan(plan_id)["check_max_chars"]), hard_cap)

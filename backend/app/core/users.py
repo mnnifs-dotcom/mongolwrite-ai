@@ -9,7 +9,13 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from app.core.plans import DEFAULT_PLAN, get_plan, is_paid_plan, normalize_plan_id
+from app.core.plans import (
+    DEFAULT_PLAN,
+    TRIAL_DURATION_DAYS,
+    get_plan,
+    is_paid_plan,
+    normalize_plan_id,
+)
 from app.engine.dictionary import persist_dir
 
 _lock = threading.Lock()
@@ -150,7 +156,8 @@ def upsert_google_user(
     name: str = "",
     picture: str = "",
 ) -> dict[str, Any]:
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(timezone.utc)
+    now_iso = now.isoformat()
     with _lock:
         users = _load()
         existing = users.get(sub)
@@ -158,18 +165,21 @@ def upsert_google_user(
             existing["email"] = email or existing.get("email", "")
             existing["name"] = name or existing.get("name", "")
             existing["picture"] = picture or existing.get("picture", "")
-            existing["last_login_at"] = now
+            existing["last_login_at"] = now_iso
             row = existing
         else:
+            # First signup: one-time 14-day paid-equivalent trial.
+            trial_expires = (now + timedelta(days=TRIAL_DURATION_DAYS)).isoformat()
             row = {
                 "id": sub,
                 "email": email,
                 "name": name,
                 "picture": picture,
-                "plan": DEFAULT_PLAN,
-                "plan_expires_at": None,
-                "created_at": now,
-                "last_login_at": now,
+                "plan": "trial",
+                "plan_expires_at": trial_expires,
+                "trial_used": True,
+                "created_at": now_iso,
+                "last_login_at": now_iso,
             }
             users[sub] = row
         _save(users)
@@ -197,9 +207,20 @@ def update_user_fields(user_id: str, **fields: Any) -> dict[str, Any] | None:
 
 
 def touch_last_check(user_id: str) -> dict[str, Any] | None:
-    """Record the latest spelling-check timestamp for admin visibility."""
+    """Record the latest spelling-check timestamp for admin visibility.
+
+    Runs off the request thread so check latency stays low.
+    """
     now = datetime.now(timezone.utc).isoformat()
-    return update_user_fields(user_id, last_check_at=now)
+
+    def _run() -> None:
+        try:
+            update_user_fields(user_id, last_check_at=now)
+        except Exception:
+            pass
+
+    threading.Thread(target=_run, name="touch-last-check", daemon=True).start()
+    return None
 
 
 def normalize_device_id(raw: str | None) -> str | None:
@@ -259,8 +280,17 @@ def unregister_device(user_id: str, device_id: str) -> list[dict[str, Any]]:
         return list(devices)
 
 
-def register_or_touch_device(user_id: str, device_id: str) -> list[dict[str, Any]]:
-    """Register a device or refresh last_seen. Raises PermissionError at the 2-device cap."""
+def register_or_touch_device(
+    user_id: str,
+    device_id: str,
+    *,
+    touch_async: bool = False,
+) -> list[dict[str, Any]]:
+    """Register a device or refresh last_seen. Raises PermissionError at the 2-device cap.
+
+    When touch_async=True and the device is already registered, skip the
+    synchronous JSON write on the request path (refresh last_seen in background).
+    """
     normalized = normalize_device_id(device_id)
     if not normalized:
         raise ValueError("Төхөөрөмжийн мэдээлэл олдсонгүй. Хуудсыг дахин ачаална уу.")
@@ -273,6 +303,18 @@ def register_or_touch_device(user_id: str, device_id: str) -> list[dict[str, Any
         devices = _devices_from_row(row)
         for item in devices:
             if item["id"] == normalized:
+                if touch_async:
+                    # Known device — do not block the check path on disk I/O.
+                    def _touch() -> None:
+                        try:
+                            register_or_touch_device(user_id, normalized, touch_async=False)
+                        except Exception:
+                            pass
+
+                    threading.Thread(
+                        target=_touch, name="touch-device", daemon=True
+                    ).start()
+                    return list(devices)
                 item["last_seen_at"] = now
                 row["devices"] = devices
                 users[user_id] = row
@@ -320,18 +362,24 @@ def list_users(
             or query in str(row.get("name") or "").casefold()
             or query in str(row.get("id") or "").casefold()
         ]
-    if plan_filter in {"free", "paid", "pro", "pro_3m", "pro_year"}:
+    if plan_filter in {"free", "paid", "pro", "pro_3m", "pro_year", "trial"}:
         if plan_filter == "paid":
             rows = [row for row in rows if plan_is_active(row)]
         elif plan_filter == "free":
             rows = [row for row in rows if not plan_is_active(row)]
         elif plan_filter == "pro":
-            # Legacy filter: any paid SKU
+            # Legacy filter: any paid SKU (excludes trial)
             rows = [
                 row
                 for row in rows
                 if normalize_plan_id(str(row.get("plan") or "")) in {"pro_3m", "pro_year", "pro"}
                 and plan_is_active(row)
+            ]
+        elif plan_filter == "trial":
+            rows = [
+                row
+                for row in rows
+                if normalize_plan_id(str(row.get("plan") or "")) == "trial" and plan_is_active(row)
             ]
         else:
             rows = [
@@ -355,6 +403,11 @@ def list_users(
 def _plan_counts(rows: list[dict[str, Any]]) -> dict[str, int]:
     paid = sum(1 for row in rows if plan_is_active(row))
     free = len(rows) - paid
+    trial = sum(
+        1
+        for row in rows
+        if normalize_plan_id(str(row.get("plan") or "")) == "trial" and plan_is_active(row)
+    )
     pro_3m = sum(
         1 for row in rows if normalize_plan_id(str(row.get("plan") or "")) == "pro_3m" and plan_is_active(row)
     )
@@ -368,6 +421,7 @@ def _plan_counts(rows: list[dict[str, Any]]) -> dict[str, int]:
         "free": free,
         "paid": paid,
         "pro": paid,  # backward-compatible alias = all paid
+        "trial": trial,
         "pro_3m": pro_3m,
         "pro_year": pro_year,
     }
@@ -375,17 +429,21 @@ def _plan_counts(rows: list[dict[str, Any]]) -> dict[str, int]:
 
 def public_user(row: dict[str, Any]) -> dict[str, Any]:
     plan = get_plan(str(row.get("plan") or DEFAULT_PLAN))
-    active = plan_is_active(row) if plan["id"] != "free" else False
+    active = plan_is_active(row) if is_paid_plan(plan["id"]) else False
     effective = plan if (plan["id"] == "free" or active) else get_plan(DEFAULT_PLAN)
+    plan_name = effective["name"]
+    if active and effective["id"] == "trial":
+        plan_name = f"Туршилт · {TRIAL_DURATION_DAYS} хоног"
     return {
         "id": row.get("id", ""),
         "email": row.get("email", ""),
         "name": row.get("name", ""),
         "picture": row.get("picture", ""),
         "plan": effective["id"],
-        "plan_name": effective["name"],
-        "plan_expires_at": row.get("plan_expires_at"),
+        "plan_name": plan_name,
+        "plan_expires_at": row.get("plan_expires_at") if active else None,
         "is_paid": active,
+        "is_trial": active and effective["id"] == "trial",
         "entitlements": {
             "check_max_chars": effective["check_max_chars"],
             "checks_per_day": effective["checks_per_day"],
@@ -399,7 +457,12 @@ def admin_user(row: dict[str, Any]) -> dict[str, Any]:
     paid = plan_is_active(row)
     expires = row.get("plan_expires_at")
     if paid:
-        status = plan["name"] if plan["id"] != "free" else "Төлбөртэй"
+        if plan["id"] == "trial":
+            status = f"Туршилт · {TRIAL_DURATION_DAYS} хоног"
+        elif plan["id"] != "free":
+            status = plan["name"]
+        else:
+            status = "Төлбөртэй"
     elif plan["id"] != "free" and expires:
         status = "Хугацаа дууссан"
     else:
@@ -413,6 +476,8 @@ def admin_user(row: dict[str, Any]) -> dict[str, Any]:
         "plan_name": plan["name"],
         "plan_expires_at": expires,
         "is_paid": paid,
+        "is_trial": paid and plan["id"] == "trial",
+        "trial_used": bool(row.get("trial_used")),
         "status": status,
         "created_at": row.get("created_at", ""),
         "last_login_at": row.get("last_login_at", ""),

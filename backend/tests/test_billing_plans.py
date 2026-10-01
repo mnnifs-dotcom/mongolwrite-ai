@@ -40,6 +40,15 @@ def test_tiered_check_limits() -> None:
         )
         == 500_000
     )
+    assert effective_check_max_chars({"plan": "trial", "is_paid": True}) == 500_000
+
+
+def test_trial_not_purchasable() -> None:
+    from app.core.plans import is_purchasable_plan, is_paid_plan
+
+    assert is_paid_plan("trial") is True
+    assert is_purchasable_plan("trial") is False
+    assert is_purchasable_plan("pro_3m") is True
 
 
 def test_settings_exposes_guest_char_ceiling() -> None:
@@ -161,7 +170,9 @@ def test_checkout_and_callback_activates_plan(tmp_path, monkeypatch) -> None:
     assert qpay_configured() is False
 
     user = upsert_google_user(sub="pay1", email="pay@example.com", name="Pay")
-    assert public_user(user)["plan"] == "free"
+    assert public_user(user)["plan"] == "trial"
+    assert public_user(user)["is_trial"] is True
+    assert public_user(user)["is_paid"] is True
 
     result = create_checkout(user_id="pay1", email="pay@example.com", plan_id="pro_3m")
     order = result["order"]

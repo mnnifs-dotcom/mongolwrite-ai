@@ -68,11 +68,19 @@ def register_device_or_raise(user_id: str, device_id: str) -> list[dict[str, Any
 
 
 def enforce_device(user_id: str, device_id: str | None) -> None:
-    """Require a known (or registrable) device for an authenticated session."""
+    """Require a known (or registrable) device for an authenticated session.
+
+    Known devices refresh last_seen off-thread so check latency stays low.
+    """
     normalized = normalize_device_id(device_id)
     if not normalized:
         raise HTTPException(
             status_code=400,
             detail="Төхөөрөмжийн мэдээлэл олдсонгүй. Хуудсыг дахин ачаална уу.",
         )
-    register_device_or_raise(user_id, normalized)
+    try:
+        register_or_touch_device(user_id, normalized, touch_async=True)
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc

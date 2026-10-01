@@ -174,7 +174,7 @@ export function PricingUpgradeModal({ open, onClose, limit }: PricingUpgradeModa
                     })();
                   }}
                 >
-                  {busy === "free-login" ? "Нэвтэрч байна…" : "Нэвтэрч турших →"}
+                  {busy === "free-login" ? "Нэвтэрч байна…" : "Нэвтэрээд 14 хоног турших →"}
                 </button>
               ) : (
                 <button type="button" className="mw-upgrade-btn mw-upgrade-btn-ghost" onClick={onClose}>
