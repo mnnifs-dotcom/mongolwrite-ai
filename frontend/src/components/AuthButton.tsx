@@ -234,7 +234,7 @@ export function AuthButton() {
               ) : null}
               <p className="mw-auth-email">{user.email}</p>
               <a href="/tolbor" className="mw-auth-upgrade">
-                {user.is_paid ? "Хугацаа сунгах" : "Төлбөрийн багц"}
+                {user.is_paid && !user.is_trial ? "Хугацаа сунгах" : "Төлбөрийн багц"}
               </a>
               <button type="button" className="mw-btn" onClick={() => void onLogout()} disabled={busy}>
                 Гарах

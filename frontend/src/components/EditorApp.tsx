@@ -49,6 +49,7 @@ function resolveCheckMaxChars(me: {
   authenticated: boolean;
   user: {
     is_paid?: boolean;
+    is_trial?: boolean;
     plan?: string;
     entitlements?: { check_max_chars?: number };
   } | null;
@@ -57,7 +58,14 @@ function resolveCheckMaxChars(me: {
     return GUEST_CHECK_MAX_CHARS;
   }
   const fromEntitlement = me.user.entitlements?.check_max_chars;
-  if (me.user.is_paid || me.user.plan === "pro_3m" || me.user.plan === "pro_year" || me.user.plan === "pro") {
+  if (
+    me.user.is_paid ||
+    me.user.is_trial ||
+    me.user.plan === "trial" ||
+    me.user.plan === "pro_3m" ||
+    me.user.plan === "pro_year" ||
+    me.user.plan === "pro"
+  ) {
     // Always the current paid ceiling (ignore stale client/API entitlement numbers).
     return PAID_CHECK_MAX_CHARS;
   }
@@ -69,11 +77,13 @@ function resolveCheckMaxChars(me: {
 
 function isPaidMe(me: {
   authenticated: boolean;
-  user: { is_paid?: boolean; plan?: string } | null;
+  user: { is_paid?: boolean; is_trial?: boolean; plan?: string } | null;
 }): boolean {
   if (!me.authenticated || !me.user) return false;
   return Boolean(
     me.user.is_paid ||
+      me.user.is_trial ||
+      me.user.plan === "trial" ||
       me.user.plan === "pro_3m" ||
       me.user.plan === "pro_year" ||
       me.user.plan === "pro",

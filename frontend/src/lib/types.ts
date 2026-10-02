@@ -40,6 +40,7 @@ export type AuthUser = {
   plan_name: string;
   plan_expires_at?: string | null;
   is_paid?: boolean;
+  is_trial?: boolean;
   entitlements: {
     check_max_chars: number;
     checks_per_day: number | null;

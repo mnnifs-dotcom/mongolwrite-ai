@@ -91,15 +91,30 @@ export function PricingPlans() {
   const free = status?.all_plans?.find((row) => row.id === "free");
   const paid = status?.plans ?? [];
   const authed = Boolean(user);
+  const onTrial = Boolean(user?.is_trial || user?.plan === "trial");
   const expiryLabel =
     user?.is_paid && user.plan_expires_at ? formatDateMn(user.plan_expires_at) : "";
 
   return (
     <div className="mw-pricing">
+      {!authed ? (
+        <p className="mw-pricing-active" role="status">
+          Шинэ бүртгэлд <strong>14 хоногийн үнэгүй туршилт</strong>.
+        </p>
+      ) : null}
       {user?.is_paid && expiryLabel ? (
         <p className="mw-pricing-active" role="status">
-          Таны төлбөртэй эрх: <strong>{user.plan_name}</strong> ·{" "}
-          <strong>{expiryLabel}</strong> хүртэл. Дахин төлбөр хийвэл энэ хугацаан дээр нэмэгдэнэ.
+          {onTrial ? (
+            <>
+              Туршилт: <strong>{expiryLabel}</strong> хүртэл.
+            </>
+          ) : (
+            <>
+              Таны эрх: <strong>{user.plan_name}</strong> ·{" "}
+              <strong>{expiryLabel}</strong> хүртэл. Дахин төлбөр хийвэл энэ хугацаан дээр
+              нэмэгдэнэ.
+            </>
+          )}
         </p>
       ) : null}
 
@@ -126,7 +141,7 @@ export function PricingPlans() {
               </div>
               <h2>{free.name}</h2>
               <p className="mw-pricing-price">{formatPrice(0)}</p>
-              <p className="mw-muted">{free.blurb || "Туршиж үзэхэд тохиромжтой"}</p>
+              {free.blurb ? <p className="mw-muted">{free.blurb}</p> : null}
               <ul>
                 {(free.features || []).map((item) => (
                   <li key={item}>{item}</li>
@@ -153,7 +168,7 @@ export function PricingPlans() {
                     })();
                   }}
                 >
-                  {busy === "free-login" ? "Нэвтэрч байна…" : "Нэвтэрч турших"}
+                  {busy === "free-login" ? "Нэвтэрч байна…" : "Нэвтрэх"}
                 </button>
               ) : (
                 <Link className="mw-seo-cta mw-seo-cta-inline" href="/">
@@ -191,7 +206,9 @@ export function PricingPlans() {
                     : "Нэвтэрч байна…"
                   : authed
                     ? user?.is_paid
-                      ? "Сунгах"
+                      ? onTrial
+                        ? "Сонгох"
+                        : "Сунгах"
                       : "Сонгох"
                     : "Нэвтэрээд сонгох"}
               </button>

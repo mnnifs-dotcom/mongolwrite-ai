@@ -17,12 +17,43 @@ def test_plans_catalog() -> None:
 def test_upsert_google_user(tmp_path, monkeypatch) -> None:
     monkeypatch.setattr("app.core.users.persist_dir", lambda: tmp_path)
     first = upsert_google_user(sub="abc", email="a@example.com", name="A", picture="")
-    assert first["plan"] == "free"
+    assert first["plan"] == "trial"
+    assert first["trial_used"] is True
+    assert first["plan_expires_at"]
+    pub = public_user(first)
+    assert pub["plan"] == "trial"
+    assert pub["is_paid"] is True
+    assert pub["is_trial"] is True
+    assert pub["entitlements"]["check_max_chars"] == 500_000
     second = upsert_google_user(sub="abc", email="a@example.com", name="A2", picture="")
     assert second["name"] == "A2"
-    pub = public_user(second)
-    assert pub["email"] == "a@example.com"
+    assert second["plan"] == "trial"  # login again does not reset trial
+    assert public_user(second)["email"] == "a@example.com"
+
+
+def test_trial_expires_to_free(tmp_path, monkeypatch) -> None:
+    from datetime import datetime, timedelta, timezone
+
+    from app.core.users import set_user_plan
+
+    monkeypatch.setattr("app.core.users.persist_dir", lambda: tmp_path)
+    upsert_google_user(sub="t1", email="t@example.com", name="T")
+    past = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+    set_user_plan("t1", "trial", plan_expires_at=past)
+    from app.core.users import get_user
+
+    row = get_user("t1")
+    assert row is not None
+    pub = public_user(row)
+    assert pub["plan"] == "free"
+    assert pub["is_paid"] is False
+    assert pub["is_trial"] is False
     assert pub["entitlements"]["check_max_chars"] == 1_500
+    # Re-login must not re-grant trial
+    again = upsert_google_user(sub="t1", email="t@example.com", name="T")
+    assert again["plan"] == "trial"  # stored plan id stays, but…
+    assert again["trial_used"] is True
+    assert public_user(again)["plan"] == "free"
 
 
 def test_google_login_requires_token(monkeypatch, tmp_path) -> None:
@@ -69,12 +100,13 @@ def test_admin_users_list_and_plan(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr("app.core.config.settings.secret_key", "test-secret")
     monkeypatch.setattr("app.core.config.settings.app_env", "development")
 
-    from app.core.users import set_user_plan, touch_last_check, upsert_google_user
+    from app.core.users import set_user_plan, update_user_fields, upsert_google_user
 
     upsert_google_user(sub="u1", email="free@example.com", name="Free User")
+    set_user_plan("u1", "free")  # demote so we can assert free vs paid filters
     upsert_google_user(sub="u2", email="pro@example.com", name="Pro User")
     set_user_plan("u2", "pro_year", plan_expires_at="2099-12-31")
-    touch_last_check("u2")
+    update_user_fields("u2", last_check_at="2099-01-01T00:00:00+00:00")
 
     client = TestClient(app)
     assert client.get("/api/v1/admin/users").status_code == 401

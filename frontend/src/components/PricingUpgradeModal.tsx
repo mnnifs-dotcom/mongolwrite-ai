@@ -116,13 +116,9 @@ export function PricingUpgradeModal({ open, onClose, limit }: PricingUpgradeModa
           <p className="mw-upgrade-kicker" id={titleId}>
             {order ? "ТӨЛБӨР" : "БАГЦ СОНГОХ"}
           </p>
-          {order ? null : (
-            <p>
-              {limit
-                ? `Таны хязгаар ${limit.toLocaleString("mn-MN")} тэмдэгт.`
-                : "Тохирох багцаа сонгоно уу."}
-            </p>
-          )}
+          {order ? null : limit ? (
+            <p>Таны хязгаар {limit.toLocaleString("mn-MN")} тэмдэгт.</p>
+          ) : null}
         </header>
 
         {error ? <p className="mw-report-error">{error}</p> : null}
@@ -142,7 +138,7 @@ export function PricingUpgradeModal({ open, onClose, limit }: PricingUpgradeModa
                 <PlanIconFree />
               </div>
               <h3>{free.name}</h3>
-              <p className="mw-upgrade-blurb">{free.blurb || "Туршиж үзэхэд тохиромжтой"}</p>
+              {free.blurb ? <p className="mw-upgrade-blurb">{free.blurb}</p> : null}
               <p className="mw-upgrade-price">{formatPrice(0)}</p>
               <ul>
                 {(free.features || []).map((item) => (
@@ -174,11 +170,11 @@ export function PricingUpgradeModal({ open, onClose, limit }: PricingUpgradeModa
                     })();
                   }}
                 >
-                  {busy === "free-login" ? "Нэвтэрч байна…" : "Нэвтэрч турших →"}
+                  {busy === "free-login" ? "Нэвтэрч байна…" : "Нэвтрэх"}
                 </button>
               ) : (
                 <button type="button" className="mw-upgrade-btn mw-upgrade-btn-ghost" onClick={onClose}>
-                  Үргэлжлүүлэх →
+                  Үргэлжлүүлэх
                 </button>
               )}
             </article>
@@ -191,19 +187,11 @@ export function PricingUpgradeModal({ open, onClose, limit }: PricingUpgradeModa
                 key={plan.id}
                 className={featured ? "mw-upgrade-card is-featured" : "mw-upgrade-card"}
               >
-                {featured ? (
-                  <span className="mw-upgrade-ribbon">Хамгийн ашигтай</span>
-                ) : null}
                 <div className="mw-upgrade-icon" aria-hidden>
                   {featured ? <PlanIconYear /> : <PlanIconQuarter />}
                 </div>
                 <h3>{plan.name}</h3>
-                <p className="mw-upgrade-blurb">
-                  {plan.blurb ||
-                    (plan.id === "pro_3m"
-                      ? "Богино хугацаанд хэрэглэхэд"
-                      : "Урт хугацаанд тохиромжтой")}
-                </p>
+                {plan.blurb ? <p className="mw-upgrade-blurb">{plan.blurb}</p> : null}
                 <p className="mw-upgrade-price">{formatPrice(plan.price_mnt)}</p>
                 {plan.badge ? <p className="mw-upgrade-pill">{plan.badge}</p> : null}
                 <ul>
@@ -222,8 +210,8 @@ export function PricingUpgradeModal({ open, onClose, limit }: PricingUpgradeModa
                       ? "Захиалж байна…"
                       : "Нэвтэрч байна…"
                     : authed
-                      ? "Сонгох →"
-                      : "Нэвтэрээд сонгох →"}
+                      ? "Сонгох"
+                      : "Нэвтэрээд сонгох"}
                 </button>
               </article>
             );

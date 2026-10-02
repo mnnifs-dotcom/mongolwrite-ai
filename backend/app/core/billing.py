@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from app.core.config import settings
-from app.core.plans import get_plan, is_paid_plan, list_paid_plans
+from app.core.plans import get_plan, is_purchasable_plan, list_paid_plans
 from app.core.qpay import QPayError, check_invoice_paid, create_invoice
 from app.core.users import activate_plan_for_user
 from app.engine.dictionary import persist_dir
@@ -115,7 +115,7 @@ def create_checkout(
     plan_id: str,
 ) -> dict[str, Any]:
     plan = get_plan(plan_id)
-    if not is_paid_plan(plan["id"]):
+    if not is_purchasable_plan(plan["id"]):
         raise ValueError("Зөвхөн төлбөртэй багц сонгоно")
     order_id = str(uuid.uuid4())
     # Docs: sender_invoice_no must be unique — never reuse.
