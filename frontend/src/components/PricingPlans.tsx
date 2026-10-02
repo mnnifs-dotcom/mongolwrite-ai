@@ -141,7 +141,7 @@ export function PricingPlans() {
               </div>
               <h2>{free.name}</h2>
               <p className="mw-pricing-price">{formatPrice(0)}</p>
-              <p className="mw-muted">{free.blurb || "Туршиж үзэхэд тохиромжтой"}</p>
+              {free.blurb ? <p className="mw-muted">{free.blurb}</p> : null}
               <ul>
                 {(free.features || []).map((item) => (
                   <li key={item}>{item}</li>
@@ -168,7 +168,7 @@ export function PricingPlans() {
                     })();
                   }}
                 >
-                  {busy === "free-login" ? "Нэвтэрч байна…" : "Нэвтэрээд 14 хоног турших"}
+                  {busy === "free-login" ? "Нэвтэрч байна…" : "Нэвтрэх"}
                 </button>
               ) : (
                 <Link className="mw-seo-cta mw-seo-cta-inline" href="/">
