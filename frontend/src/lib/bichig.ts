@@ -40,10 +40,11 @@ const WORD_OVERRIDES: Record<string, string> = {
   хүчний: `ᢈᠦᠴᠦᠨ${NNBSP}ᠦ${FVS1}`,
   хүчин: "ᢈᠦᠴᠦᠨ",
   ерөнхий: "ᠶᠡᠷᠦᠩᢈᠡᠢ",
-  командлагч: "ᠻᠣᠮᠮᠠᠨ᠋ᠳ᠋ᠯᠠᠭᠴᠢ",
+  // No mid-stem FVS - those render as visible junk ("!") without full shaping.
+  командлагч: "ᠻᠣᠮᠮᠠᠨᠳᠯᠠᠭᠴᠢ",
   ухнаагийн: `ᠤᠬᠤᠨ${MVS}ᠠ${NNBSP}ᠶ${FVS1}ᠢᠨ`,
   ухнаа: `ᠤᠬᠤᠨ${MVS}ᠠ`,
-  хүрэлсүх: `ᢈᠦᠷᠡᠯᠰᠦ${FVS1}ᢈᠡ`,
+  хүрэлсүх: "ᢈᠦᠷᠡᠯᠰᠦᢈᠡ",
   онд: `ᠣᠨ${NNBSP}ᠳ${FVS1}ᠤ`,
   оны: `ᠣᠨ${NNBSP}ᠤ${FVS1}`,
   он: "ᠣᠨ",
@@ -179,6 +180,28 @@ function toPracticalBichig(script: string): string {
 
   // Drop leftover MVS that is not a vowel separator (before final a/e).
   out = out.replace(/\u180E(?![ᠠᠡ])/g, "");
+
+  // Gege injects FVS1 mid-stem on loanwords (абсолют → …ᠦ᠋ᠲ). Without full
+  // OpenType Mongolian shaping those selectors render as visible junk that
+  // readers describe as "!" in the middle of the word. Keep FVS1 only for
+  // practical suffix shaping right after NNBSP (… ᠤ᠋ᠨ, … ᠳ᠋ᠤ).
+  out = stripOrphanFvs(out);
+  return out;
+}
+
+/** Keep FVS1 only when it follows NNBSP + letter (suffix form). */
+function stripOrphanFvs(script: string): string {
+  let out = "";
+  for (let i = 0; i < script.length; i++) {
+    const ch = script[i];
+    if (ch === FVS1) {
+      if (i >= 2 && script[i - 2] === NNBSP) {
+        out += ch;
+      }
+      continue;
+    }
+    out += ch;
+  }
   return out;
 }
 
@@ -305,7 +328,7 @@ function finalizeScript(script: string): string {
 function convertWord(word: string): string {
   const key = word.toLocaleLowerCase("mn");
   const override = WORD_OVERRIDES[key];
-  if (override) return override;
+  if (override) return stripOrphanFvs(override);
 
   // Declined forms: strip case ending, convert stem, re-attach practical suffix.
   // Critical when the full form over-segments (төгөлдөрийн → töγel-dü-ber-ün).
@@ -316,7 +339,7 @@ function convertWord(word: string): string {
     if (!stem || stem.length < 2) continue;
 
     if (WORD_OVERRIDES[stem]) {
-      const stemScript = WORD_OVERRIDES[stem];
+      const stemScript = stripOrphanFvs(WORD_OVERRIDES[stem]);
       const suffix = isFrontStem(stemScript) ? decl.front : decl.back;
       return stemScript + suffix;
     }

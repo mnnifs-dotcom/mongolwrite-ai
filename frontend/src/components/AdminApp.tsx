@@ -52,6 +52,7 @@ import {
 import { BrandLogo } from "@/components/BrandLogo";
 import { AdminReviewPanel } from "@/components/AdminReviewPanel";
 import { formatDateTimeMn } from "@/lib/formatDate";
+import { auditWordsForBichig } from "@/lib/bichigAudit";
 
 type AdminSection =
   | "overview"
@@ -87,6 +88,13 @@ const AUDIT_RULE_LABELS: Record<string, string> = {
   reflexive_harmony: "Өөрийн хамаатуулах",
   vowel_before_x: "Х-ийн өмнөх эгшиг",
   soft_sign_genitive: "Ь-тэй харьяалах",
+  bichig_bang: "Бичигт ! тэмдэг",
+  bichig_mark: "Бичигт дунд тэмдэг",
+  bichig_cyrillic: "Бичигт кирилл үлдсэн",
+  bichig_latin: "Бичигт латин үлдсэн",
+  bichig_multiword: "Олон үг нэг мөрөнд",
+  bichig_empty: "Бичиг хоосон",
+  bichig_error: "Бичиг хөрвүүлэлтийн алдаа",
 };
 
 function formatWhen(value: string): string {
@@ -954,20 +962,45 @@ export function AdminApp() {
     setError(null);
     setStatus("");
     try {
-      const result = await adminLexiconAudit(
-        lexLetter ? { letter: lexLetter } : undefined,
-      );
-      setLexAuditItems(result.items);
-      setLexAuditSelected(new Set(result.items.map((item) => item.word)));
+      const [spelling, exported] = await Promise.all([
+        adminLexiconAudit(lexLetter ? { letter: lexLetter } : undefined),
+        adminLexiconExport(),
+      ]);
+      let bichigWords = exported.words;
+      if (lexLetter) {
+        const key = lexLetter.toLocaleLowerCase("mn").slice(0, 1);
+        bichigWords = bichigWords.filter(
+          (w) => w.toLocaleLowerCase("mn").slice(0, 1) === key,
+        );
+      }
+      const bichigHits = auditWordsForBichig(bichigWords);
+      const byWord = new Map<string, LexiconAuditItem>();
+      for (const item of spelling.items) byWord.set(item.word, item);
+      for (const item of bichigHits) {
+        const prev = byWord.get(item.word);
+        if (!prev) {
+          byWord.set(item.word, item);
+          continue;
+        }
+        // Prefer keeping spelling hit; append bichig note into explanation.
+        byWord.set(item.word, {
+          ...prev,
+          explanation: [prev.explanation, item.explanation].filter(Boolean).join(" · "),
+          rule_id: prev.rule_id || item.rule_id,
+        });
+      }
+      const items = [...byWord.values()].sort((a, b) => a.word.localeCompare(b.word, "mn"));
+      setLexAuditItems(items);
+      setLexAuditSelected(new Set(items.map((item) => item.word)));
       setLexAuditMeta({
-        scanned: result.scanned,
-        flagged: result.flagged,
-        lexicon_total: result.lexicon_total,
+        scanned: Math.max(spelling.scanned, bichigWords.length),
+        flagged: items.length,
+        lexicon_total: spelling.lexicon_total,
       });
       setStatus(
-        result.flagged
-          ? `${result.scanned.toLocaleString("mn-MN")} үгээс ${result.flagged.toLocaleString("mn-MN")} алдаатай олдлоо`
-          : `${result.scanned.toLocaleString("mn-MN")} үг шалгасан — алдаатай үг олдсонгүй`,
+        items.length
+          ? `${Math.max(spelling.scanned, bichigWords.length).toLocaleString("mn-MN")} үгээс ${items.length.toLocaleString("mn-MN")} алдаатай (зөв бичиг + монгол бичиг)`
+          : `${Math.max(spelling.scanned, bichigWords.length).toLocaleString("mn-MN")} үг шалгасан — алдаатай үг олдсонгүй`,
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Санг шүүж чадсангүй");
@@ -1325,8 +1358,8 @@ export function AdminApp() {
                 </div>
               </div>
               <p className="mw-muted">
-                Энэ жагсаалт нь curated үгийн сан (санал/админ). «Санг шүүх» нь эдгээр үгийг
-                шалгагчаар дамжуулж, алдаа гэж тэмдэглэгдэх үгсийг гаргана — тэндээс устгаж болно.
+                «Санг шүүх» нь үг бүрийг зөв бичгийн шалгагч + монгол бичигт хөрвүүлэлтээр
+                шалгана. Алдаатай (эсвэл бичигт !/тэмдэг гаргах) үгсийг эндээс устгана.
               </p>
               {lexAuditMeta ? (
                 <div className="mw-lex-audit" aria-live="polite">

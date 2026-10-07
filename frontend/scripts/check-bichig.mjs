@@ -76,6 +76,29 @@ const cases = [
       assert(out.includes("ᠲ"), "has ᠲ");
     },
   ],
+  [
+    "абсолют",
+    (out) => {
+      assert(!out.includes("!"), "no ASCII !");
+      assert(!out.includes("\u180B") || out.includes("\u202F"), "no mid-stem orphan FVS");
+      // FVS only allowed after NNBSP; абсолют has none
+      assert(!out.includes("\u180B"), `абсолют must not keep mid FVS: ${JSON.stringify(out)}`);
+    },
+  ],
+  [
+    "автобус",
+    (out) => {
+      assert(!out.includes("\u180B"), `автобус must not keep mid FVS: ${JSON.stringify(out)}`);
+    },
+  ],
+  [
+    "улсын",
+    (out) => {
+      // Suffix FVS after NNBSP is required for practical shaping.
+      assert(out.includes("\u202F"), "улсын has NNBSP suffix");
+      assert(out.includes("\u180B"), "улсын keeps suffix FVS");
+    },
+  ],
 ];
 
 function assert(cond, msg) {
