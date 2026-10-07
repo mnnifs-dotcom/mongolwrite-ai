@@ -878,6 +878,39 @@ export async function adminLexiconExport(): Promise<{ words: string[]; count: nu
   return response.json() as Promise<{ words: string[]; count: number }>;
 }
 
+export type LexiconAuditItem = {
+  word: string;
+  suggested: string;
+  rule_id: string;
+  explanation: string;
+};
+
+export type LexiconAuditResult = {
+  items: LexiconAuditItem[];
+  flagged: number;
+  scanned: number;
+  lexicon_total: number;
+};
+
+export async function adminLexiconAudit(params?: {
+  letter?: string;
+  limit?: number;
+}): Promise<LexiconAuditResult> {
+  const search = new URLSearchParams();
+  if (params?.letter) search.set("letter", params.letter);
+  if (params?.limit != null) search.set("limit", String(params.limit));
+  const query = search.toString();
+  const response = await fetch(
+    apiUrl(`/api/v1/admin/lexicon/audit${query ? `?${query}` : ""}`),
+    {
+      method: "POST",
+      credentials: "include",
+    },
+  );
+  if (!response.ok) throw new Error("Үгийн санг шүүж чадсангүй");
+  return response.json() as Promise<LexiconAuditResult>;
+}
+
 export async function adminLexiconRemove(
   words: string[],
   queueAsDoubt = true,
