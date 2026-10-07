@@ -19,6 +19,7 @@ import {
   adminLegalPreview,
   adminLexiconRemove,
   adminLexiconExport,
+  adminLexiconAudit,
   adminLexiconWords,
   adminLogin,
   adminLogout,
@@ -43,6 +44,7 @@ import {
   type LegalFailedSummary,
   type LegalImportPreview,
   type LegalLawItem,
+  type LexiconAuditItem,
   type LexiconLetter,
   type PendingSkippedWord,
   type SiteOverview,
@@ -72,6 +74,19 @@ const FEEDBACK_LABELS: Record<string, string> = {
   bichig: "Монгол бичиг",
   site: "Сайт",
   other: "Бусад",
+};
+
+const AUDIT_RULE_LABELS: Record<string, string> = {
+  palatal_case: "Зөөлөн үеийн тийн ялгал",
+  lah_verb: "-лах/-лэх",
+  sej_converb: "-сээр/-сэж",
+  chih_spoken: "Ярианы -чих-",
+  separator_ye: "Ъ/Ь тусгаарлагч",
+  glued_directive: "Наалдсан рүү/луу",
+  common_misspelling: "Түгээмэл алдаа",
+  reflexive_harmony: "Өөрийн хамаатуулах",
+  vowel_before_x: "Х-ийн өмнөх эгшиг",
+  soft_sign_genitive: "Ь-тэй харьяалах",
 };
 
 function formatWhen(value: string): string {
@@ -146,6 +161,13 @@ export function AdminApp() {
   const [lexSelected, setLexSelected] = useState<Set<string>>(new Set());
   const [lexLoading, setLexLoading] = useState(false);
   const [lexCopied, setLexCopied] = useState(false);
+  const [lexAuditItems, setLexAuditItems] = useState<LexiconAuditItem[]>([]);
+  const [lexAuditSelected, setLexAuditSelected] = useState<Set<string>>(new Set());
+  const [lexAuditMeta, setLexAuditMeta] = useState<{
+    scanned: number;
+    flagged: number;
+    lexicon_total: number;
+  } | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [usersTotal, setUsersTotal] = useState(0);
   const [usersOffset, setUsersOffset] = useState(0);
@@ -926,6 +948,73 @@ export function AdminApp() {
     }
   }
 
+  async function runLexiconAudit() {
+    if (acting === "lex-audit") return;
+    setActing("lex-audit");
+    setError(null);
+    setStatus("");
+    try {
+      const result = await adminLexiconAudit(
+        lexLetter ? { letter: lexLetter } : undefined,
+      );
+      setLexAuditItems(result.items);
+      setLexAuditSelected(new Set(result.items.map((item) => item.word)));
+      setLexAuditMeta({
+        scanned: result.scanned,
+        flagged: result.flagged,
+        lexicon_total: result.lexicon_total,
+      });
+      setStatus(
+        result.flagged
+          ? `${result.scanned.toLocaleString("mn-MN")} үгээс ${result.flagged.toLocaleString("mn-MN")} алдаатай олдлоо`
+          : `${result.scanned.toLocaleString("mn-MN")} үг шалгасан — алдаатай үг олдсонгүй`,
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Санг шүүж чадсангүй");
+    } finally {
+      setActing(null);
+    }
+  }
+
+  function toggleAuditWord(word: string, enabled: boolean) {
+    setLexAuditSelected((current) => {
+      const next = new Set(current);
+      if (enabled) next.add(word);
+      else next.delete(word);
+      return next;
+    });
+  }
+
+  async function onRemoveAuditWords() {
+    const words = [...lexAuditSelected];
+    if (!words.length || acting) return;
+    setActing("lex-audit-remove");
+    setError(null);
+    try {
+      let removedTotal = 0;
+      for (let i = 0; i < words.length; i += 400) {
+        const chunk = words.slice(i, i + 400);
+        const result = await adminLexiconRemove(chunk, true);
+        removedTotal += result.removed_count;
+      }
+      if (!removedTotal) {
+        setError("Сонгосон үг хасагдсангүй");
+        setStatus("");
+      } else {
+        const removedSet = new Set(words);
+        setLexAuditItems((current) => current.filter((item) => !removedSet.has(item.word)));
+        setLexAuditSelected(new Set());
+        setStatus(`${removedTotal} алдаатай үг сангаас хаслаа`);
+        await loadLists();
+        await loadLexicon({ offset: lexOffset });
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Хасаж чадсангүй");
+    } finally {
+      setActing(null);
+    }
+  }
+
   async function copyAllLexiconWords() {
     if (acting === "lex-copy") return;
     setActing("lex-copy");
@@ -1202,25 +1291,143 @@ export function AdminApp() {
             <section className="mw-admin-card" id="lexicon-browser">
               <div className="mw-lex-heading">
                 <h2>Үгийн сан · {lexTotal.toLocaleString("mn-MN")}</h2>
-                <button
-                  type="button"
-                  className="mw-btn-primary"
-                  disabled={lexTotal <= 0 || acting === "lex-copy"}
-                  onClick={() => void copyAllLexiconWords()}
-                  title="Сангийн бүх үгийг нэг мөрөнд нэг үгээр clipboard-д хуулна"
-                >
-                  {acting === "lex-copy"
-                    ? "Хуулж байна…"
-                    : lexCopied
-                      ? "Хуулсан ✓"
-                      : `Бүгдийг хуулах · ${lexTotal.toLocaleString("mn-MN")}`}
-                </button>
+                <div className="mw-lex-heading-actions">
+                  <button
+                    type="button"
+                    className="mw-btn-primary"
+                    disabled={lexTotal <= 0 || acting === "lex-audit"}
+                    onClick={() => void runLexiconAudit()}
+                    title={
+                      lexLetter
+                        ? `Зөвхөн «${lexLetter}» үсгээр эхэлсэн үгсийг шалгана`
+                        : "Сангийн үг бүрийг шалгаад алдаатайг илрүүлнэ"
+                    }
+                  >
+                    {acting === "lex-audit"
+                      ? "Шүүж байна…"
+                      : lexLetter
+                        ? `Санг шүүх · ${lexLetter.toUpperCase()}`
+                        : "Санг шүүх"}
+                  </button>
+                  <button
+                    type="button"
+                    className="mw-btn"
+                    disabled={lexTotal <= 0 || acting === "lex-copy"}
+                    onClick={() => void copyAllLexiconWords()}
+                    title="Сангийн бүх үгийг нэг мөрөнд нэг үгээр clipboard-д хуулна"
+                  >
+                    {acting === "lex-copy"
+                      ? "Хуулж байна…"
+                      : lexCopied
+                        ? "Хуулсан ✓"
+                        : `Бүгдийг хуулах · ${lexTotal.toLocaleString("mn-MN")}`}
+                  </button>
+                </div>
               </div>
               <p className="mw-muted">
-                Энэ жагсаалт нь curated үгийн сан (санал/админ). Шалгалтын хүлээн авалт Hunspell
-                (~{Math.floor((overview?.lexicon.hunspell_stems ?? 0) / 1000)} мянган үндэс)-ээр
-                явдаг — тэр бүх үгийг энд шууд оруулдаггүй.
+                Энэ жагсаалт нь curated үгийн сан (санал/админ). «Санг шүүх» нь эдгээр үгийг
+                шалгагчаар дамжуулж, алдаа гэж тэмдэглэгдэх үгсийг гаргана — тэндээс устгаж болно.
               </p>
+              {lexAuditMeta ? (
+                <div className="mw-lex-audit" aria-live="polite">
+                  <div className="mw-lex-audit-head">
+                    <h3>
+                      Алдаатай үгс
+                      {lexAuditMeta.flagged
+                        ? ` · ${lexAuditMeta.flagged.toLocaleString("mn-MN")}`
+                        : ""}
+                    </h3>
+                    <span className="mw-muted">
+                      Шалгасан {lexAuditMeta.scanned.toLocaleString("mn-MN")} / сан{" "}
+                      {lexAuditMeta.lexicon_total.toLocaleString("mn-MN")}
+                      {lexLetter ? ` · үсэг ${lexLetter}` : ""}
+                    </span>
+                  </div>
+                  {lexAuditItems.length === 0 ? (
+                    <p className="mw-muted">Алдаатай үг олдсонгүй.</p>
+                  ) : (
+                    <>
+                      <div className="mw-admin-row mw-lex-actions">
+                        <button
+                          type="button"
+                          className="mw-btn"
+                          onClick={() =>
+                            setLexAuditSelected(new Set(lexAuditItems.map((item) => item.word)))
+                          }
+                        >
+                          Бүгдийг сонгох
+                        </button>
+                        <button
+                          type="button"
+                          className="mw-btn"
+                          disabled={!lexAuditSelected.size}
+                          onClick={() => setLexAuditSelected(new Set())}
+                        >
+                          Сонголт арилгах
+                        </button>
+                        <button
+                          type="button"
+                          className="mw-btn-primary"
+                          disabled={!lexAuditSelected.size || acting === "lex-audit-remove"}
+                          onClick={() => void onRemoveAuditWords()}
+                        >
+                          {acting === "lex-audit-remove"
+                            ? "Устгаж байна…"
+                            : `Сонгосныг устгах · ${lexAuditSelected.size}`}
+                        </button>
+                        <button
+                          type="button"
+                          className="mw-btn"
+                          onClick={() => {
+                            setLexAuditItems([]);
+                            setLexAuditSelected(new Set());
+                            setLexAuditMeta(null);
+                          }}
+                        >
+                          Хаах
+                        </button>
+                      </div>
+                      <div className="mw-admin-scroll mw-lex-audit-scroll">
+                        <ul className="mw-admin-list mw-lex-audit-list">
+                          {lexAuditItems.map((item) => (
+                            <li key={item.word}>
+                              <label className="mw-candidate-main">
+                                <input
+                                  type="checkbox"
+                                  checked={lexAuditSelected.has(item.word)}
+                                  onChange={(event) =>
+                                    toggleAuditWord(item.word, event.target.checked)
+                                  }
+                                />
+                                <span className="mw-lex-audit-word">
+                                  <strong>{item.word}</strong>
+                                  {item.suggested ? (
+                                    <em>
+                                      → {item.suggested}
+                                      <span className="mw-muted">
+                                        {" "}
+                                        (
+                                        {AUDIT_RULE_LABELS[item.rule_id] ||
+                                          item.rule_id ||
+                                          "дүрэм"}
+                                        )
+                                      </span>
+                                    </em>
+                                  ) : (
+                                    <em className="mw-muted">
+                                      {AUDIT_RULE_LABELS[item.rule_id] || item.rule_id || "алдаа"}
+                                    </em>
+                                  )}
+                                </span>
+                              </label>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ) : null}
               <form className="mw-lex-search" onSubmit={(event) => void onLexSearch(event)}>
                 <input
                   value={lexQuery}

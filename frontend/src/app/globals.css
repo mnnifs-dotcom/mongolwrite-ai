@@ -2082,8 +2082,69 @@ body {
   margin: 0;
 }
 
-.mw-lex-heading .mw-btn-primary {
+.mw-lex-heading .mw-btn-primary,
+.mw-lex-heading-actions {
   flex-shrink: 0;
+}
+
+.mw-lex-heading-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.mw-lex-audit {
+  border: 1px solid color-mix(in srgb, var(--error) 22%, var(--line));
+  background: color-mix(in srgb, #fff 88%, #fce8e8);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin: 4px 0 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mw-lex-audit-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 14px;
+}
+
+.mw-lex-audit-head h3 {
+  margin: 0;
+  font-size: 15px;
+  color: var(--error);
+  font-weight: 700;
+}
+
+.mw-admin-scroll.mw-lex-audit-scroll {
+  max-height: min(42vh, 360px);
+  min-height: 120px;
+}
+
+.mw-lex-audit-list li {
+  align-items: flex-start;
+}
+
+.mw-lex-audit-word {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mw-lex-audit-word strong {
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.mw-lex-audit-word em {
+  font-style: normal;
+  font-size: 13px;
+  color: var(--ink);
 }
 
 .mw-lex-actions,
