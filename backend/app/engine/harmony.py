@@ -639,21 +639,11 @@ def suggest_sej_converb(word: str, dictionary: DictionaryProvider) -> str | None
     return None
 
 
-# Spoken -чих- contraction: явчаад→явчихаад, үзчээд→үзчихээд, харчаад→харчихаад.
-_CHIH_SPOKEN_TAILS = (
-    "аад",
-    "ээд",
-    "оод",
-    "өөд",
-    "сан",
-    "сэн",
-    "сон",
-    "сөн",
-    "лаа",
-    "лээ",
-    "лоо",
-    "лөө",
-)
+# Completive -чих- (toli.gov.mn §37: Явчих → явчхаад).
+# Vowel-initial tails drop и (чих+аад → чхаад). Consonant tails keep и (чихсан).
+_CHIH_VOWEL_TAILS = ("аад", "ээд", "оод", "өөд")
+_CHIH_CONS_TAILS = ("сан", "сэн", "сон", "сөн", "лаа", "лээ", "лоо", "лөө")
+_CHIH_SPOKEN_TAILS = _CHIH_VOWEL_TAILS + _CHIH_CONS_TAILS
 
 
 def _chih_stem_has_verb(stem: str, dictionary: DictionaryProvider) -> bool:
@@ -669,14 +659,22 @@ def _chih_stem_has_verb(stem: str, dictionary: DictionaryProvider) -> bool:
 
 
 def is_literary_chih(word: str, dictionary: DictionaryProvider) -> bool:
-    """True for school -чих- forms (явчихаад, үзчихээд) on a known verb stem.
+    """True for official -чих- surface forms (явчхаад, үзчихсэн) on a known verb.
 
-    Hunspell often lacks these surface forms and then nearby/doubled_letter
-    wrongly collapses -чихаад → -чихад / -чхаад.
+    Vowel tails use -чх- (явчхаад); consonant tails keep -чих- (явчихсан).
+    The non-standard -чихаад is NOT literary — suggest_chih_spoken rewrites it.
     """
     folded = word.casefold()
-    for tail in _CHIH_SPOKEN_TAILS:
-        # stem(≥2) + чих(3) + tail
+    for tail in _CHIH_VOWEL_TAILS:
+        if not folded.endswith(tail) or len(folded) < len(tail) + 4:
+            continue
+        body = folded[: -len(tail)]
+        if not body.endswith("чх"):
+            continue
+        stem = body[: -len("чх")]
+        if _chih_stem_has_verb(stem, dictionary):
+            return True
+    for tail in _CHIH_CONS_TAILS:
         if not folded.endswith(tail) or len(folded) < len(tail) + 5:
             continue
         body = folded[: -len(tail)]
@@ -689,14 +687,47 @@ def is_literary_chih(word: str, dictionary: DictionaryProvider) -> bool:
 
 
 def suggest_chih_spoken(word: str, dictionary: DictionaryProvider) -> str | None:
-    """Ярианы -чаад/-чээд … → бичгийн -чихаад/-чихээд … (явчаад → явчихаад)."""
+    """Fix spoken/wrong -чих- forms to toli spelling (явчаад/явчихаад → явчхаад)."""
     folded = word.casefold()
-    for tail in _CHIH_SPOKEN_TAILS:
+
+    # Non-standard -чихаад → -чхаад (и must drop before vowel-initial -аад).
+    for tail in _CHIH_VOWEL_TAILS:
+        if not folded.endswith(tail) or len(folded) < len(tail) + 5:
+            continue
+        body = folded[: -len(tail)]
+        if not body.endswith("чих"):
+            continue
+        stem = body[: -len("чих")]
+        if not _chih_stem_has_verb(stem, dictionary):
+            continue
+        candidate = stem + "чх" + tail
+        if candidate != folded:
+            return candidate
+
+    # Spoken -чаад (х dropped) → -чхаад.
+    for tail in _CHIH_VOWEL_TAILS:
         if not folded.endswith(tail) or len(folded) < len(tail) + 3:
             continue
         body = folded[: -len(tail)]
-        # Already literary (-чих-) or not the spoken -ч- contraction.
-        if not body.endswith("ч") or body.endswith("чих"):
+        if body.endswith("чх") or body.endswith("чих"):
+            continue
+        if not body.endswith("ч"):
+            continue
+        stem = body[:-1]
+        if not _chih_stem_has_verb(stem, dictionary):
+            continue
+        candidate = stem + "чх" + tail
+        if candidate != folded:
+            return candidate
+
+    # Spoken -чсан/-члээ → -чихсан/-чихлээ (consonant tails keep и).
+    for tail in _CHIH_CONS_TAILS:
+        if not folded.endswith(tail) or len(folded) < len(tail) + 3:
+            continue
+        body = folded[: -len(tail)]
+        if body.endswith("чих"):
+            continue
+        if not body.endswith("ч"):
             continue
         stem = body[:-1]
         if not _chih_stem_has_verb(stem, dictionary):

@@ -496,30 +496,34 @@ def test_correct_orthography_is_kept() -> None:
 
 
 def test_spoken_chih_becomes_literary() -> None:
-    """явчаад/үзчээд/харчаад → явчихаад/үзчихээд/харчихаад."""
+    """toli §37: явчих→явчхаад; spoken явчаад and non-standard явчихаад both fix."""
     from app.engine.harmony import suggest_chih_spoken
 
     dictionary = DictionaryProvider()
     expected = {
-        "явчаад": "явчихаад",
-        "үзчээд": "үзчихээд",
-        "харчаад": "харчихаад",
-        "гарчаад": "гарчихаад",
-        "хийчээд": "хийчихээд",
-        "ирчээд": "ирчихээд",
+        # Spoken (х dropped) → чхаад / чих+cons
+        "явчаад": "явчхаад",
+        "үзчээд": "үзчхээд",
+        "харчаад": "харчхаад",
+        "гарчаад": "гарчхаад",
+        "хийчээд": "хийчхээд",
+        "ирчээд": "ирчхээд",
         "явчсан": "явчихсан",
         "үзчлээ": "үзчихлээ",
-        "биччээд": "биччихээд",
+        "биччээд": "биччхээд",
+        # Non-standard -чихаад (и not dropped) → -чхаад
+        "явчихаад": "явчхаад",
+        "үзчихээд": "үзчхээд",
+        "харчихаад": "харчхаад",
     }
     for spoken, literary in expected.items():
         assert suggest_chih_spoken(spoken, dictionary) == literary, spoken
         assert suggestion(spoken, "chih_spoken") == literary, spoken
-    # Already literary — no false positive from chih or doubled_letter
-    # (Hunspell neighbors like явчхаад/явчихад must not win).
-    assert suggest_chih_spoken("явчихаад", dictionary) is None
-    assert suggest_chih_spoken("үзчихээд", dictionary) is None
+    # Official forms stay clean.
+    assert suggest_chih_spoken("явчхаад", dictionary) is None
+    assert suggest_chih_spoken("үзчхээд", dictionary) is None
     hun = LanguageEngine(DictionaryProvider())
-    for literary in ("явчихаад", "үзчихээд", "харчихаад", "явчихсан", "биччихээд"):
+    for literary in ("явчхаад", "үзчхээд", "харчхаад", "явчихсан"):
         found = hun.check(literary)
         assert found == [], (literary, [(c.rule_id, c.suggested_text) for c in found])
     # Unrelated -аад forms stay untouched.
