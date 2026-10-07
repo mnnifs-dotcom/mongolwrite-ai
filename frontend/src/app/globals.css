@@ -2039,6 +2039,23 @@ body {
   color: rgba(255, 255, 255, 0.85);
 }
 
+.mw-lex-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  margin-bottom: 6px;
+}
+
+.mw-lex-heading h2 {
+  margin: 0;
+}
+
+.mw-lex-heading .mw-btn-primary {
+  flex-shrink: 0;
+}
+
 .mw-lex-actions,
 .mw-lex-pager {
   margin: 8px 0 12px;
