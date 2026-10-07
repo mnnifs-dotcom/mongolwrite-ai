@@ -273,10 +273,12 @@ def suggest_suffix_harmony(word: str, dictionary: DictionaryProvider) -> str | N
         )
         if matched is None:
             continue
-        if len(folded) - len(matched) < 3:
+        # Genitive/accusative stems can be short (үе+ын → үеийн).
+        min_stem = 2 if mapping in (_GENITIVE, _ACCUSATIVE) else 3
+        if len(folded) - len(matched) < min_stem:
             continue
         stem = folded[: -len(matched)]
-        if (mapping is _GENITIVE or mapping is _ACCUSATIVE) and stem[-1:] in "гжшч":
+        if (mapping is _GENITIVE or mapping is _ACCUSATIVE) and stem[-1:] in "гжшчьи":
             continue
         wanted = mapping.get(last_harmony_vowel(stem) or last_vowel(stem) or "")
         if not wanted or wanted == matched:
@@ -286,22 +288,59 @@ def suggest_suffix_harmony(word: str, dictionary: DictionaryProvider) -> str | N
             return candidate
         if matched in _N_CONNECTING and _known_stem(stem, dictionary):
             return candidate
+        # School -ы/-ий: front stem with wrong -ын/-ыг even if surface is rare.
+        if (
+            mapping in (_GENITIVE, _ACCUSATIVE)
+            and wanted.startswith("ий")
+            and _known_stem(stem, dictionary)
+        ):
+            return candidate
     return None
 
 
 def suggest_palatal_case(word: str, dictionary: DictionaryProvider) -> str | None:
-    """After г, ж, ш, ч the genitive/accusative is -ийн/-ийг (давтамжыг → давтамжийг)."""
+    """School -ы/-ий: after г/ж/ш/ч/ь/и use -ийн/-ийг (багшын → багшийн)."""
     folded = word.casefold()
+    # ямааниин → ямааны (extra н + ийн on a back long-vowel stem).
+    if folded.endswith("ниин") and len(folded) >= 6:
+        candidate = folded[:-4] + "ны"
+        if dictionary.contains(candidate) or dictionary.in_wordlist(candidate):
+            return candidate
+    if folded.endswith("нииг") and len(folded) >= 6:
+        candidate = folded[:-4] + "ныг"
+        if dictionary.contains(candidate) or dictionary.in_wordlist(candidate):
+            return candidate
     for wrong, right in (("ыг", "ийг"), ("ын", "ийн")):
         if not folded.endswith(wrong) or len(folded) < len(wrong) + 2:
             continue
         stem = folded[: -len(wrong)]
-        if stem[-1:] not in "гжшч":
+        # сургуулын → сургуулийн when сургууль is known (ь + -ий).
+        if _known_stem(stem + "ь", dictionary):
+            candidate = stem + right
+            if candidate != folded:
+                return candidate
+        # Ending letters from the school chart: ж ч ш ь и, and soft г.
+        if stem[-1:] not in "гжшчьи":
             continue
         candidate = stem + right
+        if stem.endswith("ь"):
+            candidate = stem[:-1] + right
         if candidate == folded:
             continue
-        if _known_stem(stem, dictionary) or dictionary.contains(candidate):
+        if stem[-1:] == "г":
+            # Soft г takes -ий when the -ий form, -и stem, or bare stem is known.
+            if (
+                dictionary.contains(candidate)
+                or _known_stem(stem + "и", dictionary)
+                or _known_stem(stem, dictionary)
+            ):
+                return candidate
+            continue
+        if (
+            _known_stem(stem, dictionary)
+            or _known_stem(stem.rstrip("ь"), dictionary)
+            or dictionary.contains(candidate)
+        ):
             return candidate
     return None
 
@@ -759,75 +798,108 @@ def suggest_i_drop(word: str, dictionary: DictionaryProvider) -> str | None:
     return None
 
 
-# -лах/-лэх verbs: before -даг/-сан/-ж/-на the connecting vowel and л may swap or drop.
-# туслах → тусалдаг (not тусладаг); дуулах → дуулдаг; хайрлах → хайрладаг (kept).
+# -лах/-лэх verbs: school -л placement (resonant → vowel after л; obstruent → before л).
+# туслах → тусалдаг; батлах → баталдаг; номлох → номлодог (not номолдог).
 _LAH_VERBS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
     ("лах", "а", ("даг", "сан", "вал", "на", "ж")),
     ("лэх", "э", ("дэг", "сэн", "вэл", "нэ", "ж")),
     ("лох", "о", ("дог", "сон", "вол", "но", "ж")),
     ("лөх", "ө", ("дөг", "сөн", "вөл", "нө", "ж")),
 )
-_KEEP_LAH_STEM = frozenset("лрв")
-_DROP_LAH_STEM = frozenset("аэиоуөү")
+# School chart: м н г л б в р → vowel AFTER л; ц ж з с д т ш ч х → vowel BEFORE л.
+_RESONANT_FOR_L = frozenset("мнлбврг")
+_OBSTRUENT_FOR_L = frozenset("цжзсдтшчх")
 
 
-def _pick_lah_form(
-    stem: str,
-    swapped: str,
-    dropped: str,
-    swapped_ok: bool,
-    dropped_ok: bool,
-) -> str | None:
-    prefer_drop = stem[-1:] in _DROP_LAH_STEM
-    if swapped_ok and dropped_ok:
-        return dropped if prefer_drop else swapped
-    if swapped_ok:
-        return swapped
-    if dropped_ok:
-        return dropped
-    if stem[-1:] in _KEEP_LAH_STEM:
-        return None
-    return dropped if prefer_drop else swapped
+def _lah_infinitive_known(stem: str, vowel: str, dictionary: DictionaryProvider) -> bool:
+    return _known_stem(stem + "л" + vowel + "х", dictionary) or _known_stem(
+        stem + vowel + "л" + "х", dictionary
+    )
 
 
 def _lah_correct_form(folded: str, dictionary: DictionaryProvider) -> str | None:
     """School form of a -лах verb plus -даг/-сан/-ж/-на, or the word itself if already right."""
     for lax, vowel, suffixes in _LAH_VERBS:
-        connector = "л" + vowel
         for suffix in suffixes:
-            if not folded.endswith(suffix) or len(folded) < len(suffix) + len(connector) + 2:
+            if not folded.endswith(suffix) or len(folded) < len(suffix) + 4:
                 continue
             body = folded[: -len(suffix)]
-            if not body.endswith(connector):
-                continue
-            stem = body[: -len(connector)]
-            if len(stem) < 2:
-                continue
-            if not _known_stem(stem + lax, dictionary):
-                continue
-            if stem[-1:] in _KEEP_LAH_STEM:
-                return folded
-            swapped = stem + vowel + "л" + suffix
-            dropped = stem + "л" + suffix
-            chosen = _pick_lah_form(
-                stem,
-                swapped,
-                dropped,
-                _known_stem(swapped, dictionary),
-                _known_stem(dropped, dictionary),
-            )
-            return chosen or folded
+            # Correct resonant order: stem + л + vowel (номлодог).
+            if body.endswith("л" + vowel) and len(body) >= 3:
+                stem = body[: -len("л" + vowel)]
+                if len(stem) >= 2 and stem[-1:] in _RESONANT_FOR_L and _lah_infinitive_known(
+                    stem, vowel, dictionary
+                ):
+                    return folded
+                # Vowel stem: дууладаг → дуулдаг (drop the connector vowel).
+                if len(stem) >= 2 and stem[-1:] in _VOWELS and _known_stem(
+                    stem + "л" + vowel + "х", dictionary
+                ):
+                    candidate = stem + "л" + suffix
+                    if candidate != folded:
+                        return candidate
+                    return folded
+            # Correct / target obstruent order: stem + vowel + л (баталдаг).
+            if body.endswith(vowel + "л") and len(body) >= 3:
+                stem = body[: -len(vowel + "л")]
+                if len(stem) >= 2 and stem[-1:] in _OBSTRUENT_FOR_L and _lah_infinitive_known(
+                    stem, vowel, dictionary
+                ):
+                    return folded
+                # Wrong resonant order номолдог → номлодог.
+                if len(stem) >= 2 and stem[-1:] in _RESONANT_FOR_L and _lah_infinitive_known(
+                    stem, vowel, dictionary
+                ):
+                    return stem + "л" + vowel + suffix
+            # Wrong obstruent order батладаг → баталдаг.
+            if body.endswith("л" + vowel) and len(body) >= 3:
+                stem = body[: -len("л" + vowel)]
+                if len(stem) >= 2 and stem[-1:] in _OBSTRUENT_FOR_L and _lah_infinitive_known(
+                    stem, vowel, dictionary
+                ):
+                    return stem + vowel + "л" + suffix
     return None
 
 
 def suggest_lah_verb(word: str, dictionary: DictionaryProvider) -> str | None:
-    """тусладаг → тусалдаг, эхлэдэг → эхэлдэг, дууладаг → дуулдаг."""
+    """батладаг → баталдаг, номолдог → номлодог, тусладаг → тусалдаг."""
     folded = word.casefold()
     correct = _lah_correct_form(folded, dictionary)
     if correct and correct != folded:
         return correct
     return None
 
+
+def suggest_l_verb_stem(word: str, dictionary: DictionaryProvider) -> str | None:
+    """Bare -л stems: батла→батал, тосла→тосол, зөвөл→зөвлө, номол→номло."""
+    folded = word.casefold()
+    after_map = {"ла": "а", "лэ": "э", "ло": "о", "лө": "ө"}
+    before_map = {"ал": "а", "эл": "э", "ол": "о", "өл": "ө"}
+    # Obstruent + лV (wrong order / wrong vowel) → Vл.
+    for tail, _hint in after_map.items():
+        if not folded.endswith(tail) or len(folded) <= len(tail) + 1:
+            continue
+        stem = folded[: -len(tail)]
+        if stem[-1:] not in _OBSTRUENT_FOR_L:
+            continue
+        for vowel in "аэоө":
+            if _lah_infinitive_known(stem, vowel, dictionary):
+                candidate = stem + vowel + "л"
+                if candidate != folded:
+                    return candidate
+    # Resonant + Vл (wrong order) → лV.
+    for tail, _hint in before_map.items():
+        if not folded.endswith(tail) or len(folded) <= len(tail) + 1:
+            continue
+        stem = folded[: -len(tail)]
+        if stem[-1:] not in _RESONANT_FOR_L:
+            continue
+        for vowel in "аэоө":
+            if _lah_infinitive_known(stem, vowel, dictionary):
+                candidate = stem + "л" + vowel
+                if candidate != folded:
+                    return candidate
+    return None
 
 _X_CONNECT_VOWELS = "аэиоуөү"
 _X_SUFFIX_GROUPS: tuple[tuple[tuple[str, ...], dict[str, str] | None], ...] = (
@@ -1164,5 +1236,62 @@ def suggest_soft_sign_genitive(word: str, dictionary: DictionaryProvider) -> str
             continue
         candidate = folded[: -len(wrong)] + right
         if dictionary.contains(candidate):
+            return candidate
+    return None
+
+
+def _verb_stem_for_separator(stem: str, dictionary: DictionaryProvider) -> bool:
+    if len(stem) < 2:
+        return False
+    if _known_stem(stem + "х", dictionary):
+        return True
+    return any(_known_stem(stem + tail, dictionary) for tail in ("ах", "эх", "ох", "өх", "их"))
+
+
+def suggest_separator_ye(word: str, dictionary: DictionaryProvider) -> str | None:
+    """Тусгаарлагч ъ/ь: авя→авъя, хүсе→хүсье; авья→авъя when ь-form is unattested."""
+    folded = word.casefold()
+    # Unattested ь on back stems before я/ё → ъ (авья → авъя). Keep attested цохьё.
+    if folded.endswith(("ья", "ьё")) and len(folded) >= 4 and not dictionary.contains(folded):
+        stem = folded[:-2]
+        particle = folded[-1]
+        if (
+            stem
+            and stem[-1:] not in _VOWELS
+            and stem[-1:] not in "ьъ"
+            and (last_harmony_vowel(stem) or last_vowel(stem)) in BACK
+        ):
+            candidate = stem + "ъ" + particle
+            if candidate != folded and (
+                dictionary.contains(candidate) or _verb_stem_for_separator(stem, dictionary)
+            ):
+                return candidate
+    # Wrong ъ on front-vowel stems before е → ь.
+    if folded.endswith("ъе") and len(folded) >= 4:
+        stem = folded[:-2]
+        if (
+            stem
+            and stem[-1:] not in _VOWELS
+            and (last_harmony_vowel(stem) or last_vowel(stem)) in FRONT
+        ):
+            candidate = stem + "ье"
+            if candidate != folded and (
+                dictionary.contains(candidate) or _verb_stem_for_separator(stem, dictionary)
+            ):
+                return candidate
+    # Missing separator before я/ё/е.
+    if len(folded) >= 3 and folded[-1:] in "яёе":
+        particle = folded[-1]
+        stem = folded[:-1]
+        if not stem or stem[-1:] in _VOWELS or stem[-1:] in "ьъ":
+            return None
+        vowel = last_harmony_vowel(stem) or last_vowel(stem)
+        if particle in "яё" and vowel in BACK:
+            candidate = stem + "ъ" + particle
+        elif particle == "е" and vowel in FRONT:
+            candidate = stem + "ь" + particle
+        else:
+            return None
+        if dictionary.contains(candidate) or _verb_stem_for_separator(stem, dictionary):
             return candidate
     return None

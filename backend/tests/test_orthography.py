@@ -520,3 +520,68 @@ def test_spoken_chih_becomes_literary() -> None:
     # Unrelated -аад forms stay untouched.
     assert suggest_chih_spoken("танилцаад", dictionary) is None
     assert "chih_spoken" not in rule_ids("танилцаад")
+
+
+def test_school_yi_genitive_accusative() -> None:
+    """-ы/-ий school chart: back -ы, front -ий; after гжшчьи → -ий."""
+    local = LanguageEngine(DictionaryProvider())
+
+    def hit(word: str, rule_id: str) -> str | None:
+        for item in local.check(word):
+            if item.rule_id == rule_id:
+                return item.suggested_text
+        return None
+
+    assert hit("багшын", "palatal_case") == "багшийн"
+    assert hit("номчыг", "palatal_case") == "номчийг"
+    assert hit("туужын", "palatal_case") == "туужийн"
+    assert hit("ангын", "palatal_case") == "ангийн"
+    assert hit("сургуулын", "palatal_case") == "сургуулийн"
+    assert hit("үеын", "suffix_harmony") == "үеийн"
+    assert hit("ямааниин", "palatal_case") == "ямааны"
+    for word in ("айлын", "багшийн", "ангийн", "үеийн", "ямааны"):
+        assert word not in {item.original_text.casefold() for item in local.check(word)}
+
+
+def test_school_l_verb_suffix() -> None:
+    """-л verb chart: obstruent → vowel before л; resonant → after л."""
+    local = LanguageEngine(DictionaryProvider())
+
+    def hit(word: str, rule_id: str) -> str | None:
+        for item in local.check(word):
+            if item.rule_id == rule_id:
+                return item.suggested_text
+        return None
+
+    assert hit("батла", "l_verb_stem") == "батал"
+    assert hit("тосла", "l_verb_stem") == "тосол"
+    assert hit("зөвөл", "l_verb_stem") == "зөвлө"
+    assert hit("номол", "l_verb_stem") == "номло"
+    assert hit("батладаг", "lah_verb") == "баталдаг"
+    assert hit("номолдог", "lah_verb") == "номлодог"
+    assert hit("тусладаг", "lah_verb") == "тусалдаг"
+    for word in ("баталдаг", "номлодог", "хайрладаг", "тоолдог"):
+        ids = {item.rule_id for item in local.check(word)}
+        assert "lah_verb" not in ids
+        assert "l_verb_stem" not in ids
+
+
+def test_school_separator_ye() -> None:
+    """Separator ъ/ь before я/ё/е on consonant stems."""
+    local = LanguageEngine(DictionaryProvider())
+
+    def hit(word: str, rule_id: str) -> str | None:
+        for item in local.check(word):
+            if item.rule_id == rule_id:
+                return item.suggested_text
+        return None
+
+    assert hit("авя", "separator_ye") == "авъя"
+    assert hit("харя", "separator_ye") == "харъя"
+    assert hit("олё", "separator_ye") == "олъё"
+    assert hit("угтя", "separator_ye") == "угтъя"
+    assert hit("хүсе", "separator_ye") == "хүсье"
+    assert hit("ире", "separator_ye") == "ирье"
+    assert hit("авья", "separator_ye") == "авъя"
+    for word in ("авъя", "хүсье", "хүргэе", "угаая", "саная", "цохьё"):
+        assert "separator_ye" not in {item.rule_id for item in local.check(word)}
