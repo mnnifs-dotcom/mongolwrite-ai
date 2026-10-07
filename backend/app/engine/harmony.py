@@ -429,6 +429,8 @@ def is_regular_inflection(word: str, dictionary: DictionaryProvider) -> bool:
         return True
     if _kept_x_reflexive(folded, dictionary):
         return True
+    if is_literary_chih(folded, dictionary):
+        return True
     remaining = folded
     peeled = False
     for _ in range(3):
@@ -664,6 +666,26 @@ def _chih_stem_has_verb(stem: str, dictionary: DictionaryProvider) -> bool:
     return any(
         _known_stem(stem + tail, dictionary) for tail in ("ах", "эх", "ох", "өх", "их")
     )
+
+
+def is_literary_chih(word: str, dictionary: DictionaryProvider) -> bool:
+    """True for school -чих- forms (явчихаад, үзчихээд) on a known verb stem.
+
+    Hunspell often lacks these surface forms and then nearby/doubled_letter
+    wrongly collapses -чихаад → -чихад / -чхаад.
+    """
+    folded = word.casefold()
+    for tail in _CHIH_SPOKEN_TAILS:
+        # stem(≥2) + чих(3) + tail
+        if not folded.endswith(tail) or len(folded) < len(tail) + 5:
+            continue
+        body = folded[: -len(tail)]
+        if not body.endswith("чих"):
+            continue
+        stem = body[: -len("чих")]
+        if _chih_stem_has_verb(stem, dictionary):
+            return True
+    return False
 
 
 def suggest_chih_spoken(word: str, dictionary: DictionaryProvider) -> str | None:
