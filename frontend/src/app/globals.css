@@ -1660,8 +1660,10 @@ body {
   color: var(--ink);
 }
 
-.mw-users-scroll {
-  max-height: min(58vh, 640px);
+/* Beat `.mw-admin-scroll` (280px) — users table is the main surface. */
+.mw-admin-scroll.mw-users-scroll {
+  max-height: calc(100dvh - 230px);
+  min-height: min(70vh, 640px);
 }
 
 .mw-added-toolbar-actions {
@@ -1836,13 +1838,21 @@ body {
 .mw-users-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: 15px;
+}
+
+.mw-users-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: color-mix(in srgb, var(--panel) 92%, #fff);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--line) 70%, transparent);
 }
 
 .mw-users-table th,
 .mw-users-table td {
   text-align: left;
-  padding: 10px 8px;
+  padding: 12px 10px;
   border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
   vertical-align: middle;
 }
@@ -2590,6 +2600,11 @@ body {
   .mw-admin-scroll.mw-feedback-scroll {
     max-height: calc(100dvh - 220px);
     min-height: 45vh;
+  }
+
+  .mw-admin-scroll.mw-users-scroll {
+    max-height: calc(100dvh - 220px);
+    min-height: 55vh;
   }
 
   .mw-admin-scroll.mw-added-scroll .mw-added-list {
