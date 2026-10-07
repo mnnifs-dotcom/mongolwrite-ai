@@ -13,6 +13,7 @@ from app.engine.harmony import (
     is_regular_inflection,
     suggest_i_drop,
     suggest_lah_verb,
+    suggest_l_verb_stem,
     suggest_vowel_before_x,
     suggest_x_reflexive,
     suggest_n_plural,
@@ -27,6 +28,7 @@ from app.engine.harmony import (
     suggest_drop_soft_sign,
     suggest_soft_sign_dative,
     suggest_soft_sign_genitive,
+    suggest_separator_ye,
     suggest_suffix_harmony,
     is_broken_case_form,
     drops_stem_i_before_cluster,
@@ -53,12 +55,14 @@ _EXPLANATIONS = {
     "n_genitive": "Эгшгээр төгссөн үгийн харьяалах -ийн/-ын гэж бичигдэнэ.",
     "sej_converb": "С-ийн дараа үйл үгийн хэв нь -аж/-эж/-ож/-өж гэж бичигдэнэ (багасч → багасаж).",
     "chih_spoken": "Ярианы -чаад/-чээд хэлбэрийг бичигт -чихаад/-чихээд гэж бичнэ (явчаад → явчихаад).",
-    "lah_verb": "Үйл үгийн -лах нөхцөлд л болон эгшгийн байр солигдоно (туслах → тусалдаг).",
+    "lah_verb": "Үйл үг бүтээх -л: гийгүүлэгчээс хамаарч эгшиг л-ийн өмнө эсвэл хойно бичигдэнэ (батладаг → баталдаг).",
+    "l_verb_stem": "Үйл үг бүтээх -л дагаврын эгшгийн байр (батла → батал, зөвөл → зөвлө).",
+    "separator_ye": "Гийгүүлэгчийн дараа я/ё-гийн өмнө ъ, е-гийн өмнө ь тавина (авя → авъя, хүсе → хүсье).",
     "vowel_before_x": "Үйл үгийн х-ийн өмнө эгшиг бичигдэнэ (байгуулах → байгуулахаар).",
     "soft_sign_dative": "Ь-ийн дараа өгөх тийн ялгал -д гэж бичигдэнэ.",
     "soft_sign_genitive": "Ь-ийн дараа харьяалах, заах тийн ялгал -ийн/-ийг гэж бичигдэнэ.",
     "extra_soft_sign": "Энэ үгэнд ь хэрэггүй. Толь дахь хэлбэрээр бичнэ.",
-    "palatal_case": "Г, ж, ш, ч-ийн дараа харьяалах, заах тийн ялгал -ийн/-ийг гэж бичигдэнэ.",
+    "palatal_case": "Г, ж, ш, ч, ь, и-ийн дараа харьяалах/заах -ийн/-ийг гэж бичнэ (багшын → багшийн).",
     "glued_auxiliary": "Туслах үйл үг «байна/болно»-г тусад нь бичнэ.",
     "glued_question_particle": "Асуух «уу/үү»-г тусад нь бичнэ.",
     "glued_directive": "Чиглэлийн «руу/рүү»-г тусад нь бичнэ.",
@@ -169,6 +173,8 @@ _RULE_FIRST = frozenset(
         "sej_converb",
         "chih_spoken",
         "lah_verb",
+        "l_verb_stem",
+        "separator_ye",
         "vowel_before_x",
         "extra_suffix",
     }
@@ -308,13 +314,25 @@ def _spelling_decision(
     if "-" in word:
         return None
     if dictionary.contains(word):
-        # Hunspell sometimes accepts wrong -сч school forms (үсч, загасч).
+        # Hunspell sometimes accepts wrong school forms — still rewrite.
         sej = suggest_sej_converb(word, dictionary)
         if sej and sej.casefold() != word.casefold():
             return ("hit", sej, "sej_converb", [])
         chih = suggest_chih_spoken(word, dictionary)
         if chih and chih.casefold() != word.casefold():
             return ("hit", chih, "chih_spoken", [])
+        palatal = suggest_palatal_case(word, dictionary)
+        if palatal and palatal.casefold() != word.casefold():
+            return ("hit", palatal, "palatal_case", [])
+        soft_gen = suggest_soft_sign_genitive(word, dictionary)
+        if soft_gen and soft_gen.casefold() != word.casefold():
+            return ("hit", soft_gen, "soft_sign_genitive", [])
+        sep = suggest_separator_ye(word, dictionary)
+        if sep and sep.casefold() != word.casefold():
+            return ("hit", sep, "separator_ye", [])
+        lah = suggest_lah_verb(word, dictionary)
+        if lah and lah.casefold() != word.casefold():
+            return ("hit", lah, "lah_verb", [])
         if len(word) >= 4:
             reflexive = suggest_x_reflexive(word, dictionary)
             if reflexive:
@@ -340,7 +358,17 @@ def _spelling_decision(
         if (
             result
             and result[1] in _RULE_FIRST
-            and result[1] not in {"sej_converb", "chih_spoken", "reflexive_harmony", "vowel_before_x"}
+            and result[1]
+            not in {
+                "sej_converb",
+                "chih_spoken",
+                "reflexive_harmony",
+                "vowel_before_x",
+                "palatal_case",
+                "l_verb_stem",
+                "separator_ye",
+                "lah_verb",
+            }
             and not (
                 dictionary.contains(result[0]) or dictionary.in_wordlist(result[0])
             )
@@ -387,12 +415,17 @@ def _spelling_decision(
                 )
                 result = (primary, "doubled_letter" if doubled else "nearby_spelling")
                 alts = _confident_alts(word, alts, result, dictionary)
-    elif word.casefold().endswith("сч"):
-        # өсч (3 letters) still needs the school converb fix.
+    elif len(word) >= 3:
+        # Short stems: авя→авъя, өсч→өсөж.
         sej = suggest_sej_converb(word, dictionary)
         if sej:
             result = (sej, "sej_converb")
             alts = [sej]
+        else:
+            sep = suggest_separator_ye(word, dictionary)
+            if sep:
+                result = (sep, "separator_ye")
+                alts = [sep]
     if (
         not (result and result[1] in _RULE_FIRST)
         and len(word) >= 3
@@ -542,6 +575,12 @@ def _suggest(word: str, dictionary: DictionaryProvider) -> tuple[str, str] | Non
     chih = suggest_chih_spoken(word, dictionary)
     if chih:
         return chih, "chih_spoken"
+    sep = suggest_separator_ye(word, dictionary)
+    if sep:
+        return sep, "separator_ye"
+    stem_l = suggest_l_verb_stem(word, dictionary)
+    if stem_l:
+        return stem_l, "l_verb_stem"
     lah = suggest_lah_verb(word, dictionary)
     if lah:
         return lah, "lah_verb"
