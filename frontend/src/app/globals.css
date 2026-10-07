@@ -1670,7 +1670,8 @@ body {
 
 .mw-admin-scroll.mw-users-scroll {
   flex: 1 1 0;
-  min-height: 0;
+  /* Floor near full viewport so the list never collapses to the 280px default. */
+  min-height: calc(100dvh - 240px);
   max-height: none;
 }
 
