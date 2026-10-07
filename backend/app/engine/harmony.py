@@ -598,6 +598,54 @@ def suggest_sej_converb(word: str, dictionary: DictionaryProvider) -> str | None
     return None
 
 
+# Spoken -чих- contraction: явчаад→явчихаад, үзчээд→үзчихээд, харчаад→харчихаад.
+_CHIH_SPOKEN_TAILS = (
+    "аад",
+    "ээд",
+    "оод",
+    "өөд",
+    "сан",
+    "сэн",
+    "сон",
+    "сөн",
+    "лаа",
+    "лээ",
+    "лоо",
+    "лөө",
+)
+
+
+def _chih_stem_has_verb(stem: str, dictionary: DictionaryProvider) -> bool:
+    """True when stem belongs to a known verb (яв←явах, хий←хийх, бич←бичих)."""
+    if len(stem) < 2:
+        return False
+    # хийх, байх, очих — stem already ends before х.
+    if _known_stem(stem + "х", dictionary):
+        return True
+    return any(
+        _known_stem(stem + tail, dictionary) for tail in ("ах", "эх", "ох", "өх", "их")
+    )
+
+
+def suggest_chih_spoken(word: str, dictionary: DictionaryProvider) -> str | None:
+    """Ярианы -чаад/-чээд … → бичгийн -чихаад/-чихээд … (явчаад → явчихаад)."""
+    folded = word.casefold()
+    for tail in _CHIH_SPOKEN_TAILS:
+        if not folded.endswith(tail) or len(folded) < len(tail) + 3:
+            continue
+        body = folded[: -len(tail)]
+        # Already literary (-чих-) or not the spoken -ч- contraction.
+        if not body.endswith("ч") or body.endswith("чих"):
+            continue
+        stem = body[:-1]
+        if not _chih_stem_has_verb(stem, dictionary):
+            continue
+        candidate = stem + "чих" + tail
+        if candidate != folded:
+            return candidate
+    return None
+
+
 def suggest_niy_genitive(word: str, dictionary: DictionaryProvider) -> str | None:
     """Vowel/consonant stem genitive is -ийн/-ын, not -ний/-ны."""
     folded = word.casefold()

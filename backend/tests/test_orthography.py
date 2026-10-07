@@ -493,3 +493,30 @@ def test_correct_orthography_is_kept() -> None:
     originals = {item.original_text.casefold() for item in engine.check(text)}
     for word in ("ямар", "ч", "шаардлагатай", "учраас", "одоогоор", "маргааш", "хэрэгтэй"):
         assert word not in originals
+
+
+def test_spoken_chih_becomes_literary() -> None:
+    """явчаад/үзчээд/харчаад → явчихаад/үзчихээд/харчихаад."""
+    from app.engine.harmony import suggest_chih_spoken
+
+    dictionary = DictionaryProvider()
+    expected = {
+        "явчаад": "явчихаад",
+        "үзчээд": "үзчихээд",
+        "харчаад": "харчихаад",
+        "гарчаад": "гарчихаад",
+        "хийчээд": "хийчихээд",
+        "ирчээд": "ирчихээд",
+        "явчсан": "явчихсан",
+        "үзчлээ": "үзчихлээ",
+        "биччээд": "биччихээд",
+    }
+    for spoken, literary in expected.items():
+        assert suggest_chih_spoken(spoken, dictionary) == literary, spoken
+        assert suggestion(spoken, "chih_spoken") == literary, spoken
+    # Already literary — no false positive.
+    assert suggest_chih_spoken("явчихаад", dictionary) is None
+    assert suggest_chih_spoken("үзчихээд", dictionary) is None
+    # Unrelated -аад forms stay untouched.
+    assert suggest_chih_spoken("танилцаад", dictionary) is None
+    assert "chih_spoken" not in rule_ids("танилцаад")

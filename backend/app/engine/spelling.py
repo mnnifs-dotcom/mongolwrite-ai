@@ -20,6 +20,7 @@ from app.engine.harmony import (
     suggest_negative_gui,
     suggest_niy_genitive,
     suggest_sej_converb,
+    suggest_chih_spoken,
     suggest_palatal_case,
     suggest_plural_harmony,
     suggest_short_case_suffix,
@@ -51,6 +52,7 @@ _EXPLANATIONS = {
     "i_drop": "Нөхцөл нэмэгдэхэд үндэсний и эгшиг орхигдоно.",
     "n_genitive": "Эгшгээр төгссөн үгийн харьяалах -ийн/-ын гэж бичигдэнэ.",
     "sej_converb": "С-ийн дараа үйл үгийн хэв нь -аж/-эж/-ож/-өж гэж бичигдэнэ (багасч → багасаж).",
+    "chih_spoken": "Ярианы -чаад/-чээд хэлбэрийг бичигт -чихаад/-чихээд гэж бичнэ (явчаад → явчихаад).",
     "lah_verb": "Үйл үгийн -лах нөхцөлд л болон эгшгийн байр солигдоно (туслах → тусалдаг).",
     "vowel_before_x": "Үйл үгийн х-ийн өмнө эгшиг бичигдэнэ (байгуулах → байгуулахаар).",
     "soft_sign_dative": "Ь-ийн дараа өгөх тийн ялгал -д гэж бичигдэнэ.",
@@ -165,6 +167,7 @@ _RULE_FIRST = frozenset(
         "i_drop",
         "n_genitive",
         "sej_converb",
+        "chih_spoken",
         "lah_verb",
         "vowel_before_x",
         "extra_suffix",
@@ -309,6 +312,9 @@ def _spelling_decision(
         sej = suggest_sej_converb(word, dictionary)
         if sej and sej.casefold() != word.casefold():
             return ("hit", sej, "sej_converb", [])
+        chih = suggest_chih_spoken(word, dictionary)
+        if chih and chih.casefold() != word.casefold():
+            return ("hit", chih, "chih_spoken", [])
         if len(word) >= 4:
             reflexive = suggest_x_reflexive(word, dictionary)
             if reflexive:
@@ -334,7 +340,7 @@ def _spelling_decision(
         if (
             result
             and result[1] in _RULE_FIRST
-            and result[1] not in {"sej_converb", "reflexive_harmony", "vowel_before_x"}
+            and result[1] not in {"sej_converb", "chih_spoken", "reflexive_harmony", "vowel_before_x"}
             and not (
                 dictionary.contains(result[0]) or dictionary.in_wordlist(result[0])
             )
@@ -533,6 +539,9 @@ def _suggest(word: str, dictionary: DictionaryProvider) -> tuple[str, str] | Non
     sej = suggest_sej_converb(word, dictionary)
     if sej:
         return sej, "sej_converb"
+    chih = suggest_chih_spoken(word, dictionary)
+    if chih:
+        return chih, "chih_spoken"
     lah = suggest_lah_verb(word, dictionary)
     if lah:
         return lah, "lah_verb"
