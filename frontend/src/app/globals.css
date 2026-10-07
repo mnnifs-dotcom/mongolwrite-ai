@@ -1662,8 +1662,8 @@ body {
 
 /* Beat `.mw-admin-scroll` (280px) — users table is the main surface. */
 .mw-admin-scroll.mw-users-scroll {
-  max-height: calc(100dvh - 230px);
-  min-height: min(70vh, 640px);
+  max-height: calc(100dvh - 200px);
+  min-height: min(78vh, 720px);
 }
 
 .mw-added-toolbar-actions {
@@ -1838,7 +1838,8 @@ body {
 .mw-users-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 15px;
+  font-size: 16px;
+  line-height: 1.45;
 }
 
 .mw-users-table thead th {
@@ -1852,13 +1853,13 @@ body {
 .mw-users-table th,
 .mw-users-table td {
   text-align: left;
-  padding: 12px 10px;
+  padding: 14px 12px;
   border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
   vertical-align: middle;
 }
 
 .mw-users-table th {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--muted);
 }
@@ -1866,7 +1867,7 @@ body {
 .mw-user-cell {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .mw-user-cell strong,
@@ -1874,13 +1875,19 @@ body {
   display: block;
 }
 
+.mw-user-cell strong {
+  font-size: 16px;
+  line-height: 1.3;
+}
+
 .mw-user-cell .mw-muted {
-  font-size: 12px;
+  font-size: 13px;
+  margin-top: 2px;
 }
 
 .mw-user-avatar {
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   object-fit: cover;
   flex: 0 0 auto;
@@ -1894,9 +1901,9 @@ body {
 .mw-user-pill {
   display: inline-flex;
   align-items: center;
-  padding: 3px 9px;
+  padding: 4px 10px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
 }
 
@@ -2603,8 +2610,8 @@ body {
   }
 
   .mw-admin-scroll.mw-users-scroll {
-    max-height: calc(100dvh - 220px);
-    min-height: 55vh;
+    max-height: calc(100dvh - 190px);
+    min-height: 65vh;
   }
 
   .mw-admin-scroll.mw-added-scroll .mw-added-list {
