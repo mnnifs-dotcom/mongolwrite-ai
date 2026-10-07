@@ -937,8 +937,10 @@ export function AdminApp() {
         setStatus("Үгийн сан хоосон");
         return;
       }
+      let copied = false;
       try {
         await navigator.clipboard.writeText(text);
+        copied = true;
       } catch {
         const area = document.createElement("textarea");
         area.value = text;
@@ -947,8 +949,22 @@ export function AdminApp() {
         area.style.left = "-9999px";
         document.body.appendChild(area);
         area.select();
-        document.execCommand("copy");
+        copied = document.execCommand("copy");
         area.remove();
+      }
+      if (!copied) {
+        // Clipboard blocked / too large — fall back to a .txt download.
+        const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `ugiin-san-${payload.count}.txt`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+        setStatus(`${payload.count.toLocaleString("mn-MN")} үгийг файлээр татав`);
+        return;
       }
       setLexCopied(true);
       window.setTimeout(() => setLexCopied(false), 2500);
@@ -1184,7 +1200,22 @@ export function AdminApp() {
 
           {section === "lexicon" ? (
             <section className="mw-admin-card" id="lexicon-browser">
-              <h2>Үгийн сан · {lexTotal.toLocaleString("mn-MN")}</h2>
+              <div className="mw-lex-heading">
+                <h2>Үгийн сан · {lexTotal.toLocaleString("mn-MN")}</h2>
+                <button
+                  type="button"
+                  className="mw-btn-primary"
+                  disabled={lexTotal <= 0 || acting === "lex-copy"}
+                  onClick={() => void copyAllLexiconWords()}
+                  title="Сангийн бүх үгийг нэг мөрөнд нэг үгээр clipboard-д хуулна"
+                >
+                  {acting === "lex-copy"
+                    ? "Хуулж байна…"
+                    : lexCopied
+                      ? "Хуулсан ✓"
+                      : `Бүгдийг хуулах · ${lexTotal.toLocaleString("mn-MN")}`}
+                </button>
+              </div>
               <p className="mw-muted">
                 Энэ жагсаалт нь curated үгийн сан (санал/админ). Шалгалтын хүлээн авалт Hunspell
                 (~{Math.floor((overview?.lexicon.hunspell_stems ?? 0) / 1000)} мянган үндэс)-ээр
@@ -1232,19 +1263,6 @@ export function AdminApp() {
                 ))}
               </div>
               <div className="mw-admin-row mw-lex-actions">
-                <button
-                  type="button"
-                  className="mw-btn"
-                  disabled={lexTotal <= 0 || acting === "lex-copy"}
-                  onClick={() => void copyAllLexiconWords()}
-                  title="Бүх үгийг нэг мөрөнд нэг үгээр clipboard-д хуулна"
-                >
-                  {acting === "lex-copy"
-                    ? "Хуулж байна…"
-                    : lexCopied
-                      ? "Хуулсан ✓"
-                      : `Бүх үгийг хуулах · ${lexTotal.toLocaleString("mn-MN")}`}
-                </button>
                 <button
                   type="button"
                   className="mw-btn"
