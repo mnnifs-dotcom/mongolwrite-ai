@@ -1664,16 +1664,14 @@ body {
 
 /* Beat `.mw-admin-scroll` (280px) — users table fills leftover pane height. */
 #admin-users.mw-admin-card {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-height: 0;
-  height: 100%;
 }
 
 .mw-admin-scroll.mw-users-scroll {
-  flex: 1 1 auto;
-  min-height: min(78vh, 720px);
+  flex: 1 1 0;
+  min-height: 0;
   max-height: none;
-  height: 100%;
 }
 
 .mw-added-toolbar-actions {
@@ -2634,13 +2632,13 @@ body {
   }
 
   #admin-users.mw-admin-card {
-    height: auto;
+    flex: none;
   }
 
   .mw-admin-scroll.mw-users-scroll {
+    flex: none;
     max-height: calc(100dvh - 190px);
     min-height: 65vh;
-    height: auto;
   }
 
   .mw-admin-scroll.mw-added-scroll .mw-added-list {
