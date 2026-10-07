@@ -514,9 +514,14 @@ def test_spoken_chih_becomes_literary() -> None:
     for spoken, literary in expected.items():
         assert suggest_chih_spoken(spoken, dictionary) == literary, spoken
         assert suggestion(spoken, "chih_spoken") == literary, spoken
-    # Already literary — no false positive.
+    # Already literary — no false positive from chih or doubled_letter
+    # (Hunspell neighbors like явчхаад/явчихад must not win).
     assert suggest_chih_spoken("явчихаад", dictionary) is None
     assert suggest_chih_spoken("үзчихээд", dictionary) is None
+    hun = LanguageEngine(DictionaryProvider())
+    for literary in ("явчихаад", "үзчихээд", "харчихаад", "явчихсан", "биччихээд"):
+        found = hun.check(literary)
+        assert found == [], (literary, [(c.rule_id, c.suggested_text) for c in found])
     # Unrelated -аад forms stay untouched.
     assert suggest_chih_spoken("танилцаад", dictionary) is None
     assert "chih_spoken" not in rule_ids("танилцаад")
