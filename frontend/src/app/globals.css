@@ -1537,7 +1537,9 @@ body {
   display: grid;
   grid-template-columns: 220px minmax(0, 1fr);
   min-height: calc(100vh - 64px);
+  height: calc(100dvh - 64px);
   align-items: stretch;
+  overflow: hidden;
 }
 
 .mw-admin-nav {
@@ -1660,10 +1662,18 @@ body {
   color: var(--ink);
 }
 
-/* Beat `.mw-admin-scroll` (280px) — users table is the main surface. */
+/* Beat `.mw-admin-scroll` (280px) — users table fills leftover pane height. */
+#admin-users.mw-admin-card {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+}
+
 .mw-admin-scroll.mw-users-scroll {
-  max-height: calc(100dvh - 200px);
+  flex: 1 1 auto;
   min-height: min(78vh, 720px);
+  max-height: none;
+  height: 100%;
 }
 
 .mw-added-toolbar-actions {
@@ -1958,7 +1968,11 @@ body {
   margin: 0;
   padding: 18px 22px 28px;
   min-width: 0;
-  min-height: calc(100vh - 64px);
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .mw-lex-search {
@@ -2609,9 +2623,24 @@ body {
     min-height: 45vh;
   }
 
+  .mw-admin-shell {
+    height: auto;
+    overflow: visible;
+  }
+
+  .mw-admin-pane.mw-admin {
+    height: auto;
+    overflow: visible;
+  }
+
+  #admin-users.mw-admin-card {
+    height: auto;
+  }
+
   .mw-admin-scroll.mw-users-scroll {
     max-height: calc(100dvh - 190px);
     min-height: 65vh;
+    height: auto;
   }
 
   .mw-admin-scroll.mw-added-scroll .mw-added-list {
