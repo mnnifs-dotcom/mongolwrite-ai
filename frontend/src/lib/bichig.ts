@@ -181,28 +181,38 @@ function toPracticalBichig(script: string): string {
   // Drop leftover MVS that is not a vowel separator (before final a/e).
   out = out.replace(/\u180E(?![ᠠᠡ])/g, "");
 
-  // Gege injects FVS1 mid-stem on loanwords (абсолют → …ᠦ᠋ᠲ). Without full
-  // OpenType Mongolian shaping those selectors render as visible junk that
-  // readers describe as "!" in the middle of the word. Keep FVS1 only for
-  // practical suffix shaping right after NNBSP (… ᠤ᠋ᠨ, … ᠳ᠋ᠤ).
-  out = stripOrphanFvs(out);
-  return out;
+  // Orphan mid-stem FVS / bang glyphs are removed in sanitizeBichigScript.
+  return sanitizeBichigScript(out);
 }
 
-/** Keep FVS1 only when it follows NNBSP + letter (suffix form). */
-function stripOrphanFvs(script: string): string {
+/**
+ * Final safety net for every conversion path (any user, any word).
+ * - Keep FVS1 only after NNBSP (suffix shaping); drop orphan mid-stem FVS.
+ * - Drop FVS2/FVS3 (never needed here; can show as tofu/"!").
+ * - Never leave ASCII/fullwidth "!" in the script — map to Mongolian ᠄.
+ */
+function sanitizeBichigScript(script: string): string {
   let out = "";
   for (let i = 0; i < script.length; i++) {
     const ch = script[i];
     if (ch === FVS1) {
-      if (i >= 2 && script[i - 2] === NNBSP) {
-        out += ch;
-      }
+      if (i >= 2 && script[i - 2] === NNBSP) out += ch;
       continue;
     }
+    // FVS2 / FVS3
+    if (ch === "\u180C" || ch === "\u180D") continue;
     out += ch;
   }
+  // Bang between Mongolian letters is always converter junk — delete it.
+  out = out.replace(/(?<=[\u1800-\u18AF\u1880-\u18AA])[!！](?=[\u1800-\u18AF\u1880-\u18AA])/gu, "");
+  // Any remaining bang is sentence punctuation → Mongolian mark.
+  out = out.replace(/[!！]/g, "᠄");
   return out;
+}
+
+/** @deprecated use sanitizeBichigScript — kept name for call sites below */
+function stripOrphanFvs(script: string): string {
+  return sanitizeBichigScript(script);
 }
 
 /**
@@ -404,12 +414,14 @@ function convertToken(token: string): string {
 /**
  * Cyrillic → traditional Mongolian script.
  * Runs over the finished text (command-based), not character-by-character while typing.
+ * Every path (editor convert for any user) is sanitized so mid-word "!" never appears.
  */
 export function cyrillicToBichig(text: string): string {
   if (!text.trim()) return "";
   // Keep whitespace; do not peel digits off words (100он stays one token).
-  return text.replace(/(\s+)|(\S+)/gu, (part, space: string | undefined) => {
+  const raw = text.replace(/(\s+)|(\S+)/gu, (part, space: string | undefined) => {
     if (space) return space;
     return convertToken(part);
   });
+  return sanitizeBichigScript(raw);
 }
