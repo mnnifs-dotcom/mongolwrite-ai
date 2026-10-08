@@ -5,34 +5,29 @@ import { BrandWordmark } from "@/components/BrandWordmark";
 import { SiteFooter } from "@/components/SiteFooter";
 
 const SITE = "https://mongolwrite.com";
+const CANONICAL = "/aldaa-shalgah";
 
+/** Legacy slug kept for old links; canonical points at /aldaa-shalgah. */
 export const metadata: Metadata = {
   title: {
-    absolute: "Алдаа шалгах | Үгийн алдаа шалгах — MongolWrite",
+    absolute: "Алдаа шалгах | Монгол үгийн алдаа шалгагч — MongolWrite",
   },
   description:
-    "Алдаа шалгах, үгийн алдаа шалгах онлайн. Монгол кирилл бичвэрийн үгийн алдааг онлайнаар шалгаж засаарай. Монгол бичиг рүү хөрвүүлэх, Word файлаар татах.",
-  keywords: [
-    "алдаа шалгах",
-    "үгийн алдаа шалгах",
-    "бичгийн алдаа шалгах",
-    "монгол алдаа шалгах",
-    "алдаа шалгагч",
-    "монгол зөв бичих",
-    "MongolWrite",
-  ],
-  alternates: { canonical: "/aldaga-shalgah" },
+    "Алдаа шалгах онлайн. Монгол кирилл бичвэрийн үгийн алдааг шууд шалгаж засаарай. MongolWrite.",
+  keywords: ["алдаа шалгах", "үгийн алдаа шалгах", "MongolWrite"],
+  alternates: { canonical: CANONICAL },
+  robots: { index: false, follow: true },
   openGraph: {
-    title: "Алдаа шалгах | Үгийн алдаа шалгах — MongolWrite",
+    title: "Алдаа шалгах | MongolWrite",
     description: "Монгол кирилл бичвэрийн үгийн алдааг онлайнаар шалгаж засаарай.",
-    url: `${SITE}/aldaga-shalgah`,
+    url: `${SITE}${CANONICAL}`,
     type: "website",
     locale: "mn_MN",
     images: [{ url: "/logo-512.png", width: 512, height: 512, alt: "MongolWrite" }],
   },
 };
 
-export default function AldagaShalgahPage() {
+export default function AldagaShalgahRedirectPage() {
   return (
     <main className="mw-seo-page">
       <header className="mw-seo-top">
@@ -41,7 +36,7 @@ export default function AldagaShalgahPage() {
           <img src="/logo.png" alt="" width={36} height={33} />
           <BrandWordmark />
         </Link>
-        <Link href="/" className="mw-seo-cta">
+        <Link href={CANONICAL} className="mw-seo-cta">
           Алдаа шалгах
         </Link>
       </header>
@@ -49,68 +44,15 @@ export default function AldagaShalgahPage() {
       <article className="mw-seo-article">
         <h1>Алдаа шалгах</h1>
         <p className="mw-seo-lead">
-          MongolWrite бол монгол кирилл бичвэрийн үгийн алдааг онлайнаар шалгадаг хэрэгсэл.
-          Текстээ бичээд эсвэл файл нээгээд шалгахад алдаатай үгсийг тэмдэглэж, зөв хэлбэрийг
-          санал болгоно.
+          Энэ хуудас шилжсэн. Монгол бичвэрийн алдаагаа шалгахын тулд шинэ хуудсыг нээнэ үү.
         </p>
-
         <p>
-          <Link href="/" className="mw-seo-cta mw-seo-cta-inline">
-            Эндээс шалгах →
+          <Link href={CANONICAL} className="mw-seo-cta mw-seo-cta-inline">
+            Алдаа шалгах хуудас руу очих →
           </Link>
         </p>
-
-        <h2>Яагаад үгийн алдаагаа шалгах вэ?</h2>
         <p>
-          Албан бичиг, сургуулийн даалгавар, нийтлэл бичихэд нэг үг буруу орвол утга
-          өөрчлөгдөж, уншигчид найдваргүй сэтгэгдэл үлдээнэ. Бүхэл текстээ гараар дахин
-          уншиж олох нь цаг авна, заримдаа алдааг өөрөө анзаарахгүй өнгөрнө.
-        </p>
-        <p>
-          Онлайн алдаа шалгагч ашиглавал текстээ хэдхэн секундэд шалгаж, эргэлзээтэй үгсийг
-          нэг дор харж болно. Ингэснээр засах ажил хурдан, цэгцтэй болно.
-        </p>
-
-        <h2>MongolWrite юу хийдэг вэ?</h2>
-        <p>
-          Гол зорилго нь монгол үгийн зөв бичгийг шалгах явдал. Та текстээ оруулахад систем
-          үг бүрийг үгийн сан, дүрэмтэй тулган үзэж, алдаатай эсвэл эргэлзээтэй хэсгийг
-          тэмдэглэнэ. Дараа нь санал болгосон зөв хэлбэрээс сонгоод солино.
-        </p>
-        <p>
-          Шаардлагатай бол кирилл текстээ уламжлалт монгол бичиг рүү хөрвүүлж, Word (.docx)
-          файлаар татаж авч болно. Бүгд вэб дээр ажиллана — тусад нь программ суулгах
-          шаардлагагүй.
-        </p>
-
-        <h2>Хэрхэн ашиглах вэ?</h2>
-        <ol>
-          <li>
-            <Link href="/">mongolwrite.com</Link> руу орно
-          </li>
-          <li>Текстээ бичнэ, эсвэл Word, текст файл нээнэ</li>
-          <li>
-            <strong>Шалгах</strong> товч дарна
-          </li>
-          <li>Алдаатай үгийг засаад, хүсвэл монгол бичиг рүү хөрвүүлж татна</li>
-        </ol>
-
-        <h2>Хэн хэрэглэж болох вэ?</h2>
-        <p>
-          Сурагч, багш, албан хаагч, сэтгүүлч — монголоор бичдэг хэн бүхэнд хэрэгтэй. Зочин
-          хэрэглэгч бага хэмжээний текстээр туршиж үзэж болно. Илүү урт бичвэр шалгах,
-          монгол бичиг хөрвүүлэх зэрэг бүрэн боломжийг төлбөртэй эрхээр нээнэ. Дэлгэрэнгүйг{" "}
-          <Link href="/tolbor">төлбөрийн багц</Link> хуудаснаас үзнэ үү.
-        </p>
-        <p>
-          «Үгийн алдаа шалгах» гэж хайж байгаа бол{" "}
-          <Link href="/ugiin-aldaga-shalgah">үгийн алдаа шалгах</Link> хуудсыг мөн үзнэ үү.
-        </p>
-
-        <p className="mw-seo-foot-cta">
-          <Link href="/" className="mw-seo-cta">
-            Алдаа шалгах
-          </Link>
+          Эсвэл шууд <Link href="/">mongolwrite.com</Link> дээр текстээ шалгана.
         </p>
       </article>
       <SiteFooter />
