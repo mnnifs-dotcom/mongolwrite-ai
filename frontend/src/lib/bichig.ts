@@ -40,10 +40,11 @@ const WORD_OVERRIDES: Record<string, string> = {
   хүчний: `ᢈᠦᠴᠦᠨ${NNBSP}ᠦ${FVS1}`,
   хүчин: "ᢈᠦᠴᠦᠨ",
   ерөнхий: "ᠶᠡᠷᠦᠩᢈᠡᠢ",
-  командлагч: "ᠻᠣᠮᠮᠠᠨ᠋ᠳ᠋ᠯᠠᠭᠴᠢ",
+  // No mid-stem FVS - those render as visible junk ("!") without full shaping.
+  командлагч: "ᠻᠣᠮᠮᠠᠨᠳᠯᠠᠭᠴᠢ",
   ухнаагийн: `ᠤᠬᠤᠨ${MVS}ᠠ${NNBSP}ᠶ${FVS1}ᠢᠨ`,
   ухнаа: `ᠤᠬᠤᠨ${MVS}ᠠ`,
-  хүрэлсүх: `ᢈᠦᠷᠡᠯᠰᠦ${FVS1}ᢈᠡ`,
+  хүрэлсүх: "ᢈᠦᠷᠡᠯᠰᠦᢈᠡ",
   онд: `ᠣᠨ${NNBSP}ᠳ${FVS1}ᠤ`,
   оны: `ᠣᠨ${NNBSP}ᠤ${FVS1}`,
   он: "ᠣᠨ",
@@ -179,7 +180,39 @@ function toPracticalBichig(script: string): string {
 
   // Drop leftover MVS that is not a vowel separator (before final a/e).
   out = out.replace(/\u180E(?![ᠠᠡ])/g, "");
+
+  // Orphan mid-stem FVS / bang glyphs are removed in sanitizeBichigScript.
+  return sanitizeBichigScript(out);
+}
+
+/**
+ * Final safety net for every conversion path (any user, any word).
+ * - Keep FVS1 only after NNBSP (suffix shaping); drop orphan mid-stem FVS.
+ * - Drop FVS2/FVS3 (never needed here; can show as tofu/"!").
+ * - Never leave ASCII/fullwidth "!" in the script — map to Mongolian ᠄.
+ */
+function sanitizeBichigScript(script: string): string {
+  let out = "";
+  for (let i = 0; i < script.length; i++) {
+    const ch = script[i];
+    if (ch === FVS1) {
+      if (i >= 2 && script[i - 2] === NNBSP) out += ch;
+      continue;
+    }
+    // FVS2 / FVS3
+    if (ch === "\u180C" || ch === "\u180D") continue;
+    out += ch;
+  }
+  // Bang between Mongolian letters is always converter junk — delete it.
+  out = out.replace(/(?<=[\u1800-\u18AF\u1880-\u18AA])[!！](?=[\u1800-\u18AF\u1880-\u18AA])/gu, "");
+  // Any remaining bang is sentence punctuation → Mongolian mark.
+  out = out.replace(/[!！]/g, "᠄");
   return out;
+}
+
+/** @deprecated use sanitizeBichigScript — kept name for call sites below */
+function stripOrphanFvs(script: string): string {
+  return sanitizeBichigScript(script);
 }
 
 /**
@@ -305,7 +338,7 @@ function finalizeScript(script: string): string {
 function convertWord(word: string): string {
   const key = word.toLocaleLowerCase("mn");
   const override = WORD_OVERRIDES[key];
-  if (override) return override;
+  if (override) return stripOrphanFvs(override);
 
   // Declined forms: strip case ending, convert stem, re-attach practical suffix.
   // Critical when the full form over-segments (төгөлдөрийн → töγel-dü-ber-ün).
@@ -316,7 +349,7 @@ function convertWord(word: string): string {
     if (!stem || stem.length < 2) continue;
 
     if (WORD_OVERRIDES[stem]) {
-      const stemScript = WORD_OVERRIDES[stem];
+      const stemScript = stripOrphanFvs(WORD_OVERRIDES[stem]);
       const suffix = isFrontStem(stemScript) ? decl.front : decl.back;
       return stemScript + suffix;
     }
@@ -381,12 +414,14 @@ function convertToken(token: string): string {
 /**
  * Cyrillic → traditional Mongolian script.
  * Runs over the finished text (command-based), not character-by-character while typing.
+ * Every path (editor convert for any user) is sanitized so mid-word "!" never appears.
  */
 export function cyrillicToBichig(text: string): string {
   if (!text.trim()) return "";
   // Keep whitespace; do not peel digits off words (100он stays one token).
-  return text.replace(/(\s+)|(\S+)/gu, (part, space: string | undefined) => {
+  const raw = text.replace(/(\s+)|(\S+)/gu, (part, space: string | undefined) => {
     if (space) return space;
     return convertToken(part);
   });
+  return sanitizeBichigScript(raw);
 }

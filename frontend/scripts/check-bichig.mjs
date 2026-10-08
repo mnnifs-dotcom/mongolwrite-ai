@@ -76,6 +76,51 @@ const cases = [
       assert(out.includes("ᠲ"), "has ᠲ");
     },
   ],
+  [
+    "абсолют",
+    (out) => {
+      assert(!out.includes("!"), "no ASCII !");
+      assert(!out.includes("\u180B") || out.includes("\u202F"), "no mid-stem orphan FVS");
+      // FVS only allowed after NNBSP; абсолют has none
+      assert(!out.includes("\u180B"), `абсолют must not keep mid FVS: ${JSON.stringify(out)}`);
+    },
+  ],
+  [
+    "автобус",
+    (out) => {
+      assert(!out.includes("\u180B"), `автобус must not keep mid FVS: ${JSON.stringify(out)}`);
+    },
+  ],
+  [
+    "улсын",
+    (out) => {
+      // Suffix FVS after NNBSP is required for practical shaping.
+      assert(out.includes("\u202F"), "улсын has NNBSP suffix");
+      assert(out.includes("\u180B"), "улсын keeps suffix FVS");
+    },
+  ],
+  // Any-user guarantee: loanwords and mixed text never emit bang / orphan FVS.
+  ...[
+    "агент",
+    "компьютер",
+    "офис",
+    "телефон",
+    "фильм",
+    "интернет",
+    "абсолют автобус агент",
+    "Сайн байна уу?",
+  ].map((sample) => [
+    sample,
+    (out) => {
+      assert(!out.includes("!"), `no ASCII bang in ${JSON.stringify(sample)}`);
+      assert(!out.includes("！"), `no fullwidth bang in ${JSON.stringify(sample)}`);
+      for (let i = 0; i < out.length; i++) {
+        if (out[i] === "\u180B" && !(i >= 2 && out[i - 2] === "\u202F")) {
+          throw new Error(`orphan FVS in ${JSON.stringify(sample)} → ${JSON.stringify(out)}`);
+        }
+      }
+    },
+  ]),
 ];
 
 function assert(cond, msg) {
