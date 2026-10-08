@@ -862,11 +862,11 @@ export function EditorApp() {
                   <button type="button" role="menuitem" onClick={loadSample}>
                     Жишээ
                   </button>
+                  <a href="/aldaa-shalgah" role="menuitem" onClick={closeMenu}>
+                    Алдаа шалгах
+                  </a>
                   <a href="/ugiin-aldaga-shalgah" role="menuitem" onClick={closeMenu}>
                     Үгийн алдаа шалгах
-                  </a>
-                  <a href="/aldaga-shalgah" role="menuitem" onClick={closeMenu}>
-                    Алдаа шалгах
                   </a>
                   <a href="/aldaa-medegdeh" role="menuitem" onClick={closeMenu}>
                     Алдаа мэдэгдэх
