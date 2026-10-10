@@ -44,6 +44,18 @@ def _install_auto_heal() -> None:
     set_heal_handler(warm_now)
 
 
+def _prune_candidates_budgeted() -> None:
+    """Background prune so admin overview never pays for it on the request path."""
+    try:
+        from app.engine.hunspell_candidates import prune_clear_error_candidates
+
+        removed = prune_clear_error_candidates()
+        if removed:
+            _log.info("background prune removed %s candidate(s)", removed)
+    except Exception:
+        _log.exception("background candidate prune failed")
+
+
 async def keep_warm_loop(stop: asyncio.Event) -> None:
     """Re-prepare the dictionary periodically. No admin action required."""
     _install_auto_heal()
@@ -54,5 +66,6 @@ async def keep_warm_loop(stop: asyncio.Event) -> None:
         except asyncio.TimeoutError:
             try:
                 await asyncio.to_thread(warm_now)
+                await asyncio.to_thread(_prune_candidates_budgeted)
             except Exception:
                 _log.exception("keep-warm failed")
