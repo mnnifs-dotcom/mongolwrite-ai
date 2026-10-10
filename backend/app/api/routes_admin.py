@@ -48,6 +48,7 @@ from app.engine.legal_laws import (
     list_laws,
     skip_law,
 )
+from app.engine.lexicon_audit import audit_curated_lexicon
 from app.engine.metrics import snapshot
 from app.engine.pending import list_pending, pop_pending, pop_pending_many
 from app.engine.runtime import get_engine
@@ -437,6 +438,16 @@ def lexicon_export(_: AdminDep) -> dict[str, Any]:
     """Full curated lexicon as one list (for copy / offline review)."""
     words = get_engine().dictionary.curated_lemmas()
     return {"words": words, "count": len(words)}
+
+
+@router.post("/lexicon/audit")
+def lexicon_audit(
+    _: AdminDep,
+    letter: str = "",
+    limit: int = 0,
+) -> dict[str, Any]:
+    """Scan curated lexicon with the live checker; return lemmas it flags."""
+    return audit_curated_lexicon(get_engine(), letter=letter, limit=limit)
 
 
 @router.post("/lexicon/remove")
