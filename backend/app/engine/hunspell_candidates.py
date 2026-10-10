@@ -344,16 +344,27 @@ def list_admin_added(
     return filtered
 
 
-def admin_lists_payload() -> dict[str, Any]:
-    """Single payload for the admin UI lists."""
-    prune_clear_error_candidates()
+# Overview must stay snappy — never run full prune / ship unbounded lists.
+_OVERVIEW_CANDIDATE_CAP = 250
+_OVERVIEW_ADDED_CAP = 100
+
+
+def admin_lists_payload(*, prune: bool = False) -> dict[str, Any]:
+    """Single payload for the admin UI lists.
+
+    Pruning clear-error candidates is intentionally off the hot path: scanning
+    ~2k rows with orthography checks can take minutes and blocked admin login.
+    Pass ``prune=True`` only from background warmers / explicit harvest.
+    """
+    if prune:
+        prune_clear_error_candidates()
     reliable = list_candidates("reliable")
     doubt = list_candidates("doubt")
     added = list_admin_added()
     return {
-        "reliable": reliable,
-        "doubt": doubt,
-        "added": added,
+        "reliable": reliable[:_OVERVIEW_CANDIDATE_CAP],
+        "doubt": doubt[:_OVERVIEW_CANDIDATE_CAP],
+        "added": added[:_OVERVIEW_ADDED_CAP],
         "counts": {
             "reliable": len(reliable),
             "doubt": len(doubt),
@@ -640,22 +651,37 @@ def list_candidates(tier: Tier | str | None = None) -> list[dict[str, Any]]:
     return rows
 
 
-def prune_clear_error_candidates(dictionary: DictionaryProvider | None = None) -> int:
-    """Drop queued words that are clear errors, junk, or typing prefixes of known lemmas."""
+def prune_clear_error_candidates(
+    dictionary: DictionaryProvider | None = None,
+    *,
+    limit: int = 200,
+) -> int:
+    """Drop queued words that are clear errors, junk, or typing prefixes of known lemmas.
+
+    ``limit`` caps how many rows are scanned per call so a warm tick cannot
+    monopolize the CPU for minutes (full scan of ~2k candidates is expensive).
+    """
     from app.engine.runtime import get_engine
 
     dict_provider = dictionary or get_engine().dictionary
     removed = 0
+    budget = max(1, int(limit))
     with _lock:
         rows = _load_rows()
         rejected = _load_rejected()
-        drop = [
-            folded
-            for folded, row in rows.items()
-            if is_obvious_junk(str(row.get("word") or folded))
-            or is_clear_orthography_error(dict_provider, str(row.get("word") or folded))
-            or dict_provider.is_proper_prefix_of_known(str(row.get("word") or folded))
-        ]
+        drop: list[str] = []
+        scanned = 0
+        for folded, row in rows.items():
+            if scanned >= budget:
+                break
+            scanned += 1
+            word = str(row.get("word") or folded)
+            if (
+                is_obvious_junk(word)
+                or is_clear_orthography_error(dict_provider, word)
+                or dict_provider.is_proper_prefix_of_known(word)
+            ):
+                drop.append(folded)
         if not drop:
             return 0
         for folded in drop:

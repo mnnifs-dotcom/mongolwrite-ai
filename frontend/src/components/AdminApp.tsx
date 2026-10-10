@@ -345,22 +345,39 @@ export function AdminApp() {
       try {
         const ok = await adminMe();
         setAuthed(ok);
+        // Unblock the splash as soon as session is known — do not wait for
+        // overview / lexicon / laws (those used to hang admin for minutes).
+        setReady(true);
         if (ok) {
-          await loadLists();
-          await loadLexicon({ offset: 0 });
-          await loadUsers({ offset: 0 });
-          await loadLaws({ offset: 0 });
-          await loadFeedback();
+          void loadLists().catch((err) => {
+            setError(err instanceof Error ? err.message : "Ерөнхий мэдээлэл уншигдсангүй");
+          });
+          void loadLexicon({ offset: 0 });
+          void loadUsers({ offset: 0 });
         }
       } catch {
         setAuthed(false);
-      } finally {
         setReady(true);
       }
     })();
     // Initial load only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!authed || section !== "hunspell") return;
+    void (async () => {
+      try {
+        const page = await adminCandidates();
+        const items = page.items ?? [];
+        setReliable(items.filter((item) => item.tier === "reliable"));
+        setDoubt(items.filter((item) => item.tier === "doubt"));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Hunspell үгс уншигдсангүй");
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authed, section]);
 
   useEffect(() => {
     if (!authed || section !== "added") return;
@@ -395,15 +412,18 @@ export function AdminApp() {
     setBusy(true);
     try {
       await adminLogin(username, password);
-      setAuthed(true);
       setPassword("");
-      await loadLists();
-      await loadLexicon({ offset: 0 });
-      await loadUsers({ offset: 0 });
       setSection("lexicon");
+      setAuthed(true);
+      setBusy(false);
+      // Enter the shell immediately; hydrate lists in the background.
+      void loadLists().catch((err) => {
+        setError(err instanceof Error ? err.message : "Ерөнхий мэдээлэл уншигдсангүй");
+      });
+      void loadLexicon({ offset: 0 });
+      void loadUsers({ offset: 0 });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Нэвтэрч чадсангүй");
-    } finally {
       setBusy(false);
     }
   }
@@ -1129,7 +1149,7 @@ export function AdminApp() {
       <div className="mw-admin-page">
         <div className="mw-admin mw-admin-centered">
           <BrandLogo size="lg" className="mw-brand-splash" />
-          <p className="mw-muted">Уншиж байна…</p>
+          <p className="mw-muted">Эрх шалгаж байна…</p>
         </div>
       </div>
     );
