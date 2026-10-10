@@ -8,6 +8,7 @@ import {
   adminApproveCandidates,
   adminApprovePending,
   adminApprovePendingMany,
+  adminCandidates,
   adminHarvest,
   adminLegalBotStatus,
   adminLegalImport,
