@@ -118,15 +118,21 @@ else:
 
     _html_page(_frontend / "admin.html", "/admin", "/admin/")
     _html_page(
+        _frontend / "aldaa-shalgah.html",
+        "/aldaa-shalgah",
+        "/aldaa-shalgah/",
+    )
+    _html_page(
         _frontend / "ugiin-aldaga-shalgah.html",
         "/ugiin-aldaga-shalgah",
         "/ugiin-aldaga-shalgah/",
     )
-    _html_page(
-        _frontend / "aldaga-shalgah.html",
-        "/aldaga-shalgah",
-        "/aldaga-shalgah/",
-    )
+    # Old slug → exact «алдаа шалгах» landing (aldaa = алдаа).
+    @app.api_route("/aldaga-shalgah", methods=["GET", "HEAD"])
+    @app.api_route("/aldaga-shalgah/", methods=["GET", "HEAD"])
+    async def _redirect_aldaga_shalgah() -> RedirectResponse:
+        return RedirectResponse(url="/aldaa-shalgah", status_code=301)
+
     _html_page(
         _frontend / "uilchilgeenii-nokhtsol.html",
         "/uilchilgeenii-nokhtsol",

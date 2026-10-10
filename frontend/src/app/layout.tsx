@@ -7,9 +7,9 @@ export const viewport: Viewport = {
   themeColor: "#1f6fad",
 };
 
-const titleDefault = "Үгийн алдаа шалгах | MongolWrite — монгол үгийн алдаа шалгагч";
+const titleDefault = "Алдаа шалгах | Үгийн алдаа шалгах — MongolWrite";
 const descriptionDefault =
-  "Үгийн алдаа шалгах онлайн. Монгол кирилл бичвэрийн үгийн алдааг онлайнаар шалгаж засаарай. Монгол бичиг рүү хөрвүүлэх, Word файлаар татах.";
+  "Алдаа шалгах онлайн. Монгол кирилл бичвэрийн үгийн алдааг онлайнаар шалгаж засаарай. Монгол бичиг рүү хөрвүүлэх, Word файлаар татах.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE),
@@ -20,16 +20,17 @@ export const metadata: Metadata = {
   description: descriptionDefault,
   applicationName: "MongolWrite",
   keywords: [
+    "алдаа шалгах",
     "үгийн алдаа шалгах",
     "үгийн алдаа шалгагч",
+    "монгол алдаа шалгах",
     "монгол үгийн алдаа шалгах",
     "монгол үгийн алдаа шалгагч",
-    "алдаа шалгах",
-    "монгол алдаа шалгах",
     "бичгийн алдаа шалгах",
     "монгол хэлний алдаа шалгагч",
-    "монгол зөв бичих",
+    "онлайн алдаа шалгах",
     "онлайн алдаа шалгагч",
+    "монгол зөв бичих",
     "монгол бичиг хөрвүүлэх",
     "spellcheck",
     "MongolWrite",
@@ -66,7 +67,7 @@ export const metadata: Metadata = {
     siteName: "MongolWrite",
     locale: "mn_MN",
     type: "website",
-    images: [{ url: "/logo-512.png", width: 512, height: 512, alt: "MongolWrite үгийн алдаа шалгагч" }],
+    images: [{ url: "/logo-512.png", width: 512, height: 512, alt: "MongolWrite алдаа шалгах" }],
   },
   twitter: {
     card: "summary",
@@ -87,22 +88,22 @@ const jsonLd = {
       url: SITE,
       name: "MongolWrite",
       alternateName: [
+        "Алдаа шалгах",
         "Үгийн алдаа шалгах",
         "Монгол үгийн алдаа шалгагч",
-        "Алдаа шалгах",
       ],
       description: descriptionDefault,
       inLanguage: "mn",
       potentialAction: {
         "@type": "ReadAction",
-        target: `${SITE}/ugiin-aldaga-shalgah`,
+        target: `${SITE}/aldaa-shalgah`,
       },
     },
     {
       "@type": "WebApplication",
       "@id": `${SITE}/#app`,
       name: "MongolWrite",
-      alternateName: "Үгийн алдаа шалгах — MongolWrite",
+      alternateName: ["Алдаа шалгах", "Үгийн алдаа шалгах — MongolWrite"],
       url: SITE,
       applicationCategory: "BusinessApplication",
       operatingSystem: "Web",
@@ -125,6 +126,7 @@ const jsonLd = {
         },
       ],
       featureList: [
+        "Алдаа шалгах",
         "Үгийн алдаа шалгах",
         "Бичгийн алдаа засах",
         "Монгол бичиг хөрвүүлэх",

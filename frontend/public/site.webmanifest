@@ -1,7 +1,7 @@
 {
-  "name": "MongolWrite — үгийн алдаа шалгах",
+  "name": "MongolWrite — алдаа шалгах",
   "short_name": "MongolWrite",
-  "description": "Монгол үгийн алдаа шалгах, зөв бичих, монгол бичиг хөрвүүлэх",
+  "description": "Алдаа шалгах, монгол үгийн алдаа шалгах, монгол бичиг хөрвүүлэх",
   "start_url": "/",
   "display": "standalone",
   "lang": "mn",
