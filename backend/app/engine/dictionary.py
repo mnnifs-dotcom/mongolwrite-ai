@@ -628,6 +628,20 @@ class DictionaryProvider:
             return [*preferred_hits, *rest][:limit]
         found: list[str] = []
         seen = {folded}
+
+        def _take(candidate: str) -> None:
+            if not _usable_candidate(folded, candidate, seen):
+                return
+            if not self._accept_suggestion(folded, candidate):
+                return
+            seen.add(candidate)
+            found.append(candidate)
+
+        # Adjacent letter swaps that Hunspell/curated accept (хайралсаар → хайрласаар)
+        # must win over looser wordlist neighbors like хайраасаар.
+        for candidate in _adjacent_swaps(folded):
+            _take(candidate)
+
         phases = [
             _edit_candidates(folded, inserts=False),
             _consonant_inserts(folded),
@@ -635,27 +649,15 @@ class DictionaryProvider:
         ]
         for batch in phases:
             for candidate, _score in batch:
-                if not _usable_candidate(folded, candidate, seen):
-                    continue
-                if self._accept_suggestion(folded, candidate):
-                    seen.add(candidate)
-                    found.append(candidate)
+                _take(candidate)
             if len(found) >= limit:
                 break
         if len(found) < limit:
             for candidate, _score in _wordlist_neighbors(folded, self._near, self._seed):
-                if not _usable_candidate(folded, candidate, seen):
-                    continue
-                if self._accept_suggestion(folded, candidate):
-                    seen.add(candidate)
-                    found.append(candidate)
+                _take(candidate)
         if len(found) < limit:
             for candidate, _score in _edit_candidates(folded, inserts=True):
-                if not _usable_candidate(folded, candidate, seen):
-                    continue
-                if self._accept_suggestion(folded, candidate):
-                    seen.add(candidate)
-                    found.append(candidate)
+                _take(candidate)
         if self._freq_near:
             for candidate, _score in _frequency_neighbors(
                 folded, self._freq_near, self.wiki_frequency, _FREQ_TRUST
@@ -670,20 +672,21 @@ class DictionaryProvider:
                     continue
                 seen.add(candidate)
                 found.append(candidate)
-        close = any(_edit_distance(folded, item) <= 1 for item in found)
-        if self._hunspell is not None and (not close or len(found) < limit):
+        # Always merge cheap Hunspell edits (deletes/swaps) so a wordlist hit at
+        # distance 1 cannot hide a better attested swap form.
+        if self._hunspell is not None:
             for candidate in _cheap_hunspell_edits(folded):
                 if not _usable_candidate(folded, candidate, seen):
                     continue
-                seen.add(candidate)
                 if not self.contains(candidate):
                     continue
                 if lookup_misspelling(candidate):
                     continue
                 if len(candidate) == len(folded) - 1 and folded[1:] == candidate:
                     continue
+                seen.add(candidate)
                 found.append(candidate)
-                if len(found) >= limit:
+                if len(found) >= max(limit, 8):
                     break
         same = [item for item in found if item[:1] == folded[:1]]
         pool = same or found
@@ -695,6 +698,7 @@ class DictionaryProvider:
                 or self.in_seed(item)
                 or self.in_wordlist(item)
                 or _edit_distance(folded, item) <= 1
+                or _is_adjacent_swap(folded, item)
             )
         ]
         if trusted:
@@ -705,6 +709,8 @@ class DictionaryProvider:
                 _edit_distance(folded, item),
                 0 if _keeps_ending(folded, item) else 1,
                 _prefix_cut_penalty(folded, item),
+                # Prefer Hunspell-attested close forms over rare curated neighbors.
+                0 if (self.contains(item) and _edit_distance(folded, item) <= 1) else 1,
                 self._rarity(item),
                 -self.frequency(item),
                 _rank(folded, item),
@@ -739,13 +745,26 @@ class DictionaryProvider:
         return chosen
 
     def _accept_suggestion(self, original: str, candidate: str) -> bool:
-        if not self.in_wordlist(candidate):
-            return False
+        """Accept curated neighbors, or Hunspell-known close edits (esp. swaps)."""
+        in_list = self.in_wordlist(candidate)
+        close_attested = False
+        if not in_list:
+            # Hunspell-only lemmas are OK when they are a near edit of the typo —
+            # otherwise хайралсаар never surfaces хайрласаар.
+            if self.contains(candidate) and (
+                _is_adjacent_swap(original, candidate)
+                or _edit_distance(original, candidate) <= 1
+            ):
+                close_attested = True
+            else:
+                return False
         if lookup_misspelling(candidate):
             return False
         if len(candidate) == len(original) - 1 and original[1:] == candidate:
             return False
-        if _ou_flip_only(original, candidate) and not self.in_seed(candidate):
+        if _ou_flip_only(original, candidate) and not (
+            self.in_seed(candidate) or close_attested
+        ):
             return False
         return True
 
@@ -1096,6 +1115,16 @@ def _suffix_vowel_inserts(word: str) -> list[tuple[str, int]]:
     return out
 
 
+def _adjacent_swaps(word: str) -> list[str]:
+    """All single adjacent letter transpositions (хайралсаар → хайрласаар)."""
+    out: list[str] = []
+    for i in range(len(word) - 1):
+        if word[i] == word[i + 1]:
+            continue
+        out.append(word[:i] + word[i + 1] + word[i] + word[i + 2 :])
+    return out
+
+
 def _cheap_hunspell_edits(word: str) -> list[str]:
     """Deletes, duplicate-letter collapse, and adjacent swaps only — few Hunspell lookups."""
     out: list[str] = []
@@ -1103,8 +1132,7 @@ def _cheap_hunspell_edits(word: str) -> list[str]:
         out.append(variant)
     for i in range(len(word)):
         out.append(word[:i] + word[i + 1 :])
-    for i in range(len(word) - 1):
-        out.append(word[:i] + word[i + 1] + word[i] + word[i + 2 :])
+    out.extend(_adjacent_swaps(word))
     return out
 
 

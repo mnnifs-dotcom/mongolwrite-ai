@@ -103,6 +103,20 @@ def test_prefers_common_meeting_word() -> None:
     assert item.suggested_text == "хуралдаа"
 
 
+def test_adjacent_swap_beats_looser_neighbor() -> None:
+    """хайралсаар → хайрласаар (swap), not хайраасаар (different lemma)."""
+    dictionary = DictionaryProvider()
+    options = dictionary.suggest_many("хайралсаар", limit=5)
+    assert options
+    assert options[0] == "хайрласаар"
+    found = LanguageEngine(dictionary).check("хайралсаар")
+    item = next(row for row in found if row.original_text == "хайралсаар")
+    assert item.suggested_text == "хайрласаар"
+    assert "хайрласаар" in [item.suggested_text, *item.suggestions]
+    # Correct literary form must stay clean.
+    assert not LanguageEngine(dictionary).check("хайрласаар")
+
+
 def test_offers_several_nearby_words() -> None:
     dictionary = DictionaryProvider(
         frozenset({"амжилт", "амжилтын", "амжилтад", "амжилтанд", "ажилтанд", "амжилтаид", "амжилтнд"})
