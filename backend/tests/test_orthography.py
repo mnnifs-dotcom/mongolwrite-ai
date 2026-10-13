@@ -552,6 +552,18 @@ def test_school_yi_genitive_accusative() -> None:
         assert word not in {item.original_text.casefold() for item in local.check(word)}
 
 
+def test_lexicon_surface_never_marked_misspelled() -> None:
+    """Any form in the curated wordlist is correct — no spelling rewrites."""
+    local = LanguageEngine(DictionaryProvider())
+    dictionary = local.dictionary
+    assert dictionary.in_wordlist("сарын")
+    assert dictionary.in_wordlist("даргын")
+    for word in ("сарын", "даргын", "сургуулийн", "багшийн"):
+        if not dictionary.in_wordlist(word):
+            continue
+        assert local.check(word) == [], word
+
+
 def test_established_yn_genitive_not_rewritten_to_iy() -> None:
     """Curated -ын forms must never become false -ийн (сарын≠сарийн, даргын≠даргийн)."""
     local = LanguageEngine(DictionaryProvider())

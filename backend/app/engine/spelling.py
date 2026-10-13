@@ -293,12 +293,21 @@ def check_spelling(tokens: list[Token], dictionary: DictionaryProvider) -> list[
     return corrections
 
 
+def _trusted_lexicon_spelling(word: str, dictionary: DictionaryProvider) -> bool:
+    """Curated lexicon (seed, user file, case expansions) is authoritative spelling."""
+    if dictionary.is_removed(word):
+        return False
+    return dictionary.in_wordlist(word)
+
+
 def _spelling_decision(
     word: str,
     dictionary: DictionaryProvider,
     preferred: set[str],
     budget: dict[str, int] | None = None,
 ) -> tuple | None:
+    if _trusted_lexicon_spelling(word, dictionary):
+        return None
     misspelled = lookup_misspelling(word)
     if misspelled:
         extras: list[str] = []
@@ -314,7 +323,7 @@ def _spelling_decision(
     if "-" in word:
         return None
     if dictionary.contains(word):
-        # Hunspell sometimes accepts wrong school forms — still rewrite.
+        # Lexicon surfaces are handled above; Hunspell-only hits may still need school rules.
         sej = suggest_sej_converb(word, dictionary)
         if sej and sej.casefold() != word.casefold():
             return ("hit", sej, "sej_converb", [])
