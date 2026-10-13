@@ -299,7 +299,12 @@ def suggest_suffix_harmony(word: str, dictionary: DictionaryProvider) -> str | N
 
 
 def suggest_palatal_case(word: str, dictionary: DictionaryProvider) -> str | None:
-    """School -ы/-ий: after г/ж/ш/ч/ь/и use -ийн/-ийг (багшын → багшийн)."""
+    """School -ы/-ий: after ж/ш/ч/ь/и (and soft г) use -ийн/-ийг.
+
+    Never rewrite curated/established -ын/-ыг surfaces (сарын, даргын). Hunspell
+    alone invents junk stems like «сарь»/«дарги» that used to force false
+    сарийн/даргийн suggestions.
+    """
     folded = word.casefold()
     # ямааниин → ямааны (extra н + ийн on a back long-vowel stem).
     if folded.endswith("ниин") and len(folded) >= 6:
@@ -313,9 +318,15 @@ def suggest_palatal_case(word: str, dictionary: DictionaryProvider) -> str | Non
     for wrong, right in (("ыг", "ийг"), ("ын", "ийн")):
         if not folded.endswith(wrong) or len(folded) < len(wrong) + 2:
             continue
+        # Curated / frequent literary -ын/-ыг (сарын, даргын) must never be
+        # rewritten. Do not use in_wordlist here — case expansions can pollute it.
+        if dictionary.in_seed(folded) or dictionary.prefers_established(folded):
+            return None
         stem = folded[: -len(wrong)]
-        # сургуулын → сургуулийн when сургууль is known (ь + -ий).
-        if _known_stem(stem + "ь", dictionary):
+        # сургуулын → сургуулийн only when «сургууль» is a curated soft lemma.
+        # Hunspell-only phantoms like «сарь» must not rewrite «сарын».
+        soft = stem + "ь"
+        if dictionary.in_seed(soft) or dictionary.in_wordlist(soft):
             candidate = stem + right
             if candidate != folded:
                 return candidate
@@ -328,12 +339,15 @@ def suggest_palatal_case(word: str, dictionary: DictionaryProvider) -> str | Non
         if candidate == folded:
             continue
         if stem[-1:] == "г":
-            # Soft г takes -ий when the -ий form, -и stem, or bare stem is known.
-            if (
-                dictionary.contains(candidate)
-                or _known_stem(stem + "и", dictionary)
-                or _known_stem(stem, dictionary)
-            ):
+            # Soft г → -ий when the -ий form is attested (цагын → цагийн), or the
+            # -и stem / bare stem is curated (анги, цаг). Never trust Hunspell-only
+            # «дарги» while «даргын» is already literary.
+            if dictionary.contains(candidate) or dictionary.in_wordlist(candidate):
+                return candidate
+            soft_i = stem + "и"
+            if dictionary.in_seed(soft_i) or dictionary.in_wordlist(soft_i):
+                return candidate
+            if dictionary.in_seed(stem) or dictionary.in_wordlist(stem):
                 return candidate
             continue
         if (

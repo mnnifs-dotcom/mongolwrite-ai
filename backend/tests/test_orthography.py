@@ -552,6 +552,28 @@ def test_school_yi_genitive_accusative() -> None:
         assert word not in {item.original_text.casefold() for item in local.check(word)}
 
 
+def test_established_yn_genitive_not_rewritten_to_iy() -> None:
+    """Curated -ын forms must never become false -ийн (сарын≠сарийн, даргын≠даргийн)."""
+    local = LanguageEngine(DictionaryProvider())
+    for word in ("сарын", "даргын", "сарын даргын", "8 дугаар сарын 29-ний өдөр"):
+        flagged = {
+            item.original_text.casefold()
+            for item in local.check(word)
+            if item.rule_id == "palatal_case"
+        }
+        assert "сарын" not in flagged, word
+        assert "даргын" not in flagged, word
+    # Real soft-г / жшч mistakes still rewrite.
+    assert any(
+        item.suggested_text == "цагийн" and item.rule_id == "palatal_case"
+        for item in local.check("цагын")
+    )
+    assert any(
+        item.suggested_text == "багшийн" and item.rule_id == "palatal_case"
+        for item in local.check("багшын")
+    )
+
+
 def test_school_l_verb_suffix() -> None:
     """-л verb chart: obstruent → vowel before л; resonant → after л."""
     local = LanguageEngine(DictionaryProvider())
