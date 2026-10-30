@@ -338,7 +338,11 @@ def _spelling_decision(
     misspelled = lookup_misspelling(word)
     if misspelled:
         extras: list[str] = []
-        if budget is None or budget.get("nearby", 0) > 0:
+        # Curated targets (даргын) need no junk neighbors (дарийн, дарцгийн).
+        if (
+            not dictionary.in_seed(misspelled)
+            and (budget is None or budget.get("nearby", 0) > 0)
+        ):
             if budget is not None:
                 budget["nearby"] -= 1
             extras = [

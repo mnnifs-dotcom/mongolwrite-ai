@@ -706,6 +706,14 @@ class DictionaryProvider:
         pool.sort(
             key=lambda item: (
                 0 if _is_adjacent_swap(folded, item) else 1,
+                # Curated high-frequency forms beat junk at edit distance 1
+                # (даргийн → даргын over дарийн / дарцгийн).
+                0
+                if (
+                    (self.in_seed(item) or self.wiki_frequency(item) >= _FREQ_TRUST)
+                    and _edit_distance(folded, item) <= 2
+                )
+                else 1,
                 _edit_distance(folded, item),
                 0 if _keeps_ending(folded, item) else 1,
                 _prefix_cut_penalty(folded, item),

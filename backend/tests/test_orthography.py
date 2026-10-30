@@ -620,6 +620,19 @@ def test_established_yn_genitive_not_rewritten_to_iy() -> None:
     )
 
 
+def test_false_iy_genitive_suggests_established_yn() -> None:
+    """даргийн/сарийн must suggest curated даргын/сарын — not junk neighbors."""
+    local = LanguageEngine(DictionaryProvider())
+    for wrong, right in (("даргийн", "даргын"), ("сарийн", "сарын"), ("даргийг", "даргыг")):
+        hits = local.check(wrong)
+        assert hits, wrong
+        assert hits[0].suggested_text == right, (wrong, hits[0].suggested_text)
+        alts = set(hits[0].suggestions or [])
+        assert right not in alts
+        assert "дарийн" not in alts
+        assert "дарцгийн" not in alts
+
+
 def test_school_l_verb_suffix() -> None:
     """-л verb chart: obstruent → vowel before л; resonant → after л."""
     local = LanguageEngine(DictionaryProvider())

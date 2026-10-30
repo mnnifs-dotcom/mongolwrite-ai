@@ -303,9 +303,34 @@ def suggest_palatal_case(word: str, dictionary: DictionaryProvider) -> str | Non
 
     Never rewrite curated/established -ын/-ыг surfaces (сарын, даргын). Hunspell
     alone invents junk stems like «сарь»/«дарги» that used to force false
-    сарийн/даргийн suggestions.
+    сарийн/даргийн suggestions. Reverse those false -ийн forms back to curated -ын.
     """
     folded = word.casefold()
+    # False soft-г: даргрийн → даргын, сарийн → сарын when -ын is curated literary.
+    for wrong, right in (("ийг", "ыг"), ("ийн", "ын")):
+        if not folded.endswith(wrong) or len(folded) < len(wrong) + 2:
+            continue
+        if dictionary.in_seed(folded) or dictionary.prefers_established(folded):
+            continue
+        stem = folded[: -len(wrong)]
+        if stem[-1:] != "г":
+            continue
+        candidate = stem + right
+        if candidate == folded:
+            continue
+        if not (
+            dictionary.in_seed(candidate) or dictionary.prefers_established(candidate)
+        ):
+            continue
+        # Real soft stems keep -ийн (анги→ангийн, цаг→цагийн).
+        soft_i = stem + "и"
+        if dictionary.in_seed(soft_i) or dictionary.in_wordlist(soft_i):
+            continue
+        if dictionary.in_seed(stem) and (
+            dictionary.in_seed(stem + wrong) or dictionary.prefers_established(stem + wrong)
+        ):
+            continue
+        return candidate
     # ямааниин → ямааны (extra н + ийн on a back long-vowel stem).
     if folded.endswith("ниин") and len(folded) >= 6:
         candidate = folded[:-4] + "ны"
