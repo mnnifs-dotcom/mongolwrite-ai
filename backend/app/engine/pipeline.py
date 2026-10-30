@@ -4,7 +4,7 @@ import logging
 
 from app.engine.confusables import check_confusables
 from app.engine.dictionary import DictionaryProvider
-from app.engine.grammar import _glued_forms
+from app.engine.grammar import check_grammar
 from app.engine.homoglyphs import check_homoglyphs
 from app.engine.models import Category, Correction
 from app.engine.ranker import rank_corrections
@@ -47,8 +47,8 @@ class LanguageEngine:
                 lambda: check_repeated_words(tokens, text),
                 lambda: check_homoglyphs(tokens, self.dictionary),
                 lambda: check_confusables(tokens, self.dictionary),
-                # Missing spaces: ажиллажбайна → ажиллаж байна, байнауу → байна уу, …
-                lambda: _glued_forms(tokens, self.dictionary),
+                # Particle harmony + glued splits (байна үү→уу, ажиллажбайна→…).
+                lambda: check_grammar(tokens, text, self.dictionary),
                 lambda: check_spelling(tokens, self.dictionary),
             ):
                 try:
@@ -61,11 +61,18 @@ class LanguageEngine:
         # Prefer glued-split marks over a later unknown_word on the same span.
         spanned = {(item.start, item.end) for item in raw if item.rule_id != "unknown_word"}
         kept: list[Correction] = []
+        _grammar_keep = (
+            "glued_",
+            "separate_",
+            "question_particle_harmony",
+            "ve_particle_harmony",
+            "directive_harmony",
+        )
         for item in raw:
             if item.category not in _KEEP and not (
                 item.category == Category.GRAMMAR
                 and item.rule_id
-                and item.rule_id.startswith(("glued_", "separate_"))
+                and item.rule_id.startswith(_grammar_keep)
             ):
                 continue
             if item.rule_id == "unknown_word" and (item.start, item.end) in spanned:
