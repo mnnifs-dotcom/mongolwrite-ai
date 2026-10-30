@@ -564,6 +564,30 @@ def test_lexicon_surface_never_marked_misspelled() -> None:
         assert local.check(word) == [], word
 
 
+def test_suggestion_quality_core_cases() -> None:
+    """Common false twins / empty suggestions / bad glued splits."""
+    local = LanguageEngine(DictionaryProvider())
+
+    def primary(word: str) -> tuple[str, str] | None:
+        hits = local.check(word)
+        if not hits:
+            return None
+        item = hits[0]
+        return item.suggested_text.casefold(), item.rule_id or ""
+
+    assert primary("нотолгоо") is None
+    assert primary("нотлогоо") == ("нотолгоо", "common_misspelling")
+    assert primary("ажилтны") is None
+    hit = primary("ажилтаны")
+    assert hit is not None
+    assert hit[0] == "ажилтны"
+    assert " " not in hit[0]
+    assert primary("аньхад") == ("анхаад", "common_misspelling")
+    assert primary("цэврэлсний") == ("цэвэрлэсний", "common_misspelling")
+    assert primary("анхаад") is None
+    assert primary("цэвэрлэсний") is None
+
+
 def test_established_yn_genitive_not_rewritten_to_iy() -> None:
     """Curated -ын forms must never become false -ийн (сарын≠сарийн, даргын≠даргийн)."""
     local = LanguageEngine(DictionaryProvider())

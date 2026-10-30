@@ -18,6 +18,7 @@ from app.engine.harmony import (
     suggest_x_reflexive,
     suggest_n_plural,
     suggest_n_plural_g,
+    suggest_agent_case,
     suggest_negative_gui,
     suggest_niy_genitive,
     suggest_sej_converb,
@@ -50,6 +51,7 @@ _EXPLANATIONS = {
     "plural_harmony": "Олноо нэрлэх -ууд/-үүд эгшгийн эв нэгдлийг дагана.",
     "n_plural": "-тан/-тэн нэр үгийн олон тоонд сүүлийн эгшиг орхигдоно (ажилтангууд → ажилтнууд).",
     "n_plural_g": "Н-ээр төгссөн үгийн олон тоонд -гууд/-гүүд нэмэгдэнэ (дүнүүд → дүнгүүд).",
+    "agent_case": "-тан/-тэн нэр үгийн харьяалах/заах зэрэгт сүүлийн эгшиг орхигдоно (ажилтаны → ажилтны).",
     "reflexive_harmony": "Үйл үгийн -хдаа/-хдээ/-хдоо/-хдөө эгшгийн эв нэгдлийг дагана.",
     "i_drop": "Нөхцөл нэмэгдэхэд үндэсний и эгшиг орхигдоно.",
     "n_genitive": "Эгшгээр төгссөн үгийн харьяалах -ийн/-ын гэж бичигдэнэ.",
@@ -167,6 +169,7 @@ _RULE_FIRST = frozenset(
         "plural_harmony",
         "n_plural",
         "n_plural_g",
+        "agent_case",
         "reflexive_harmony",
         "i_drop",
         "n_genitive",
@@ -306,8 +309,7 @@ def _spelling_decision(
     preferred: set[str],
     budget: dict[str, int] | None = None,
 ) -> tuple | None:
-    if _trusted_lexicon_spelling(word, dictionary):
-        return None
+    # Explicit misspellings beat curated trust — fixes bad alternate forms like нотлогоо.
     misspelled = lookup_misspelling(word)
     if misspelled:
         extras: list[str] = []
@@ -320,6 +322,8 @@ def _spelling_decision(
                 if item != misspelled and _usable_suggestion(word, item)
             ]
         return ("hit", misspelled, "common_misspelling", extras)
+    if _trusted_lexicon_spelling(word, dictionary):
+        return None
     if "-" in word:
         return None
     if dictionary.contains(word):
@@ -435,8 +439,17 @@ def _spelling_decision(
             if sep:
                 result = (sep, "separator_ye")
                 alts = [sep]
+    curated_neighbor = bool(
+        alts
+        and dictionary.in_wordlist(alts[0])
+        and (
+            _edit_distance(word.casefold(), alts[0].casefold()) <= 2
+            or _is_adjacent_swap(word.casefold(), alts[0].casefold())
+        )
+    )
     if (
         not (result and result[1] in _RULE_FIRST)
+        and not curated_neighbor
         and len(word) >= 3
         and (
             is_regular_inflection(word, dictionary)
@@ -569,6 +582,9 @@ def _suggest(word: str, dictionary: DictionaryProvider) -> tuple[str, str] | Non
     n_g = suggest_n_plural_g(word, dictionary)
     if n_g:
         return n_g, "n_plural_g"
+    agent = suggest_agent_case(word, dictionary)
+    if agent:
+        return agent, "agent_case"
     reflexive = suggest_x_reflexive(word, dictionary)
     if reflexive:
         return reflexive, "reflexive_harmony"
