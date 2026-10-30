@@ -1202,6 +1202,42 @@ def suggest_n_plural(word: str, dictionary: DictionaryProvider) -> str | None:
     return None
 
 
+# -тан/-тэн nouns also drop а/э before vowel-initial case endings (ажилтаны → ажилтны).
+_AGENT_CASE = (
+    ("таныг", "тныг"),
+    ("тэнийг", "тнийг"),
+    ("танаас", "тнаас"),
+    ("тэнээс", "тнээс"),
+    ("танаар", "тнаар"),
+    ("тэнээр", "тнээр"),
+    ("таны", "тны"),
+    ("тэний", "тний"),
+)
+
+
+def suggest_agent_case(word: str, dictionary: DictionaryProvider) -> str | None:
+    """Keep -тан/-тэн vowel drop on genitive/accusative/ablative/instrumental."""
+    folded = word.casefold()
+    for wrong, right in _AGENT_CASE:
+        if not folded.endswith(wrong) or len(folded) < len(wrong) + 2:
+            continue
+        stem = folded[: -len(wrong)]
+        noun = stem + wrong[:3]  # …тан / …тэн
+        candidate = stem + right
+        if candidate == folded:
+            continue
+        if (
+            dictionary.in_wordlist(candidate)
+            or dictionary.in_seed(candidate)
+            or dictionary.contains(candidate)
+            or dictionary.in_seed(noun)
+            or dictionary.in_wordlist(noun)
+            or dictionary.contains(noun)
+        ):
+            return candidate
+    return None
+
+
 def suggest_n_plural_g(word: str, dictionary: DictionaryProvider) -> str | None:
     """Other н-stems take -гууд/-гүүд (дүнүүд → дүнгүүд)."""
     folded = word.casefold()
@@ -1260,6 +1296,15 @@ def suggest_drop_soft_sign(word: str, dictionary: DictionaryProvider) -> str | N
             dictionary.contains(candidate) or dictionary.in_wordlist(candidate)
         ):
             return candidate
+        # аньхад → анхад → анхаад: drop ь then lengthen the last stem vowel.
+        if len(candidate) >= 4 and candidate[-1:] not in _VOWELS:
+            vowel = last_harmony_vowel(candidate[:-1]) or last_vowel(candidate[:-1])
+            if vowel:
+                elongated = candidate[:-1] + vowel + candidate[-1]
+                if elongated != folded and (
+                    dictionary.contains(elongated) or dictionary.in_wordlist(elongated)
+                ):
+                    return elongated
         start = idx + 1
     return _suggest_moved_soft_sign(folded, dictionary)
 

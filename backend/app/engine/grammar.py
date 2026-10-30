@@ -4,7 +4,7 @@ import re
 import uuid
 from collections.abc import Callable, Collection
 
-from app.engine.dictionary import DictionaryProvider
+from app.engine.dictionary import DictionaryProvider, _edit_distance, _is_adjacent_swap
 from app.engine.harmony import last_vowel, question_particle, ve_particle
 from app.engine.models import Category, Correction, Severity, Source
 from app.engine.text import Token
@@ -255,6 +255,13 @@ def _suggest_separate_particle(word: str, dictionary: DictionaryProvider) -> str
 def _suggest_glued_split(word: str, dictionary: DictionaryProvider) -> str | None:
     if len(word) < 7:
         return None
+    # Prefer a single-word lexicon neighbor (ажилтаны → ажилтны) over a space split.
+    for neighbor in dictionary.suggest_many(word, limit=3):
+        folded_n = neighbor.casefold()
+        if " " in folded_n or not dictionary.in_wordlist(folded_n):
+            continue
+        if _edit_distance(word, folded_n) <= 2 or _is_adjacent_swap(word, folded_n):
+            return None
     hits: list[str] = []
     for i in range(3, len(word) - 3):
         left, right = word[:i], word[i:]

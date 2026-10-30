@@ -1103,6 +1103,17 @@ def _consonant_inserts(word: str) -> list[tuple[str, int]]:
     for stem, ending in _suffix_forms(word, ("тай", "тэй", "той")):
         for letter in "глнв":
             out.append((stem + letter + ending, 1))
+    # Past participle / verbal noun: missing stem consonant near the ending.
+    for ending in ("сний", "сэний", "сны", "сэн", "сан", "сон", "сөн"):
+        if not word.endswith(ending) or len(word) < len(ending) + 3:
+            continue
+        stem = word[: -len(ending)]
+        for letter in "глнрвбд":
+            out.append((stem + letter + ending, 1))
+            if len(stem) >= 2:
+                out.append((stem[:-1] + letter + stem[-1] + ending, 1))
+            if len(stem) >= 3:
+                out.append((stem[:-2] + letter + stem[-2:] + ending, 1))
     return out
 
 
@@ -1126,13 +1137,18 @@ def _adjacent_swaps(word: str) -> list[str]:
 
 
 def _cheap_hunspell_edits(word: str) -> list[str]:
-    """Deletes, duplicate-letter collapse, and adjacent swaps only — few Hunspell lookups."""
+    """Deletes, duplicate-letter collapse, adjacent swaps, and soft-sign drops."""
     out: list[str] = []
     for variant in _collapse_duplicate_letters(word):
         out.append(variant)
     for i in range(len(word)):
         out.append(word[:i] + word[i + 1 :])
     out.extend(_adjacent_swaps(word))
+    # аньхад → анхад (then soft-sign rule may lengthen); also drop each ь.
+    idx = word.find("ь")
+    while idx >= 0:
+        out.append(word[:idx] + word[idx + 1 :])
+        idx = word.find("ь", idx + 1)
     return out
 
 
