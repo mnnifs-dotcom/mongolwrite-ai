@@ -194,6 +194,27 @@ _ESTABLISHED_KEEP = frozenset(
     }
 )
 
+# When Hunspell already accepts the surface, only these school fixes may override.
+_CONTAINS_SCHOOL_RULES = frozenset(
+    {
+        "sej_converb",
+        "chih_spoken",
+        "palatal_case",
+        "soft_sign_genitive",
+        "soft_sign_dative",
+        "extra_soft_sign",
+        "separator_ye",
+        "lah_verb",
+        "l_verb_stem",
+        "reflexive_harmony",
+        "vowel_before_x",
+        "agent_case",
+        "n_plural",
+        "n_plural_g",
+        "negative_gui",
+    }
+)
+
 
 def _confidence(rule_id: str) -> float:
     if rule_id == "common_misspelling":
@@ -297,10 +318,14 @@ def check_spelling(tokens: list[Token], dictionary: DictionaryProvider) -> list[
 
 
 def _trusted_lexicon_spelling(word: str, dictionary: DictionaryProvider) -> bool:
-    """Curated lexicon (seed, user file, case expansions) is authoritative spelling."""
+    """Explicit curated seed surfaces are authoritative (сарын, даргын, ажилтны).
+
+    Do not trust mere case-expansion membership: truncated stems like «сургуул»
+    expand to wrong «сургуулын» and must still get school rewrites.
+    """
     if dictionary.is_removed(word):
         return False
-    return dictionary.in_wordlist(word)
+    return dictionary.in_seed(word)
 
 
 def _spelling_decision(
@@ -327,33 +352,15 @@ def _spelling_decision(
     if "-" in word:
         return None
     if dictionary.contains(word):
-        # Lexicon surfaces are handled above; Hunspell-only hits may still need school rules.
-        sej = suggest_sej_converb(word, dictionary)
-        if sej and sej.casefold() != word.casefold():
-            return ("hit", sej, "sej_converb", [])
-        chih = suggest_chih_spoken(word, dictionary)
-        if chih and chih.casefold() != word.casefold():
-            return ("hit", chih, "chih_spoken", [])
-        palatal = suggest_palatal_case(word, dictionary)
-        if palatal and palatal.casefold() != word.casefold():
-            return ("hit", palatal, "palatal_case", [])
-        soft_gen = suggest_soft_sign_genitive(word, dictionary)
-        if soft_gen and soft_gen.casefold() != word.casefold():
-            return ("hit", soft_gen, "soft_sign_genitive", [])
-        sep = suggest_separator_ye(word, dictionary)
-        if sep and sep.casefold() != word.casefold():
-            return ("hit", sep, "separator_ye", [])
-        lah = suggest_lah_verb(word, dictionary)
-        if lah and lah.casefold() != word.casefold():
-            return ("hit", lah, "lah_verb", [])
-        if len(word) >= 4:
-            reflexive = suggest_x_reflexive(word, dictionary)
-            if reflexive:
-                return ("hit", reflexive, "reflexive_harmony", [])
-            # Case expansion / Hunspell may keep bare …хээр; school form needs a vowel.
-            before_x = suggest_vowel_before_x(word, dictionary)
-            if before_x and before_x.casefold() != word.casefold():
-                return ("hit", before_x, "vowel_before_x", [])
+        # Hunspell may accept wrong school forms — apply high-precision rewrites only.
+        # Do not run free stem peels like i_drop here (харилаа must not become харлаа).
+        school = _suggest(word, dictionary)
+        if (
+            school
+            and school[0].casefold() != word.casefold()
+            and school[1] in _CONTAINS_SCHOOL_RULES
+        ):
+            return ("hit", school[0], school[1], [])
         return None
     if word.casefold() in OFFICIAL_REPLACEMENTS:
         return None
@@ -368,25 +375,8 @@ def _spelling_decision(
         # Harmony rules must propose an attested form — never invent junk like мөрийийн.
         # Stem-derived school forms (sej, -хдаа, байгуулахаар) are valid from a known
         # infinitive even when the surface form is absent from a minimal test dictionary.
-        if (
-            result
-            and result[1] in _RULE_FIRST
-            and result[1]
-            not in {
-                "sej_converb",
-                "chih_spoken",
-                "reflexive_harmony",
-                "vowel_before_x",
-                "palatal_case",
-                "l_verb_stem",
-                "separator_ye",
-                "lah_verb",
-            }
-            and not (
-                dictionary.contains(result[0]) or dictionary.in_wordlist(result[0])
-            )
-        ):
-            result = None
+        # School rules already validate against known stems; do not require the
+        # suggested surface to be pre-listed (мэргэжилтнүүдийн from мэргэжилтэн).
         # Keep established legal/wiki spellings (дараахь, батласан, …).
         if result and result[1] in _ESTABLISHED_KEEP and dictionary.prefers_established(word):
             result = None

@@ -800,11 +800,20 @@ class DictionaryProvider:
 
 
 def expand_case_forms(words: Iterable[str]) -> set[str]:
+    """Expand stems with school case endings.
+
+    Skip truncated soft-sign stems («сургуул» when «сургууль» is curated) so we
+    do not synthesize wrong genitives like «сургуулын».
+    """
+    base = {item.casefold() for item in words}
     extra: set[str] = set()
     for stem in words:
-        if " " in stem or len(stem) < 5:
+        folded = stem.casefold()
+        if " " in folded or len(folded) < 5:
             continue
-        extra.update(_case_forms(stem.casefold()))
+        if not folded.endswith("ь") and (folded + "ь") in base:
+            continue
+        extra.update(_case_forms(folded))
     return extra
 
 

@@ -553,15 +553,25 @@ def test_school_yi_genitive_accusative() -> None:
 
 
 def test_lexicon_surface_never_marked_misspelled() -> None:
-    """Any form in the curated wordlist is correct — no spelling rewrites."""
+    """Explicit curated seed surfaces are correct — no spelling rewrites."""
     local = LanguageEngine(DictionaryProvider())
     dictionary = local.dictionary
-    assert dictionary.in_wordlist("сарын")
-    assert dictionary.in_wordlist("даргын")
+    assert dictionary.in_seed("сарын")
+    assert dictionary.in_seed("даргын")
     for word in ("сарын", "даргын", "сургуулийн", "багшийн"):
-        if not dictionary.in_wordlist(word):
+        if not dictionary.in_seed(word):
             continue
         assert local.check(word) == [], word
+
+
+def test_truncated_soft_stem_does_not_block_school_genitive() -> None:
+    """«сургуул» must not synthesize a trusted «сургуулын» that blocks palatal_case."""
+    local = LanguageEngine(DictionaryProvider(frozenset({"сургууль", "сургуул"})))
+    assert not local.dictionary.in_wordlist("сургуулын")
+    found = local.check("сургуулын")
+    assert any(
+        item.suggested_text == "сургуулийн" and item.rule_id == "palatal_case" for item in found
+    )
 
 
 def test_suggestion_quality_core_cases() -> None:

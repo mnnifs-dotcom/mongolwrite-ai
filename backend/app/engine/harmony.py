@@ -795,9 +795,8 @@ def suggest_niy_genitive(word: str, dictionary: DictionaryProvider) -> str | Non
         if not wanted:
             continue
         candidate = stem + wanted + tail
-        if candidate != folded and (
-            dictionary.contains(candidate) or dictionary.in_wordlist(candidate)
-        ):
+        # Stem-known is enough — full form need not be listed (биений → биеийн).
+        if candidate != folded:
             return candidate
     return None
 
