@@ -633,6 +633,21 @@ def test_false_iy_genitive_suggests_established_yn() -> None:
         assert "дарцгийн" not in alts
 
 
+def test_hyphenated_false_iy_still_suggests_yn() -> None:
+    """даргийн-д must not skip spelling because of the hyphen particle."""
+    local = LanguageEngine(DictionaryProvider())
+    hits = local.check("даргийн-д")
+    assert any(item.suggested_text == "даргын-д" for item in hits)
+    hits = local.check(
+        "даргийн-д зөв даргын огт гарахгүй байгаа нь тооны хязгаар биш"
+    )
+    assert any(
+        item.original_text.casefold().startswith("даргийн")
+        and item.suggested_text.casefold().startswith("даргын")
+        for item in hits
+    )
+
+
 def test_school_l_verb_suffix() -> None:
     """-л verb chart: obstruent → vowel before л; resonant → after л."""
     local = LanguageEngine(DictionaryProvider())
