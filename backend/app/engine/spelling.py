@@ -354,7 +354,23 @@ def _spelling_decision(
     if _trusted_lexicon_spelling(word, dictionary):
         return None
     if "-" in word:
-        return None
+        # даргрийн-д → check head «даргийн», keep «-д» on the suggestion.
+        head, sep, tail = word.partition("-")
+        if not head or not sep:
+            return None
+        head_decision = _spelling_decision(head, dictionary, preferred, budget)
+        if head_decision is None:
+            return None
+        if head_decision[0] == "unknown":
+            return ("unknown",)
+        _, suggested, rule_id, extras = head_decision
+        suffix = sep + tail
+        return (
+            "hit",
+            suggested + suffix,
+            rule_id,
+            [item + suffix for item in extras],
+        )
     if dictionary.contains(word):
         # Hunspell may accept wrong school forms — apply high-precision rewrites only.
         # Do not run free stem peels like i_drop here (харилаа must not become харлаа).

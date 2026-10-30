@@ -441,6 +441,9 @@ export function EditorApp() {
         if (err instanceof DOMException && err.name === "AbortError") return;
         if (err instanceof Error && err.name === "AbortError") return;
         if (shownRef.current) {
+          // Failed check ≠ clean text — clear marks so we never flash «Алдаагүй».
+          setCorrections([]);
+          setActiveId(null);
           if (err instanceof CheckLimitError) {
             if (isPaidRef.current) {
               setUpgradeOpen(false);
@@ -528,7 +531,7 @@ export function EditorApp() {
       }
       return;
     }
-    if (!shown || empty || corrections.length > 0) {
+    if (!shown || empty || corrections.length > 0 || error) {
       setSuccessFlash(false);
       if (successTimer.current) {
         clearTimeout(successTimer.current);
@@ -548,7 +551,7 @@ export function EditorApp() {
         successTimer.current = null;
       }
     };
-  }, [checking, shown, empty, corrections.length]);
+  }, [checking, shown, empty, corrections.length, error]);
 
   useEffect(() => {
     if (!editor) return;
