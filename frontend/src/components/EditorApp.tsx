@@ -898,6 +898,9 @@ export function EditorApp() {
                 void onPickFile(file);
               }}
             />
+            <a href="/yaria-bichver" className="mw-btn mw-btn-stt">
+              Яриа → бичвэр
+            </a>
             <button
               type="button"
               className="mw-btn mw-btn-convert"

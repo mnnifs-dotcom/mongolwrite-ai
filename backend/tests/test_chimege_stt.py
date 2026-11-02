@@ -106,3 +106,33 @@ def test_poll_result(monkeypatch: pytest.MonkeyPatch):
     response = client.get("/api/v1/stt/result", params={"uuid": "job-9"})
     assert response.status_code == 200
     assert response.json()["transcription"] == "сайн байна уу"
+
+
+def test_new_token_queues_until_previous_seconds_finish(monkeypatch: pytest.MonkeyPatch):
+    chimege.update_admin(token="trial-token-aaaa", set_prepaid_seconds=3600)
+    assert chimege.get_api_token() == "trial-token-aaaa"
+    assert chimege.remaining_seconds() == pytest.approx(3600)
+
+    # Paid API arrives while trial still has leftovers — must queue, not skip.
+    snap = chimege.update_admin(token="paid-token-bbbb", set_prepaid_seconds=7200)
+    assert chimege.get_api_token() == "trial-token-aaaa"
+    assert snap["queued_count"] >= 1
+    assert chimege.remaining_seconds() == pytest.approx(3600 + 7200)
+
+    # Spend almost all trial seconds.
+    chimege.reserve_and_record_usage(duration_seconds=3599, filename="a.wav")
+    assert chimege.get_api_token() == "trial-token-aaaa"
+    assert chimege.active_remaining_seconds() == pytest.approx(1.0)
+
+    # Final second — then next token becomes active with zero leftover skipped.
+    chimege.reserve_and_record_usage(duration_seconds=1, filename="b.wav")
+    assert chimege.get_api_token() == "paid-token-bbbb"
+    assert chimege.active_remaining_seconds() == pytest.approx(7200)
+
+
+def test_cannot_skip_active_leftover_for_longer_file():
+    chimege.update_admin(token="trial-token-aaaa", set_prepaid_seconds=30)
+    chimege.update_admin(token="paid-token-bbbb", set_prepaid_seconds=3600)
+    with pytest.raises(ValueError, match="Идэвхтэй API"):
+        chimege.reserve_and_record_usage(duration_seconds=60, filename="long.wav")
+    assert chimege.get_api_token() == "trial-token-aaaa"

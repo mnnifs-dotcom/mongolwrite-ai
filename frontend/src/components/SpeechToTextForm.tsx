@@ -150,7 +150,7 @@ export function SpeechToTextForm() {
             {status.enabled
               ? status.needs_renewal
                 ? "Үйлчилгээ түр зогссон — урьдчилсан эрх дууссан."
-                : `Боломжтой эрх: ${formatHours(status.remaining_seconds)}`
+                : `Боломжтой эрх: ${Math.round(status.remaining_seconds).toLocaleString("mn-MN")} сек (${formatHours(status.remaining_seconds)})`
               : "Үйлчилгээ түр унтарсан (API тохируулаагүй)."}
           </p>
         ) : (

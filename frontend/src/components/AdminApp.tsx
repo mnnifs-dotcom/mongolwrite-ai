@@ -1315,36 +1315,36 @@ export function AdminApp() {
             <section className="mw-admin-card">
               <h2>Chimege яриа → бичвэр</h2>
               <p className="mw-muted">
-                Урьдчилсан төлбөрт API token оруулж, үлдэгдэл цагаа хянана. Үнэ{" "}
+                Урьдчилсан төлбөрт API token оруулж, үлдэгдэл секунд/цагаа хянана. Үнэ{" "}
                 {(chimege?.price_mnt_per_hour ?? 7000).toLocaleString("mn-MN")}₮/цаг.
-                Аудио серверт хадгалагдахгүй.
+                Аудио серверт хадгалагдахгүй. Шинэ token оруулахад өмнөх API-ийн үлдэгдэл
+                секунд бүрэн дууссаны дараа л дараагийнх нь идэвхжинэ.
               </p>
               {chimege ? (
                 <div className="mw-overview-grid" style={{ marginTop: "1rem" }}>
                   <div className="mw-overview-tile">
-                    <span>API</span>
+                    <span>Идэвхтэй API</span>
                     <strong>{chimege.has_token ? "Холбогдсон" : "Байхгүй"}</strong>
                     <em>{chimege.token_masked || "token оруулаагүй"}</em>
                   </div>
                   <div className="mw-overview-tile">
-                    <span>Үлдсэн</span>
+                    <span>Идэвхтэй үлдэгдэл</span>
                     <strong>
-                      {chimege.remaining_hours.toLocaleString("mn-MN", {
-                        maximumFractionDigits: 2,
-                      })}{" "}
-                      цаг
+                      {Math.round(
+                        chimege.active_remaining_seconds ?? chimege.remaining_seconds,
+                      ).toLocaleString("mn-MN")}{" "}
+                      сек
                     </strong>
                     <em>
-                      {chimege.remaining_mnt_value.toLocaleString("mn-MN")}₮ үнэ цэнэ
+                      нийт{" "}
+                      {Math.round(chimege.remaining_seconds).toLocaleString("mn-MN")} сек ·{" "}
+                      {chimege.remaining_mnt_value.toLocaleString("mn-MN")}₮
                     </em>
                   </div>
                   <div className="mw-overview-tile">
                     <span>Зарцуулсан</span>
                     <strong>
-                      {(chimege.used_seconds / 3600).toLocaleString("mn-MN", {
-                        maximumFractionDigits: 2,
-                      })}{" "}
-                      цаг
+                      {Math.round(chimege.used_seconds).toLocaleString("mn-MN")} сек
                     </strong>
                     <em>{chimege.prepaid_mnt_spent.toLocaleString("mn-MN")}₮</em>
                   </div>
@@ -1358,6 +1358,7 @@ export function AdminApp() {
                           : "Хэвийн"}
                     </strong>
                     <em>
+                      дараалал: {(chimege.queued_count ?? 0).toLocaleString("mn-MN")} ·{" "}
                       <a href="/yaria-bichver" target="_blank" rel="noreferrer">
                         /yaria-bichver
                       </a>
@@ -1367,10 +1368,45 @@ export function AdminApp() {
               ) : (
                 <p className="mw-muted">Уншиж байна…</p>
               )}
+              {chimege?.queue_note ? (
+                <p className="mw-muted" style={{ marginTop: "0.75rem" }}>
+                  {chimege.queue_note}
+                </p>
+              ) : null}
+              {chimege?.queue?.length ? (
+                <div className="mw-table-wrap" style={{ marginTop: "0.75rem" }}>
+                  <table className="mw-table">
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>Token</th>
+                        <th>Үлдсэн сек</th>
+                        <th>Төлөв</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {chimege.queue.map((slot) => (
+                        <tr key={`${slot.index}-${slot.token_masked}`}>
+                          <td>{slot.index + 1}</td>
+                          <td>{slot.token_masked}</td>
+                          <td>{Math.round(slot.remaining_seconds).toLocaleString("mn-MN")}</td>
+                          <td>
+                            {slot.active
+                              ? "Идэвхтэй"
+                              : slot.queued
+                                ? "Хүлээгдэж буй"
+                                : "Дууссан"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
 
               <form className="mw-admin-form" onSubmit={(event) => void saveChimege(event)}>
                 <label>
-                  API token
+                  Шинэ / солих API token
                   <input
                     type="password"
                     autoComplete="off"
@@ -1380,27 +1416,31 @@ export function AdminApp() {
                   />
                 </label>
                 <label>
-                  Нэмэх урьдчилсан цаг
+                  Энэ token-д нэмэх урьдчилсан цаг
                   <input
                     type="number"
                     min="0"
                     step="0.1"
-                    placeholder="ж: 10"
+                    placeholder="ж: 1 (= 3600 сек)"
                     value={chimegeAddHours}
                     onChange={(event) => setChimegeAddHours(event.target.value)}
                   />
                 </label>
                 <label>
-                  Нийт урьдчилсан цагийг шууд тавих (заавал биш)
+                  Энэ token-ийн нийт урьдчилсан цагийг тавих
                   <input
                     type="number"
                     min="0"
                     step="0.1"
-                    placeholder="ж: 50"
+                    placeholder="ж: 1"
                     value={chimegeSetHours}
                     onChange={(event) => setChimegeSetHours(event.target.value)}
                   />
                 </label>
+                <p className="mw-muted">
+                  Идэвхтэй API дээр үлдэгдэл байвал шинэ token автоматаар дараалалд орно.
+                  Үлдэгдэл секунд үлдээнэ үгүй.
+                </p>
                 <button type="submit" className="mw-btn-primary" disabled={chimegeBusy}>
                   {chimegeBusy ? "Хадгалж байна…" : "Хадгалах"}
                 </button>

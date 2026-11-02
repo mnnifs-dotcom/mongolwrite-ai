@@ -1251,6 +1251,18 @@ export type SttPollResponse = {
   duration_seconds: number;
 };
 
+export type ChimegeQueueSlot = {
+  index: number;
+  token_masked: string;
+  prepaid_seconds: number;
+  used_seconds: number;
+  remaining_seconds: number;
+  remaining_hours: number;
+  active: boolean;
+  queued: boolean;
+  exhausted: boolean;
+};
+
 export type ChimegeAdminSnapshot = {
   has_token: boolean;
   token_masked: string;
@@ -1258,12 +1270,16 @@ export type ChimegeAdminSnapshot = {
   used_seconds: number;
   remaining_seconds: number;
   remaining_hours: number;
+  active_remaining_seconds?: number;
   prepaid_mnt_spent: number;
   remaining_mnt_value: number;
   price_mnt_per_hour: number;
   low_balance: boolean;
   needs_renewal: boolean;
   updated_at?: string | null;
+  queued_count?: number;
+  queue_note?: string;
+  queue?: ChimegeQueueSlot[];
   usage: Array<{
     at: string;
     duration_seconds: number;
@@ -1271,6 +1287,7 @@ export type ChimegeAdminSnapshot = {
     filename?: string;
     user_id?: string | null;
     uuid?: string | null;
+    token_masked?: string;
   }>;
 };
 
