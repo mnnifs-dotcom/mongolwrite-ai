@@ -1,26 +1,94 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ClipboardEvent as ReactClipboardEvent,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
 import { createPortal } from "react-dom";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 
 import {
-  addDictionaryWords,
+  authMe,
   checkText,
   checkTextWithAI,
+  CheckLimitError,
+  downloadBichigDocx,
   getSettings,
   importDocument,
   improveText,
-  saveAiKey,
+  skipSpellingWord,
 } from "@/lib/api";
+import { cyrillicToBichig } from "@/lib/bichig";
 import { IssueHighlight, setIssueDecorations } from "@/lib/highlight";
 import { mapRange, plainTextFromDoc } from "@/lib/offsets";
-import { CATEGORY_LABELS, FILTERS, type Correction } from "@/lib/types";
+import { type Correction } from "@/lib/types";
+import { AuthButton } from "@/components/AuthButton";
+import { BrandLogo } from "@/components/BrandLogo";
+import { PricingUpgradeModal } from "@/components/PricingUpgradeModal";
+import {
+  DeviceLimitDialog,
+  isDeviceLimitMessage,
+} from "@/components/DeviceLimitDialog";
 
 const STYLE = "government_official";
 const DOC_TYPE = "official_letter";
 
+/** Keep in sync with backend app.core.plans */
+const GUEST_CHECK_MAX_CHARS = 500;
+const FREE_CHECK_MAX_CHARS = 1_500;
+const PAID_CHECK_MAX_CHARS = 500_000;
+
+function resolveCheckMaxChars(me: {
+  authenticated: boolean;
+  user: {
+    is_paid?: boolean;
+    is_trial?: boolean;
+    plan?: string;
+    entitlements?: { check_max_chars?: number };
+  } | null;
+}): number {
+  if (!me.authenticated || !me.user) {
+    return GUEST_CHECK_MAX_CHARS;
+  }
+  const fromEntitlement = me.user.entitlements?.check_max_chars;
+  if (
+    me.user.is_paid ||
+    me.user.is_trial ||
+    me.user.plan === "trial" ||
+    me.user.plan === "pro_3m" ||
+    me.user.plan === "pro_year" ||
+    me.user.plan === "pro"
+  ) {
+    // Always the current paid ceiling (ignore stale client/API entitlement numbers).
+    return PAID_CHECK_MAX_CHARS;
+  }
+  if (fromEntitlement && fromEntitlement > 0) {
+    return Math.min(fromEntitlement, FREE_CHECK_MAX_CHARS);
+  }
+  return FREE_CHECK_MAX_CHARS;
+}
+
+function isPaidMe(me: {
+  authenticated: boolean;
+  user: { is_paid?: boolean; is_trial?: boolean; plan?: string } | null;
+}): boolean {
+  if (!me.authenticated || !me.user) return false;
+  return Boolean(
+    me.user.is_paid ||
+      me.user.is_trial ||
+      me.user.plan === "trial" ||
+      me.user.plan === "pro_3m" ||
+      me.user.plan === "pro_year" ||
+      me.user.plan === "pro",
+  );
+}
 const SAMPLE =
   "Манай байгууллагаас ирүүлсэн хүсэлтийг хүлээн авч, танилцан холбогдох арга хэмжээ авч ажиллана уу.\n\nШинжилгээний хариу  одөр ирүүлсэн болно. байгууллагаaс дахин хүсэлт хүсэлт ирүүлнэ үү.\n\nЯгаад өдрээс хойш хариу ирүүлээгүй байна үү. Гэхмэт ажиллажбайна.";
 
@@ -103,22 +171,13 @@ function canFix(item: Correction): boolean {
   return item.suggested_text !== item.original_text;
 }
 
-function isIdea(item: Correction): boolean {
-  return item.severity === "suggestion" || item.category === "STYLE" || item.category === "CLARITY";
-}
-
 function dismissKey(item: Correction): string {
   return `${item.original_text.toLocaleLowerCase("mn")}|${item.rule_id}`;
 }
 
 function statusLabel(items: Correction[]): string {
-  const errors = items.filter((item) => item.severity === "error").length;
-  const ideas = items.length - errors;
-  if (!items.length) return "Алдаагүй";
-  const parts: string[] = [];
-  if (errors) parts.push(`${errors} алдаа`);
-  if (ideas) parts.push(`${ideas} санал`);
-  return parts.join(" · ");
+  if (!items.length) return "Алдаагүй байна";
+  return `${items.length} зөв бичгийн алдаа`;
 }
 
 function SuggestionPopover({
@@ -214,32 +273,56 @@ function SuggestionPopover({
       <button type="button" className="mw-pop-skip" onClick={() => onDismiss(item.id)}>
         Алгасах
       </button>
+      <a
+        className="mw-pop-report"
+        href={`/aldaa-medegdeh?word=${encodeURIComponent(item.original_text)}&type=spelling`}
+      >
+        Алдаа мэдэгдэх
+      </a>
     </div>,
     document.body,
   );
 }
 
 export function EditorApp() {
-  const [title, setTitle] = useState("Шинэ баримт");
   const [corrections, setCorrections] = useState<Correction[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [filter, setFilter] = useState<(typeof FILTERS)[number]>("ALL");
-  const [status, setStatus] = useState("Бэлэн");
   const [counts, setCounts] = useState({ words: 0, chars: 0 });
+  const [maxChars, setMaxChars] = useState(500);
+  const [isPaid, setIsPaid] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deviceLimitOpen, setDeviceLimitOpen] = useState(false);
   const [aiEnabled, setAiEnabled] = useState(false);
-  const [apiKey, setApiKey] = useState("");
   const [empty, setEmpty] = useState(true);
   const [shown, setShown] = useState(false);
   const [checking, setChecking] = useState(false);
+  const [successFlash, setSuccessFlash] = useState(false);
+  const [showBichig, setShowBichig] = useState(false);
+  const [bichigText, setBichigText] = useState("");
+  const [bichigBusy, setBichigBusy] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const menuRef = useRef<HTMLDetailsElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const reportError = useCallback((message: string | null) => {
+    if (message && isDeviceLimitMessage(message)) {
+      setError(null);
+      setDeviceLimitOpen(true);
+      return;
+    }
+    setError(message);
+  }, []);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const checkSeq = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
   const lastLen = useRef(0);
   const lastText = useRef("");
   const aiEnabledRef = useRef(false);
+  const maxCharsRef = useRef(500);
+  const isPaidRef = useRef(false);
   const dismissed = useRef(new Set<string>());
   const shownRef = useRef(false);
   const applying = useRef(false);
@@ -249,6 +332,8 @@ export function EditorApp() {
   const inflight = useRef<Promise<void> | null>(null);
   const correctionsRef = useRef<Correction[]>([]);
   aiEnabledRef.current = aiEnabled;
+  maxCharsRef.current = maxChars;
+  isPaidRef.current = isPaid;
   correctionsRef.current = corrections;
 
   const editor = useEditor({
@@ -275,13 +360,38 @@ export function EditorApp() {
     },
   });
 
+  /** Focus editor when the user presses anywhere in the text pane (for paste/type). */
+  function focusEditorSurface(event: ReactMouseEvent) {
+    if (!editor) return;
+    const target = event.target as HTMLElement | null;
+    if (!target) return;
+    // Already inside the editable — ProseMirror places the caret itself.
+    if (target.closest(".ProseMirror")) return;
+    // Footer/links/overlays live outside mw-editor-scroll.
+    event.preventDefault();
+    const isBlank = !plainTextFromDoc(editor.state.doc).trim();
+    editor.commands.focus(isBlank ? "start" : "end");
+  }
+
+  function pasteIntoEditor(event: ReactClipboardEvent) {
+    if (!editor) return;
+    // If PM already has focus, let it handle paste natively.
+    if (editor.isFocused) return;
+    const text = event.clipboardData.getData("text/plain");
+    if (!text) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const isBlank = !plainTextFromDoc(editor.state.doc).trim();
+    editor.commands.focus(isBlank ? "start" : "end");
+    editor.commands.insertContent(textToHtml(text));
+  }
+
   const applyResult = useCallback((result: Awaited<ReturnType<typeof checkText>>) => {
     const kept = result.corrections.filter((item) => !dismissed.current.has(dismissKey(item)));
     setCorrections(kept);
     setCounts({ words: result.word_count, chars: result.character_count });
     if (typeof result.ai_enabled === "boolean") setAiEnabled(result.ai_enabled);
     setError(null);
-    setStatus(statusLabel(kept));
     setActiveId((current) => (kept.some((item) => item.id === current) ? current : null));
   }, []);
 
@@ -289,9 +399,13 @@ export function EditorApp() {
     shownRef.current = false;
     setShown(false);
     setChecking(false);
+    setSuccessFlash(false);
+    if (successTimer.current) {
+      clearTimeout(successTimer.current);
+      successTimer.current = null;
+    }
     setCorrections([]);
     setActiveId(null);
-    setStatus("Бэлэн");
   }, []);
 
   const runCheck = useCallback(async (text: string) => {
@@ -308,6 +422,10 @@ export function EditorApp() {
       words: text.trim() ? text.trim().split(/\s+/).length : 0,
       chars: text.length,
     });
+    if (text.length > maxCharsRef.current) {
+      pending.current = null;
+      return;
+    }
     const work = (async () => {
       try {
         const result = await checkText(text, {
@@ -323,14 +441,28 @@ export function EditorApp() {
         if (err instanceof DOMException && err.name === "AbortError") return;
         if (err instanceof Error && err.name === "AbortError") return;
         if (shownRef.current) {
-          setError(err instanceof Error ? err.message : "Алдаа");
-          setStatus("Холбогдсонгүй");
+          // Failed check ≠ clean text — clear marks so we never flash «Алдаагүй».
+          setCorrections([]);
+          setActiveId(null);
+          if (err instanceof CheckLimitError) {
+            if (isPaidRef.current) {
+              setUpgradeOpen(false);
+              setError(
+                `Нэг дор ${maxCharsRef.current.toLocaleString("mn-MN")} тэмдэгт хүртэл шалгана. Бичвэрийг хувааж оруулна уу.`,
+              );
+            } else {
+              setUpgradeOpen(true);
+              setError(null);
+            }
+          } else {
+            reportError(err instanceof Error ? err.message : "Алдаа");
+          }
         }
       }
     })();
     inflight.current = work;
     await work;
-  }, [applyResult]);
+  }, [applyResult, reportError]);
 
   const runThink = useCallback(async (text: string) => {
     if (!text.trim() || !aiEnabledRef.current || !shownRef.current) return;
@@ -352,14 +484,23 @@ export function EditorApp() {
     if (!editor || checking) return;
     const text = plainTextFromDoc(editor.state.doc);
     if (!text.trim()) {
-      setStatus("Бичвэр алга");
+      setError(null);
+      return;
+    }
+    if (text.length > maxChars) {
+      setError(
+        isPaid
+          ? `Нэг дор ${maxChars.toLocaleString("mn-MN")} тэмдэгт хүртэл шалгана. Бичвэрийг хувааж оруулна уу.`
+          : null,
+      );
+      if (!isPaid) setUpgradeOpen(true);
+      else setUpgradeOpen(false);
       return;
     }
     shownRef.current = true;
     setShown(true);
     setError(null);
     setChecking(true);
-    setStatus("Шалгаж байна…");
     const started = Date.now();
     try {
       const ready = pending.current;
@@ -379,7 +520,38 @@ export function EditorApp() {
       if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
       setChecking(false);
     }
-  }, [applyResult, checking, editor, runCheck, runThink]);
+  }, [applyResult, checking, editor, isPaid, maxChars, runCheck, runThink]);
+
+  useEffect(() => {
+    if (checking) {
+      setSuccessFlash(false);
+      if (successTimer.current) {
+        clearTimeout(successTimer.current);
+        successTimer.current = null;
+      }
+      return;
+    }
+    if (!shown || empty || corrections.length > 0 || error) {
+      setSuccessFlash(false);
+      if (successTimer.current) {
+        clearTimeout(successTimer.current);
+        successTimer.current = null;
+      }
+      return;
+    }
+    setSuccessFlash(true);
+    if (successTimer.current) clearTimeout(successTimer.current);
+    successTimer.current = setTimeout(() => {
+      setSuccessFlash(false);
+      successTimer.current = null;
+    }, 5000);
+    return () => {
+      if (successTimer.current) {
+        clearTimeout(successTimer.current);
+        successTimer.current = null;
+      }
+    };
+  }, [checking, shown, empty, corrections.length, error]);
 
   useEffect(() => {
     if (!editor) return;
@@ -389,6 +561,7 @@ export function EditorApp() {
       checkSeq.current += 1;
       const text = plainTextFromDoc(editor.state.doc);
       setEmpty(!text.trim());
+      setDraft(text);
       setCounts({
         words: text.trim() ? text.trim().split(/\s+/).length : 0,
         chars: text.length,
@@ -404,7 +577,6 @@ export function EditorApp() {
         correctionsRef.current = next;
         setCorrections(next);
         setActiveId((id) => (id && next.some((item) => item.id === id) ? id : null));
-        setStatus(statusLabel(next));
       }
       lastText.current = text;
       if (timer.current) clearTimeout(timer.current);
@@ -431,8 +603,31 @@ export function EditorApp() {
   }, [editor, corrections, activeId]);
 
   useEffect(() => {
-    void getSettings().then((result) => setAiEnabled(result.ai_enabled));
+    const refreshLimit = () => {
+      void (async () => {
+        try {
+          const [settings, me] = await Promise.all([getSettings(), authMe()]);
+          if (typeof settings.ai_enabled === "boolean") setAiEnabled(settings.ai_enabled);
+          // Auth tier wins — never trust a guest settings value of 80k/300k from an
+          // older API build (that used one ceiling for everyone).
+          setMaxChars(resolveCheckMaxChars(me));
+          setIsPaid(isPaidMe(me));
+        } catch {
+          setMaxChars(GUEST_CHECK_MAX_CHARS);
+          setIsPaid(false);
+        }
+      })();
+    };
+    refreshLimit();
+    window.addEventListener("mw-auth-changed", refreshLimit);
+    return () => window.removeEventListener("mw-auth-changed", refreshLimit);
   }, []);
+
+  useEffect(() => {
+    if (!isPaid && showBichig) {
+      setShowBichig(false);
+    }
+  }, [isPaid, showBichig]);
 
   useEffect(() => {
     const onSelect = (event: Event) => {
@@ -455,31 +650,12 @@ export function EditorApp() {
     });
   }, [activeId]);
 
-  useEffect(() => {
-    if (filter === "ALL") return;
-    if (!corrections.some((item) => item.category === filter)) {
-      setFilter("ALL");
-    }
-  }, [corrections, filter]);
-
-  const visible = useMemo(() => {
-    if (filter === "ALL") return corrections;
-    return corrections.filter((item) => item.category === filter);
-  }, [corrections, filter]);
+  const visible = corrections;
 
   const activeItem = useMemo(
     () => corrections.find((item) => item.id === activeId) ?? null,
     [corrections, activeId],
   );
-
-  const filterChips = useMemo(() => {
-    const present = FILTERS.filter((id) => {
-      if (id === "ALL") return false;
-      return corrections.some((item) => item.category === id);
-    });
-    if (present.length < 2) return [];
-    return present;
-  }, [corrections]);
 
   const fixableCount = useMemo(
     () => corrections.filter(canFix).length,
@@ -487,8 +663,24 @@ export function EditorApp() {
   );
 
   function closeMenu() {
-    if (menuRef.current) menuRef.current.open = false;
+    setMenuOpen(false);
   }
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDoc = (event: MouseEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
 
   function apply(item: Correction, replacement?: string) {
     const suggested = replacement ?? item.suggested_text;
@@ -525,31 +717,19 @@ export function EditorApp() {
 
   function dismiss(id: string) {
     const item = corrections.find((row) => row.id === id);
-    if (item) dismissed.current.add(dismissKey(item));
+    if (item) {
+      dismissed.current.add(dismissKey(item));
+      if (item.category === "SPELLING" && item.original_text.trim()) {
+        void skipSpellingWord(item.original_text.trim(), item.rule_id);
+      }
+    }
     setCorrections((prev) => prev.filter((row) => row.id !== id));
     if (activeId === id) setActiveId(null);
-  }
-
-  async function addToLexicon(item: Correction) {
-    const word = item.original_text.trim();
-    if (!word) return;
-    try {
-      const result = await addDictionaryWords([word]);
-      dismissed.current.add(dismissKey(item));
-      setCorrections((prev) => prev.filter((row) => row.id !== item.id));
-      if (activeId === item.id) setActiveId(null);
-      setStatus(
-        result.added_count ? `«${word}» тольд нэмэгдлээ` : `«${word}» аль хэдийн тольд байсан`,
-      );
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Тольд нэмж чадсангүй");
-    }
   }
 
   async function copyText() {
     if (!editor) return;
     await navigator.clipboard.writeText(plainTextFromDoc(editor.state.doc));
-    setStatus("Хуулсан");
     closeMenu();
   }
 
@@ -567,33 +747,15 @@ export function EditorApp() {
       shownRef.current = true;
       setShown(true);
       applyResult(result);
-      setStatus(
-        result.applied_count ? `${result.applied_count} зассан` : "Засах зүйл алга",
-      );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Сайжруулж чадсангүй");
+      reportError(err instanceof Error ? err.message : "Сайжруулж чадсангүй");
     }
   }
 
   function loadSample() {
     editor?.commands.setContent(textToHtml(SAMPLE));
-    setTitle("Жишээ");
     closeMenu();
     editor?.commands.focus("end");
-  }
-
-  async function connectUnderstanding() {
-    try {
-      const result = await saveAiKey(apiKey);
-      setAiEnabled(result.ai_enabled);
-      setApiKey("");
-      setError(result.ai_enabled ? null : "Түлхүүр хоосон байна.");
-      if (editor && result.ai_enabled) {
-        void runCheck(plainTextFromDoc(editor.state.doc));
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Түлхүүр хадгалж чадсангүй");
-    }
   }
 
   async function onPickFile(file: File | undefined) {
@@ -603,7 +765,6 @@ export function EditorApp() {
     try {
       const imported = await importDocument(file);
       editor.commands.setContent(textToHtml(imported.text || ""));
-      setTitle(file.name.replace(/\.(docx|txt)$/i, ""));
       editor.commands.focus("start");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Файл нээгдсэнгүй");
@@ -619,110 +780,254 @@ export function EditorApp() {
     setShown(false);
     setChecking(false);
     editor?.commands.setContent("<p></p>");
-    setTitle("Шинэ баримт");
     setCorrections([]);
-    setStatus("Бэлэн");
+    setDraft("");
+    setCounts({ words: 0, chars: 0 });
     setError(null);
     closeMenu();
     editor?.commands.focus();
   }
 
+  async function copyBichig() {
+    if (!bichigText.trim()) return;
+    await navigator.clipboard.writeText(bichigText);
+  }
+
+  async function downloadBichigWord() {
+    if (!bichigText.trim()) return;
+    setError(null);
+    try {
+      await downloadBichigDocx(bichigText, "mongol-bichig.docx");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Word татаж чадсангүй");
+    }
+  }
+
+  function convertToBichig() {
+    if (!editor) return;
+    if (!isPaid) {
+      setUpgradeOpen(true);
+      setShowBichig(false);
+      return;
+    }
+    const text = plainTextFromDoc(editor.state.doc);
+    if (!text.trim()) return;
+    setBichigBusy(true);
+    setError(null);
+    try {
+      // Convert whatever is currently in the editor — on command only.
+      setBichigText(cyrillicToBichig(text));
+      setShowBichig(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Хөрвүүлж чадсангүй");
+    } finally {
+      setBichigBusy(false);
+    }
+  }
+
   return (
-    <div className="mw-shell">
+    <div className={showBichig ? "mw-shell is-bichig-open" : "mw-shell"}>
       <main className="mw-main">
         <header className="mw-top">
-          <div className="mw-brand">MongolWrite</div>
-          <input
-            className="mw-title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            aria-label="Баримтын нэр"
-          />
-          <span
-            className={
-              checking
-                ? "mw-stat busy"
-                : corrections.some((item) => item.severity === "error")
-                  ? "mw-stat bad"
-                  : shown && !corrections.length && counts.words
-                    ? "mw-stat ok"
-                    : "mw-stat"
-            }
-            aria-live="polite"
-          >
-            {checking
-              ? "Шалгаж байна…"
-              : `${counts.words ? `${counts.words} үг · ` : ""}${status}`}
-          </span>
-          <details className="mw-menu" ref={menuRef}>
-            <summary aria-label="Цэс">⋯</summary>
-            <div className="mw-menu-list">
-              <button type="button" onClick={newDocument}>
-                Шинэ баримт
+          <BrandLogo size="md" />
+          <div className="mw-top-spacer" />
+          <div className="mw-top-actions">
+            <AuthButton />
+            <div className="mw-menu" ref={menuRef}>
+              <button
+                type="button"
+                className={menuOpen ? "mw-menu-trigger is-open" : "mw-menu-trigger"}
+                aria-label="Цэс"
+                aria-expanded={menuOpen}
+                aria-haspopup="menu"
+                onClick={() => setMenuOpen((open) => !open)}
+              >
+                ⋯
               </button>
-              <button type="button" onClick={() => fileRef.current?.click()}>
-                Файл нээх
-              </button>
-              <button type="button" onClick={() => void copyText()}>
-                Хуулах
-              </button>
-              <button type="button" onClick={loadSample}>
-                Жишээ
-              </button>
+              {menuOpen ? (
+                <div className="mw-menu-list" role="menu">
+                  <button type="button" role="menuitem" onClick={newDocument}>
+                    Шинэ
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      closeMenu();
+                      fileRef.current?.click();
+                    }}
+                  >
+                    Файл
+                  </button>
+                  <button type="button" role="menuitem" onClick={() => void copyText()}>
+                    Хуулах
+                  </button>
+                  <button type="button" role="menuitem" onClick={loadSample}>
+                    Жишээ
+                  </button>
+                  <a href="/aldaa-shalgah" role="menuitem" onClick={closeMenu}>
+                    Алдаа шалгах
+                  </a>
+                  <a href="/ugiin-aldaga-shalgah" role="menuitem" onClick={closeMenu}>
+                    Үгийн алдаа шалгах
+                  </a>
+                  <a href="/aldaa-medegdeh" role="menuitem" onClick={closeMenu}>
+                    Алдаа мэдэгдэх
+                  </a>
+                  <a href="/tolbor" role="menuitem" onClick={closeMenu}>
+                    Төлбөр
+                  </a>
+                  <a href="/uilchilgeenii-nokhtsol" role="menuitem" onClick={closeMenu}>
+                    Үйлчилгээний нөхцөл
+                  </a>
+                </div>
+              ) : null}
             </div>
-          </details>
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".docx,.txt,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
-            hidden
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              event.target.value = "";
-              void onPickFile(file);
-            }}
-          />
-          <button
-            type="button"
-            className={checking ? "mw-btn-primary is-busy" : "mw-btn-primary"}
-            onClick={() => void showErrors()}
-            disabled={empty || checking}
-            aria-busy={checking}
-          >
-            {checking ? (
-              <>
-                <span className="mw-spinner" aria-hidden />
-                Шалгаж байна…
-              </>
-            ) : (
-              "Алдаа шалгах"
-            )}
-          </button>
-          <button
-            type="button"
-            className="mw-btn"
-            onClick={() => void improveDocument()}
-            disabled={aiEnabled ? !counts.words && !counts.chars : !fixableCount}
-          >
-            Засах
-          </button>
+            <span className="mw-top-rule" aria-hidden />
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".docx,.txt,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+              hidden
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                event.target.value = "";
+                void onPickFile(file);
+              }}
+            />
+            <button
+              type="button"
+              className="mw-btn mw-btn-convert"
+              onClick={convertToBichig}
+              disabled={bichigBusy || empty}
+              aria-busy={bichigBusy}
+            >
+              {bichigBusy ? "Хөрвүүлж…" : "Монгол бичиг хөрвүүлэх"}
+            </button>
+            <button
+              type="button"
+              className={checking ? "mw-btn-primary is-busy" : "mw-btn-primary"}
+              onClick={() => void showErrors()}
+              disabled={empty || checking}
+              aria-busy={checking}
+            >
+              {checking ? (
+                <>
+                  <span className="mw-spinner" aria-hidden />
+                  …
+                </>
+              ) : (
+                "Шалгах"
+              )}
+            </button>
+            <button
+              type="button"
+              className="mw-btn"
+              onClick={() => void improveDocument()}
+              disabled={aiEnabled ? !counts.words && !counts.chars : !fixableCount}
+            >
+              Засах
+            </button>
+          </div>
         </header>
         {error ? <p className="mw-banner">{error}</p> : null}
-        {shown && !checking && !error && !corrections.length && counts.words ? (
-          <p className="mw-banner mw-banner-ok" role="status">
-            Алдаа олдсонгүй. Энэ бичвэр цэвэрхэн байна.
-          </p>
-        ) : null}
-        <div className={empty ? "mw-editor is-empty" : "mw-editor"} aria-busy={checking}>
-          <EditorContent editor={editor} />
-          {checking ? (
-            <div className="mw-checking-overlay" role="status" aria-live="polite">
-              <span className="mw-spinner lg" aria-hidden />
-              <div>
-                <strong>Алдаа шалгаж байна</strong>
-                <p>Бичвэрийг уншиж, зөв бичих болон найруулгыг шалгаж байна. Түр хүлээнэ үү.</p>
-              </div>
+        <div className="mw-stage">
+          <div className={empty ? "mw-editor is-empty" : "mw-editor"} aria-busy={checking}>
+            <div
+              className="mw-editor-scroll"
+              onMouseDown={focusEditorSurface}
+              onPaste={pasteIntoEditor}
+            >
+              <EditorContent editor={editor} />
             </div>
+            <footer className="mw-editor-footer" aria-live="polite">
+              <div className="mw-count">
+                <span>Үгийн тоо</span>
+                <strong>{counts.words.toLocaleString("mn-MN")}</strong>
+              </div>
+              <div className="mw-count">
+                <span>Тэмдэгтийн тоо</span>
+                <strong className={counts.chars > maxChars ? "is-over-limit" : undefined}>
+                  <span className={counts.chars > maxChars ? "mw-count-over" : undefined}>
+                    {counts.chars.toLocaleString("mn-MN")}
+                  </span>
+                  /{maxChars.toLocaleString("mn-MN")}
+                </strong>
+              </div>
+              <div className="mw-editor-legal">
+                <a href="/tolbor">Төлбөр</a>
+                <a href="/aldaa-medegdeh">Алдаа мэдэгдэх</a>
+                <a href="/uilchilgeenii-nokhtsol">Үйлчилгээний нөхцөл</a>
+              </div>
+            </footer>
+            {checking ? (
+              <div className="mw-checking-overlay" role="status" aria-live="polite">
+                <span className="mw-spinner lg" aria-hidden />
+              </div>
+            ) : null}
+            {successFlash ? (
+              <div className="mw-success-overlay" role="status" aria-live="polite">
+                <div className="mw-success-card">
+                  <span className="mw-success-check" aria-hidden>
+                    <svg viewBox="0 0 48 48" width="48" height="48" fill="none">
+                      <circle cx="24" cy="24" r="22" stroke="currentColor" strokeWidth="2.5" opacity="0.35" />
+                      <path
+                        d="M14 24.5 21 31.5 34 16.5"
+                        stroke="currentColor"
+                        strokeWidth="3.2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
+                  <strong>Алдаагүй байна</strong>
+                </div>
+              </div>
+            ) : null}
+          </div>
+          {showBichig ? (
+            <aside className="mw-bichig-panel" aria-label="Монгол бичиг хөрвүүлэлт">
+              <div className="mw-bichig-head">
+                <div className="mw-bichig-title-row">
+                  <div className="mw-bichig-title">Монгол бичиг</div>
+                  <button
+                    type="button"
+                    className="mw-bichig-close"
+                    aria-label="Хаах"
+                    onClick={() => setShowBichig(false)}
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className="mw-bichig-actions">
+                  <button
+                    type="button"
+                    className="mw-btn"
+                    onClick={() => void copyBichig()}
+                    disabled={!bichigText.trim()}
+                  >
+                    Хуулах
+                  </button>
+                  <button
+                    type="button"
+                    className="mw-btn"
+                    onClick={() => void downloadBichigWord()}
+                    disabled={!bichigText.trim()}
+                  >
+                    Word татах
+                  </button>
+                </div>
+              </div>
+              {bichigText.trim() ? (
+                <div className="mw-bichig-scroll">
+                  <div className="mw-bichig-body" lang="mn-Mong">
+                    {bichigText}
+                  </div>
+                </div>
+              ) : (
+                <div className="mw-bichig-empty" aria-hidden />
+              )}
+            </aside>
           ) : null}
         </div>
       </main>
@@ -735,96 +1040,26 @@ export function EditorApp() {
               : corrections.length
                 ? statusLabel(corrections)
                 : shown
-                  ? "Алдаагүй"
-                  : "Санал"}
+                  ? "Алдаагүй байна"
+                  : "Алдаатай үгс"}
           </h2>
         </div>
-        {aiEnabled ? null : (
-          <details className="mw-key">
-            <summary>Ойлголт холбох</summary>
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                void connectUnderstanding();
-              }}
-            >
-              <p>Бичвэрийг утгаар нь ойлгож засахын тулд OpenAI түлхүүрээ оруулаарай.</p>
-              <input
-                type="password"
-                value={apiKey}
-                onChange={(event) => setApiKey(event.target.value)}
-                placeholder="sk-..."
-                autoComplete="off"
-                aria-label="OpenAI түлхүүр"
-              />
-              <button type="submit" className="mw-btn-primary">
-                Холбох
-              </button>
-            </form>
-          </details>
-        )}
-        {filterChips.length ? (
-          <div className="mw-filters">
-            <button
-              type="button"
-              className={filter === "ALL" ? "mw-chip on" : "mw-chip"}
-              onClick={() => setFilter("ALL")}
-            >
-              Бүгд
-            </button>
-            {filterChips.map((id) => (
-              <button
-                key={id}
-                type="button"
-                className={filter === id ? "mw-chip on" : "mw-chip"}
-                onClick={() => setFilter(id)}
-              >
-                {CATEGORY_LABELS[id]}
-              </button>
-            ))}
-          </div>
-        ) : null}
         <ul className="mw-list">
           {checking ? (
             <li className="mw-checking-panel">
               <span className="mw-spinner lg" aria-hidden />
-              <div>
-                <strong>Бичвэрийг уншиж байна</strong>
-                <p>Алдаа болон найруулгын саналыг хайж байна. Энэ нь гацсан хэрэг биш.</p>
-              </div>
             </li>
           ) : visible.length === 0 ? (
-            <li
-              className={
-                shown && !corrections.length && counts.words ? "mw-ok" : "mw-empty"
-              }
-            >
-              {corrections.length
-                ? "Энэ төрөлд санал алга."
-                : shown
-                  ? counts.words
-                    ? (
-                        <>
-                          <strong>Алдаа олдсонгүй</strong>
-                          <p>Энэ бичвэрт зөв бичих болон найруулгын алдаа илрээгүй.</p>
-                        </>
-                      )
-                    : "Бичиж эхлээрэй. Дараа нь «Алдаа шалгах»-ыг дарна."
-                  : counts.words
-                    ? "Бичээд «Алдаа шалгах» товчийг дарна уу."
-                    : "Бичиж эхлээрэй. Дараа нь «Алдаа шалгах»-ыг дарна."}
-            </li>
+            shown && !empty ? (
+              <li className="mw-ok">
+                <strong>Алдаагүй байна</strong>
+              </li>
+            ) : null
           ) : (
             visible.map((item) => (
               <li key={item.id} data-card-id={item.id}>
                 <div
-                  className={[
-                    "mw-hit",
-                    activeId === item.id ? "on" : "",
-                    isIdea(item) ? "idea" : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
+                  className={["mw-hit", activeId === item.id ? "on" : ""].filter(Boolean).join(" ")}
                 >
                   <button
                     type="button"
@@ -832,9 +1067,7 @@ export function EditorApp() {
                     onClick={() => setActiveId((current) => (current === item.id ? null : item.id))}
                   >
                     <span className="mw-hit-word">{item.original_text}</span>
-                    <span className="mw-hit-cat">
-                      {isIdea(item) ? "Найруулга" : (CATEGORY_LABELS[item.category] ?? item.category)}
-                    </span>
+                    <span className="mw-hit-cat">Зөв бичиг</span>
                   </button>
                   <button
                     type="button"
@@ -845,15 +1078,6 @@ export function EditorApp() {
                     ×
                   </button>
                 </div>
-                {item.category === "SPELLING" ? (
-                  <button
-                    type="button"
-                    className="mw-hit-learn"
-                    onClick={() => void addToLexicon(item)}
-                  >
-                    Тольд нэмэх
-                  </button>
-                ) : null}
               </li>
             ))
           )}
@@ -867,6 +1091,15 @@ export function EditorApp() {
           onClose={() => setActiveId(null)}
         />
       ) : null}
+      <PricingUpgradeModal
+        open={upgradeOpen}
+        onClose={() => setUpgradeOpen(false)}
+        limit={maxChars}
+      />
+      <DeviceLimitDialog
+        open={deviceLimitOpen}
+        onClose={() => setDeviceLimitOpen(false)}
+      />
     </div>
   );
 }

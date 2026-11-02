@@ -1,12 +1,18 @@
 from __future__ import annotations
 
+import json
+import threading
+import time
+from collections import Counter
 from collections.abc import Callable, Iterable
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from app.core import shared_cache
 from app.engine.frequency import load_frequency
 from app.engine.misspellings import lookup_misspelling
+from app.engine.legal_lexicon import load_legal_auto_lexicon, load_legal_frequency
 
 _SEED_FREQ_BONUS = 100
 # Wikipedia counts at or above this are treated as established spellings.
@@ -26,6 +32,66 @@ def _default_wordlist_path() -> Path:
 
 def hunspell_base_path() -> Path:
     return _repo_root() / "data" / "hunspell" / "mn_MN"
+
+
+def persist_dir() -> Path:
+    """Shared runtime volume (Fly mounts here)."""
+    path = _repo_root() / "data" / "persist"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def removed_lexicon_path() -> Path:
+    return persist_dir() / "lexicon_removed.json"
+
+
+def load_removed_lexicon(path: Path | None = None) -> set[str]:
+    target = path or removed_lexicon_path()
+    if not target.exists():
+        return set()
+    try:
+        raw = json.loads(target.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return set()
+    words = raw.get("words") if isinstance(raw, dict) else raw
+    if not isinstance(words, list):
+        return set()
+    out: set[str] = set()
+    for item in words:
+        word = str(item).strip().casefold()
+        if len(word) >= 2:
+            out.add(word)
+    return out
+
+
+def save_removed_lexicon(words: set[str], path: Path | None = None) -> None:
+    target = path or removed_lexicon_path()
+    target.parent.mkdir(parents=True, exist_ok=True)
+    payload = {"words": sorted(words)}
+    target.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def rewrite_user_dictionary(keep: set[str], path: Path | None = None) -> None:
+    """Rewrite user dictionary keeping only lemmas in ``keep`` (casefolded)."""
+    target = path or user_dictionary_path()
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if not target.exists():
+        return
+    kept_lines: list[str] = []
+    seen: set[str] = set()
+    for line in target.read_text(encoding="utf-8").splitlines():
+        word = line.strip()
+        if not word or word.startswith("#"):
+            continue
+        folded = word.casefold()
+        if folded not in keep or folded in seen:
+            continue
+        seen.add(folded)
+        kept_lines.append(folded)
+    target.write_text(("\n".join(kept_lines) + ("\n" if kept_lines else "")), encoding="utf-8")
+
+
+MN_LETTERS = tuple("абвгдеёжзийклмноөпрстуүфхцчшщъыьэюя")
 
 
 def user_dictionary_path() -> Path:
@@ -116,17 +182,25 @@ class DictionaryProvider:
         frequency: dict[str, int] | None = None,
     ) -> None:
         if words is None:
-            base = load_wordlist() | load_user_dictionary()
+            base = load_wordlist() | load_user_dictionary() | load_legal_auto_lexicon()
             self._persist_user = True
+            self._removed = load_removed_lexicon()
         else:
             base = set(words)
             self._persist_user = False
+            self._removed = set()
+        # Drop admin-removed lemmas from the curated seed.
+        base = {item for item in base if item.casefold() not in self._removed}
         self._seed: set[str] = {item.casefold() for item in base} | set(base)
         self._words: set[str] = set(base | expand_case_forms(base))
         self._near: dict[tuple[str, int], list[str]] = {}
         self._index_near()
         self._hunspell = load_hunspell() if (use_hunspell and words is None) else None
+        self._suggest_cache: dict[tuple[str, int], list[str]] = {}
         self._lookup_cache: dict[str, bool] = {}
+        self._cache_lock = threading.RLock()
+        # When sealed, contains() never calls Hunspell for unseen forms (long-doc fast path).
+        self._lookups_sealed = False
         if frequency is not None:
             self._wiki_freq = {
                 key.casefold(): int(value)
@@ -135,6 +209,9 @@ class DictionaryProvider:
             }
         elif words is None:
             self._wiki_freq = dict(load_frequency())
+            # Statute document-frequency counts as established evidence too.
+            for key, value in load_legal_frequency().items():
+                self._wiki_freq[key] = max(self._wiki_freq.get(key, 0), int(value))
         else:
             self._wiki_freq = {}
         self._freq = dict(self._wiki_freq)
@@ -151,6 +228,9 @@ class DictionaryProvider:
             if len(word) < 2:
                 continue
             folded = word.casefold()
+            # Restoring a previously removed lemma clears the tombstone.
+            if folded in self._removed:
+                self._removed.discard(folded)
             # Curated check: seed only. Hunspell-known forms are often absent from _words
             # but must still enter the user dictionary when an admin approves them.
             if folded in self._seed:
@@ -165,8 +245,9 @@ class DictionaryProvider:
         if added:
             self._index_near()
             self._index_freq_near()
-        if added and self._persist_user:
-            _append_user_words(added)
+            if self._persist_user:
+                save_removed_lexicon(self._removed)
+                _append_user_words(added)
         return added
 
     def ensure_curated(self, words: Iterable[str]) -> list[str]:
@@ -177,6 +258,8 @@ class DictionaryProvider:
             if len(word) < 2:
                 continue
             folded = word.casefold()
+            if folded in self._removed:
+                self._removed.discard(folded)
             batch = {word, folded} | expand_case_forms({folded})
             was_new = folded not in self._seed
             self._seed.update({word, folded})
@@ -190,39 +273,268 @@ class DictionaryProvider:
             self._index_near()
             self._index_freq_near()
         if self._persist_user:
+            save_removed_lexicon(self._removed)
             # Always persist approved surface forms so restarts keep them.
             _append_user_words([item.strip().casefold() for item in words if item.strip()])
         return ensured
+
+    def curated_lemmas(self) -> list[str]:
+        """All curated lemmas (seed − removed), sorted — for export / copy-all."""
+        return sorted(
+            {item.casefold() for item in self._seed if item.casefold() not in self._removed}
+        )
+
+    def list_lexicon(
+        self,
+        *,
+        query: str = "",
+        letter: str = "",
+        offset: int = 0,
+        limit: int = 100,
+    ) -> dict[str, Any]:
+        """Paginated curated lemmas with optional search / starting-letter filter."""
+        q = query.strip().casefold()
+        letter_key = letter.strip().casefold()[:1]
+        lemmas = self.curated_lemmas()
+        if letter_key:
+            lemmas = [word for word in lemmas if word[:1] == letter_key]
+        if q:
+            lemmas = [word for word in lemmas if q in word]
+        total = len(lemmas)
+        start = max(0, int(offset))
+        size = max(1, min(500, int(limit)))
+        page = lemmas[start : start + size]
+        letter_counts: dict[str, int] = {ch: 0 for ch in MN_LETTERS}
+        other = 0
+        for word in ({item.casefold() for item in self._seed} - self._removed):
+            first = word[:1]
+            if first in letter_counts:
+                letter_counts[first] += 1
+            else:
+                other += 1
+        return {
+            "words": page,
+            "total": total,
+            "offset": start,
+            "limit": size,
+            "letters": [
+                {"letter": ch.upper(), "folded": ch, "count": letter_counts[ch]}
+                for ch in MN_LETTERS
+                if letter_counts[ch] > 0
+            ]
+            + ([{"letter": "#", "folded": "#", "count": other}] if other else []),
+            "query": query.strip(),
+            "letter": letter.strip(),
+        }
+
+    def remove_words(self, words: Iterable[str]) -> list[str]:
+        """Remove curated lemmas (tombstone + user-dict rewrite)."""
+        removed: list[str] = []
+        for raw in words:
+            word = str(raw).strip()
+            # Allow single-letter lemmas (e.g. «а») that appear in the curated list.
+            if not word:
+                continue
+            folded = word.casefold()
+            if not folded:
+                continue
+            self._removed.add(folded)
+            self._seed.discard(folded)
+            self._seed.discard(word)
+            drop = {folded, word} | expand_case_forms({folded})
+            self._words.difference_update(drop)
+            self._lookup_cache[folded] = False
+            self._lookup_cache.pop(word, None)
+            self._freq.pop(folded, None)
+            if folded not in removed:
+                removed.append(folded)
+        if not removed:
+            return []
+        if self._persist_user:
+            save_removed_lexicon(self._removed)
+            keep = {item.casefold() for item in self._seed} - self._removed
+            rewrite_user_dictionary(keep)
+        self._index_near()
+        self._index_freq_near()
+        return removed
 
     @property
     def has_hunspell(self) -> bool:
         return self._hunspell is not None
 
+    @property
+    def curated_lemma_count(self) -> int:
+        return len({item.casefold() for item in self._seed} - self._removed)
+
+    @property
+    def hunspell_stem_count(self) -> int:
+        path = hunspell_base_path().with_suffix(".dic")
+        if not path.exists():
+            return 0
+        try:
+            first = path.read_text(encoding="utf-8", errors="ignore").splitlines()[0].strip()
+            return int(first) if first.isdigit() else 0
+        except (OSError, IndexError, ValueError):
+            return 0
+
+    def user_words(self) -> list[str]:
+        """Lemmas from the user dictionary file (newest-first when possible)."""
+        return list_user_dictionary_lemmas()
+
     def hunspell_knows(self, word: str) -> bool:
         if self._hunspell is None:
             return False
         folded = word.casefold()
-        return bool(self._hunspell.lookup(folded) or self._hunspell.lookup(word))
+        with self._cache_lock:
+            cached = self._lookup_cache.get(folded)
+        if cached is not None:
+            shared_cache.record_l1_hit()
+            return cached
+        if self._lookups_sealed:
+            return False
+        return self._probe_hunspell(folded)
+
+    def _probe_hunspell(self, folded: str) -> bool:
+        """L1 → Redis L2 → Hunspell; fill caches. Never called while sealed."""
+        shared = shared_cache.get_hunspell_membership(folded)
+        if shared is not None:
+            with self._cache_lock:
+                self._lookup_cache[folded] = shared
+            return shared
+        ok = bool(self._hunspell.lookup(folded)) if self._hunspell is not None else False
+        shared_cache.record_miss()
+        with self._cache_lock:
+            self._lookup_cache[folded] = ok
+        shared_cache.set_hunspell_membership(folded, ok)
+        return ok
 
     def in_seed(self, word: str) -> bool:
         folded = word.casefold()
+        if folded in self._removed:
+            return False
         return word in self._seed or folded in self._seed
 
     def in_wordlist(self, word: str) -> bool:
-        return word in self._words or word.casefold() in self._words
+        folded = word.casefold()
+        if folded in self._removed:
+            return False
+        return word in self._words or folded in self._words
+
+    def is_proper_prefix_of_known(self, word: str, *, max_extra: int = 18) -> bool:
+        """True when ``word`` is a strict prefix of a curated seed lemma.
+
+        Blocks typing fragments like «сургуу» while the user is finishing «сургууль».
+        Only seed lemmas count — synthetic case-form expansions in ``_words``
+        must not make the full lemma look like a prefix of itself.
+        """
+        folded = word.casefold()
+        if len(folded) < 2:
+            return False
+        first = folded[:1]
+        n = len(folded)
+        for length in range(n + 1, n + max_extra + 1):
+            for candidate in self._near.get((first, length), ()):
+                cf = candidate.casefold()
+                if not cf.startswith(folded) or cf == folded:
+                    continue
+                if cf in self._removed:
+                    continue
+                if cf in self._seed or candidate in self._seed:
+                    return True
+        return False
+
+    def seal_lookups(self) -> None:
+        """Stop Hunspell probes for forms not already in the lookup cache."""
+        self._lookups_sealed = True
+
+    def unseal_lookups(self) -> None:
+        self._lookups_sealed = False
+
+    @property
+    def lookups_sealed(self) -> bool:
+        return self._lookups_sealed
+
+    def lookup_probed(self, word: str) -> bool:
+        """True when Hunspell membership for this form is already cached."""
+        with self._cache_lock:
+            return word.casefold() in self._lookup_cache
+
+    def warm_document_lookups(
+        self,
+        words: Iterable[str],
+        *,
+        budget_seconds: float = 0.9,
+        skip: Callable[[str], bool] | None = None,
+    ) -> None:
+        """Prefetch Hunspell membership for document forms (frequent first).
+
+        Long typo-heavy docs create thousands of unique misspellings; each failed
+        Hunspell lookup is expensive. Cap wall time and prioritize repeated forms
+        so real legal inflections stay accepted while one-off junk is skipped.
+        """
+        counts = Counter(
+            word.casefold()
+            for word in words
+            if word and any(ch.isalpha() for ch in word)
+        )
+        pending: list[tuple[int, str]] = []
+        for folded, count in counts.items():
+            if folded in self._removed:
+                with self._cache_lock:
+                    self._lookup_cache[folded] = False
+                continue
+            with self._cache_lock:
+                known = folded in self._words or folded in self._lookup_cache
+            if known:
+                continue
+            if skip is not None and skip(folded):
+                with self._cache_lock:
+                    self._lookup_cache[folded] = False
+                continue
+            pending.append((count, folded))
+        pending.sort(reverse=True)
+        if self._hunspell is None:
+            with self._cache_lock:
+                for _, folded in pending:
+                    self._lookup_cache[folded] = False
+            return
+        started = time.perf_counter()
+        for _, folded in pending:
+            if time.perf_counter() - started >= budget_seconds:
+                break
+            # Prefer shared Redis before paying for Hunspell on every machine.
+            shared = shared_cache.get_hunspell_membership(folded)
+            if shared is not None:
+                with self._cache_lock:
+                    self._lookup_cache[folded] = shared
+                continue
+            ok = bool(self._hunspell.lookup(folded))
+            shared_cache.record_miss()
+            with self._cache_lock:
+                self._lookup_cache[folded] = ok
+            shared_cache.set_hunspell_membership(folded, ok)
+        # Leave the rest uncached. While lookups are sealed, contains() treats
+        # misses as unknown without writing False into the shared cache — so a
+        # later short check can still Hunspell-confirm rare legitimate forms.
 
     def contains(self, word: str) -> bool:
         folded = word.casefold()
+        if folded in self._removed:
+            return False
         if word in self._words or folded in self._words:
             return True
-        cached = self._lookup_cache.get(folded)
+        with self._cache_lock:
+            cached = self._lookup_cache.get(folded)
         if cached is not None:
+            shared_cache.record_l1_hit()
             return cached
-        ok = False
-        if self._hunspell is not None:
-            ok = bool(self._hunspell.lookup(word) or self._hunspell.lookup(folded))
-        self._lookup_cache[folded] = ok
-        return ok
+        if self._lookups_sealed:
+            # Do not cache: stem probes during rules must not poison later checks.
+            return False
+        return self._probe_hunspell(folded)
+
+    def is_removed(self, word: str) -> bool:
+        return word.casefold() in self._removed
 
     def is_frequent_inflection(self, word: str) -> bool:
         """Frequent stem plus a school case/plural tail (вэбсайт → вэбсайтад)."""
@@ -305,8 +617,31 @@ class DictionaryProvider:
         folded = word.casefold()
         if self.contains(folded):
             return []
+        cache_key = (folded, limit)
+        cached = self._suggest_cache.get(cache_key)
+        if cached is not None:
+            if not preferred:
+                return list(cached)
+            # Re-rank cached hits with document-preferred forms first.
+            preferred_hits = [item for item in cached if item in preferred]
+            rest = [item for item in cached if item not in preferred]
+            return [*preferred_hits, *rest][:limit]
         found: list[str] = []
         seen = {folded}
+
+        def _take(candidate: str) -> None:
+            if not _usable_candidate(folded, candidate, seen):
+                return
+            if not self._accept_suggestion(folded, candidate):
+                return
+            seen.add(candidate)
+            found.append(candidate)
+
+        # Adjacent letter swaps that Hunspell/curated accept (хайралсаар → хайрласаар)
+        # must win over looser wordlist neighbors like хайраасаар.
+        for candidate in _adjacent_swaps(folded):
+            _take(candidate)
+
         phases = [
             _edit_candidates(folded, inserts=False),
             _consonant_inserts(folded),
@@ -314,27 +649,15 @@ class DictionaryProvider:
         ]
         for batch in phases:
             for candidate, _score in batch:
-                if not _usable_candidate(folded, candidate, seen):
-                    continue
-                if self._accept_suggestion(folded, candidate):
-                    seen.add(candidate)
-                    found.append(candidate)
+                _take(candidate)
             if len(found) >= limit:
                 break
         if len(found) < limit:
             for candidate, _score in _wordlist_neighbors(folded, self._near, self._seed):
-                if not _usable_candidate(folded, candidate, seen):
-                    continue
-                if self._accept_suggestion(folded, candidate):
-                    seen.add(candidate)
-                    found.append(candidate)
+                _take(candidate)
         if len(found) < limit:
             for candidate, _score in _edit_candidates(folded, inserts=True):
-                if not _usable_candidate(folded, candidate, seen):
-                    continue
-                if self._accept_suggestion(folded, candidate):
-                    seen.add(candidate)
-                    found.append(candidate)
+                _take(candidate)
         if self._freq_near:
             for candidate, _score in _frequency_neighbors(
                 folded, self._freq_near, self.wiki_frequency, _FREQ_TRUST
@@ -349,20 +672,21 @@ class DictionaryProvider:
                     continue
                 seen.add(candidate)
                 found.append(candidate)
-        close = any(_edit_distance(folded, item) <= 1 for item in found)
-        if self._hunspell is not None and (not close or len(found) < limit):
+        # Always merge cheap Hunspell edits (deletes/swaps) so a wordlist hit at
+        # distance 1 cannot hide a better attested swap form.
+        if self._hunspell is not None:
             for candidate in _cheap_hunspell_edits(folded):
                 if not _usable_candidate(folded, candidate, seen):
                     continue
-                seen.add(candidate)
                 if not self.contains(candidate):
                     continue
                 if lookup_misspelling(candidate):
                     continue
                 if len(candidate) == len(folded) - 1 and folded[1:] == candidate:
                     continue
+                seen.add(candidate)
                 found.append(candidate)
-                if len(found) >= limit:
+                if len(found) >= max(limit, 8):
                     break
         same = [item for item in found if item[:1] == folded[:1]]
         pool = same or found
@@ -374,18 +698,27 @@ class DictionaryProvider:
                 or self.in_seed(item)
                 or self.in_wordlist(item)
                 or _edit_distance(folded, item) <= 1
+                or _is_adjacent_swap(folded, item)
             )
         ]
         if trusted:
             pool = trusted
-        liked = {item.casefold() for item in preferred or set()}
         pool.sort(
             key=lambda item: (
-                0 if item in liked else 1,
                 0 if _is_adjacent_swap(folded, item) else 1,
+                # Curated high-frequency forms beat junk at edit distance 1
+                # (даргийн → даргын over дарийн / дарцгийн).
+                0
+                if (
+                    (self.in_seed(item) or self.wiki_frequency(item) >= _FREQ_TRUST)
+                    and _edit_distance(folded, item) <= 2
+                )
+                else 1,
                 _edit_distance(folded, item),
                 0 if _keeps_ending(folded, item) else 1,
                 _prefix_cut_penalty(folded, item),
+                # Prefer Hunspell-attested close forms over rare curated neighbors.
+                0 if (self.contains(item) and _edit_distance(folded, item) <= 1) else 1,
                 self._rarity(item),
                 -self.frequency(item),
                 _rank(folded, item),
@@ -409,16 +742,37 @@ class DictionaryProvider:
             chosen.append(item)
             if len(chosen) >= limit:
                 break
+        if len(self._suggest_cache) > 50_000:
+            self._suggest_cache.clear()
+        self._suggest_cache[cache_key] = list(chosen)
+        if preferred:
+            liked = {item.casefold() for item in preferred}
+            preferred_hits = [item for item in chosen if item in liked]
+            rest = [item for item in chosen if item not in liked]
+            return [*preferred_hits, *rest][:limit]
         return chosen
 
     def _accept_suggestion(self, original: str, candidate: str) -> bool:
-        if not self.in_wordlist(candidate):
-            return False
+        """Accept curated neighbors, or Hunspell-known close edits (esp. swaps)."""
+        in_list = self.in_wordlist(candidate)
+        close_attested = False
+        if not in_list:
+            # Hunspell-only lemmas are OK when they are a near edit of the typo —
+            # otherwise хайралсаар never surfaces хайрласаар.
+            if self.contains(candidate) and (
+                _is_adjacent_swap(original, candidate)
+                or _edit_distance(original, candidate) <= 1
+            ):
+                close_attested = True
+            else:
+                return False
         if lookup_misspelling(candidate):
             return False
         if len(candidate) == len(original) - 1 and original[1:] == candidate:
             return False
-        if _ou_flip_only(original, candidate) and not self.in_seed(candidate):
+        if _ou_flip_only(original, candidate) and not (
+            self.in_seed(candidate) or close_attested
+        ):
             return False
         return True
 
@@ -454,11 +808,20 @@ class DictionaryProvider:
 
 
 def expand_case_forms(words: Iterable[str]) -> set[str]:
+    """Expand stems with school case endings.
+
+    Skip truncated soft-sign stems («сургуул» when «сургууль» is curated) so we
+    do not synthesize wrong genitives like «сургуулын».
+    """
+    base = {item.casefold() for item in words}
     extra: set[str] = set()
     for stem in words:
-        if " " in stem or len(stem) < 5:
+        folded = stem.casefold()
+        if " " in folded or len(folded) < 5:
             continue
-        extra.update(_case_forms(stem.casefold()))
+        if not folded.endswith("ь") and (folded + "ь") in base:
+            continue
+        extra.update(_case_forms(folded))
     return extra
 
 
@@ -470,8 +833,14 @@ def _last_vowel(stem: str) -> str | None:
 
 
 def _drop_last_i(stem: str) -> str:
-    """School rule: last-syllable и drops before a vowel-initial suffix."""
+    """School rule: last-syllable и drops before a vowel-initial suffix.
+
+    Verb infinitives in -х keep the stem vowel (бичихээр, not бичхээр).
+    """
     if not stem or stem[-1] in "аэиоуөүяёеюыьъ":
+        return stem
+    # -х is the verb infinitive marker: never collapse …их + V → …хV.
+    if stem.endswith("х"):
         return stem
     i_at = stem.rfind("и")
     if i_at < 1:
@@ -502,13 +871,13 @@ def _case_forms(stem: str) -> set[str]:
             suffixes = ("г", "ны", "нд", "наас", "тай")
         return {stem + suffix for suffix in suffixes}
     if vowel in "өү":
-        suffixes = ("өөс", "ийн", "ийг", "тэй", "д", "өө")
+        suffixes = ("өөс", "өөр", "ийн", "ийг", "тэй", "д", "өө")
     elif vowel in "эеи":
-        suffixes = ("ээс", "ийн", "ийг", "тэй", "д", "ээ")
+        suffixes = ("ээс", "ээр", "ийн", "ийг", "тэй", "д", "ээ")
     elif vowel in "оё":
-        suffixes = ("оос", "ын", "ыг", "той", "д", "оо")
+        suffixes = ("оос", "оор", "ын", "ыг", "той", "д", "оо")
     else:
-        suffixes = ("аас", "ын", "ыг", "тай", "д", "аа")
+        suffixes = ("аас", "аар", "ын", "ыг", "тай", "д", "аа")
     if stem[-1] in "гжшч":
         suffixes = tuple(
             "ийн" if item == "ын" else "ийг" if item == "ыг" else item for item in suffixes
@@ -751,6 +1120,17 @@ def _consonant_inserts(word: str) -> list[tuple[str, int]]:
     for stem, ending in _suffix_forms(word, ("тай", "тэй", "той")):
         for letter in "глнв":
             out.append((stem + letter + ending, 1))
+    # Past participle / verbal noun: missing stem consonant near the ending.
+    for ending in ("сний", "сэний", "сны", "сэн", "сан", "сон", "сөн"):
+        if not word.endswith(ending) or len(word) < len(ending) + 3:
+            continue
+        stem = word[: -len(ending)]
+        for letter in "глнрвбд":
+            out.append((stem + letter + ending, 1))
+            if len(stem) >= 2:
+                out.append((stem[:-1] + letter + stem[-1] + ending, 1))
+            if len(stem) >= 3:
+                out.append((stem[:-2] + letter + stem[-2:] + ending, 1))
     return out
 
 
@@ -763,15 +1143,29 @@ def _suffix_vowel_inserts(word: str) -> list[tuple[str, int]]:
     return out
 
 
+def _adjacent_swaps(word: str) -> list[str]:
+    """All single adjacent letter transpositions (хайралсаар → хайрласаар)."""
+    out: list[str] = []
+    for i in range(len(word) - 1):
+        if word[i] == word[i + 1]:
+            continue
+        out.append(word[:i] + word[i + 1] + word[i] + word[i + 2 :])
+    return out
+
+
 def _cheap_hunspell_edits(word: str) -> list[str]:
-    """Deletes, duplicate-letter collapse, and adjacent swaps only — few Hunspell lookups."""
+    """Deletes, duplicate-letter collapse, adjacent swaps, and soft-sign drops."""
     out: list[str] = []
     for variant in _collapse_duplicate_letters(word):
         out.append(variant)
     for i in range(len(word)):
         out.append(word[:i] + word[i + 1 :])
-    for i in range(len(word) - 1):
-        out.append(word[:i] + word[i + 1] + word[i] + word[i + 2 :])
+    out.extend(_adjacent_swaps(word))
+    # аньхад → анхад (then soft-sign rule may lengthen); also drop each ь.
+    idx = word.find("ь")
+    while idx >= 0:
+        out.append(word[:idx] + word[idx + 1 :])
+        idx = word.find("ь", idx + 1)
     return out
 
 

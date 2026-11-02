@@ -13,18 +13,23 @@ from app.engine.harmony import (
     is_regular_inflection,
     suggest_i_drop,
     suggest_lah_verb,
+    suggest_l_verb_stem,
     suggest_vowel_before_x,
     suggest_x_reflexive,
     suggest_n_plural,
     suggest_n_plural_g,
+    suggest_agent_case,
     suggest_negative_gui,
     suggest_niy_genitive,
+    suggest_sej_converb,
+    suggest_chih_spoken,
     suggest_palatal_case,
     suggest_plural_harmony,
     suggest_short_case_suffix,
     suggest_drop_soft_sign,
     suggest_soft_sign_dative,
     suggest_soft_sign_genitive,
+    suggest_separator_ye,
     suggest_suffix_harmony,
     is_broken_case_form,
     drops_stem_i_before_cluster,
@@ -46,15 +51,25 @@ _EXPLANATIONS = {
     "plural_harmony": "Олноо нэрлэх -ууд/-үүд эгшгийн эв нэгдлийг дагана.",
     "n_plural": "-тан/-тэн нэр үгийн олон тоонд сүүлийн эгшиг орхигдоно (ажилтангууд → ажилтнууд).",
     "n_plural_g": "Н-ээр төгссөн үгийн олон тоонд -гууд/-гүүд нэмэгдэнэ (дүнүүд → дүнгүүд).",
+    "agent_case": "-тан/-тэн нэр үгийн харьяалах/заах зэрэгт сүүлийн эгшиг орхигдоно (ажилтаны → ажилтны).",
     "reflexive_harmony": "Үйл үгийн -хдаа/-хдээ/-хдоо/-хдөө эгшгийн эв нэгдлийг дагана.",
     "i_drop": "Нөхцөл нэмэгдэхэд үндэсний и эгшиг орхигдоно.",
     "n_genitive": "Эгшгээр төгссөн үгийн харьяалах -ийн/-ын гэж бичигдэнэ.",
-    "lah_verb": "Үйл үгийн -лах нөхцөлд л болон эгшгийн байр солигдоно (туслах → тусалдаг).",
+    "sej_converb": "С-ийн дараа үйл үгийн хэв нь -аж/-эж/-ож/-өж гэж бичигдэнэ (багасч → багасаж).",
+    "chih_spoken": "Бүрмөсөн үйлдэх -чих- хэлбэрийг толийн дагуу бичнэ (явчаад/явчихаад → явчхаад).",
+    "lah_verb": "Үйл үг бүтээх -л: гийгүүлэгчээс хамаарч эгшиг л-ийн өмнө эсвэл хойно бичигдэнэ (батладаг → баталдаг).",
+    "l_verb_stem": "Үйл үг бүтээх -л дагаврын эгшгийн байр (батла → батал, зөвөл → зөвлө).",
+    "separator_ye": "Гийгүүлэгчийн дараа я/ё-гийн өмнө ъ, е-гийн өмнө ь тавина (авя → авъя, хүсе → хүсье).",
     "vowel_before_x": "Үйл үгийн х-ийн өмнө эгшиг бичигдэнэ (байгуулах → байгуулахаар).",
     "soft_sign_dative": "Ь-ийн дараа өгөх тийн ялгал -д гэж бичигдэнэ.",
     "soft_sign_genitive": "Ь-ийн дараа харьяалах, заах тийн ялгал -ийн/-ийг гэж бичигдэнэ.",
     "extra_soft_sign": "Энэ үгэнд ь хэрэггүй. Толь дахь хэлбэрээр бичнэ.",
-    "palatal_case": "Г, ж, ш, ч-ийн дараа харьяалах, заах тийн ялгал -ийн/-ийг гэж бичигдэнэ.",
+    "palatal_case": "Ж, ш, ч, ь, и (болон зөөлөн г)-ийн дараа харьяалах/заах -ийн/-ийг гэж бичнэ (багшын → багшийн). сарын, даргын зэрэг тогтсон -ын хэлбэрийг битгий солиорой.",
+    "glued_auxiliary": "Туслах үйл үг «байна/болно»-г тусад нь бичнэ.",
+    "glued_question_particle": "Асуух «уу/үү»-г тусад нь бичнэ.",
+    "glued_directive": "Чиглэлийн «руу/рүү»-г тусад нь бичнэ.",
+    "glued_words": "Хоёр үг наалдсан байна. Зай эсвэл таслал дутуу.",
+    "separate_particle": "Энэ нөхцөл, өгүүлэхүүнийг тусад нь бичнэ.",
 }
 
 
@@ -64,11 +79,11 @@ def _is_cyrillic_word(word: str) -> bool:
 
 
 def _apply_case(original: str, suggested: str) -> str:
-    if not original[:1].isupper():
+    """Offer suggestions in dictionary (lowercase) form — never ALL CAPS."""
+    if not suggested:
         return suggested
-    head, sep, tail = suggested.partition(" ")
-    cased = head[:1].upper() + head[1:]
-    return cased + sep + tail
+    # Keep spacing/punctuation from the suggestion, fold Cyrillic letter case.
+    return suggested.casefold()
 
 
 _VOWELS = frozenset("аэиоуөүяёеюы")
@@ -80,14 +95,17 @@ def _is_implausible(word: str) -> bool:
     """Letter sequences that do not occur in Mongolian words."""
     folded = word.casefold()
     letters = [ch for ch in folded if ch.isalpha()]
-    if len(letters) < 3:
+    if len(letters) < 2:
         return False
     if letters[0] in _BAD_START:
         return True
     if any(seq in folded for seq in _BAD_SEQ):
         return True
+    # No vowel at all (рр, рш, …) — not a Mongolian word form.
     if not any(ch in _VOWELS for ch in letters):
         return True
+    if len(letters) < 3:
+        return False
     run = 0
     for ch in letters:
         if ch in _VOWELS:
@@ -103,11 +121,39 @@ def _looks_like_name(word: str) -> bool:
     return word[:1].isupper() and not _is_implausible(word)
 
 
+_AUX_OR_PARTICLE_TAILS = frozenset(
+    {
+        "байна",
+        "байгаа",
+        "байсан",
+        "байх",
+        "байдаг",
+        "байлаа",
+        "байжээ",
+        "болно",
+        "болох",
+        "уу",
+        "үү",
+        "руу",
+        "рүү",
+        "даа",
+        "шүү",
+    }
+)
+
+
 def _has_wordlist_stem(word: str, dictionary: DictionaryProvider) -> bool:
+    """True when word looks like a known stem + inflection — not stem + free word glued on."""
     folded = word.casefold()
     for n in range(len(folded) - 1, 4, -1):
-        if dictionary.in_wordlist(folded[:n]):
-            return True
+        stem, rest = folded[:n], folded[n:]
+        if not dictionary.in_wordlist(stem):
+            continue
+        if rest in _AUX_OR_PARTICLE_TAILS:
+            continue
+        if len(rest) >= 4 and (dictionary.in_wordlist(rest) or dictionary.contains(rest)):
+            continue
+        return True
     return False
 
 
@@ -123,12 +169,49 @@ _RULE_FIRST = frozenset(
         "plural_harmony",
         "n_plural",
         "n_plural_g",
+        "agent_case",
         "reflexive_harmony",
         "i_drop",
         "n_genitive",
+        "sej_converb",
+        "chih_spoken",
         "lah_verb",
+        "l_verb_stem",
+        "separator_ye",
         "vowel_before_x",
         "extra_suffix",
+    }
+)
+
+# Do not "correct" wiki/legal-established spellings with these school pedantry rules.
+_ESTABLISHED_KEEP = frozenset(
+    {
+        "extra_soft_sign",
+        "lah_verb",
+        "short_case_suffix",
+        "soft_sign_dative",
+        "soft_sign_genitive",
+    }
+)
+
+# When Hunspell already accepts the surface, only these school fixes may override.
+_CONTAINS_SCHOOL_RULES = frozenset(
+    {
+        "sej_converb",
+        "chih_spoken",
+        "palatal_case",
+        "soft_sign_genitive",
+        "soft_sign_dative",
+        "extra_soft_sign",
+        "separator_ye",
+        "lah_verb",
+        "l_verb_stem",
+        "reflexive_harmony",
+        "vowel_before_x",
+        "agent_case",
+        "n_plural",
+        "n_plural_g",
+        "negative_gui",
     }
 )
 
@@ -136,6 +219,8 @@ _RULE_FIRST = frozenset(
 def _confidence(rule_id: str) -> float:
     if rule_id == "common_misspelling":
         return 0.9
+    if rule_id.startswith(("glued_", "separate_")):
+        return 0.92
     if rule_id == "unknown_word":
         return 0.5
     if rule_id == "nearby_spelling":
@@ -150,87 +235,260 @@ def _usable_suggestion(original: str, item: str) -> bool:
         not lookup_misspelling(item)
         and not is_broken_case_form(item)
         and not drops_stem_i_before_cluster(original, item)
+        and not _bad_sch_neighbor(original, item)
     )
 
 
+def _bad_sch_neighbor(original: str, suggestion: str) -> bool:
+    """Reject junk neighbors for -сч forms (хүсч→хүч, гасч→гарч, тааласч→таалал).
+
+    Legitimate fixes keep the stem and end in a converb -*ж (хүсэж, багасаж, уншиж).
+    """
+    folded = original.casefold()
+    other = suggestion.casefold()
+    if not folded.endswith("сч") or len(folded) < 3:
+        return False
+    stem_sc = folded[:-1]  # хүс / багас
+    stem = folded[:-2]  # хү / бага / унш
+    converb_tails = ("ааж", "ээж", "оож", "өөж", "аж", "эж", "ож", "өж", "иж", "ж")
+    if other.endswith(converb_tails) and (
+        other.startswith(stem_sc)
+        or (len(stem) >= 2 and other.startswith(stem))
+    ):
+        return False
+    return True
+
+
 def check_spelling(tokens: list[Token], dictionary: DictionaryProvider) -> list[Correction]:
+    """Spell-check tokens, caching decisions by folded form.
+
+    Long legal documents repeat the same word thousands of times; without a
+    cache each occurrence re-runs expensive suggest_many and hangs the UI.
+    Cap how many times each unique misspelling is marked so the editor stays
+    usable on ~400k-character statutes.
+    """
     corrections: list[Correction] = []
     preferred = {
         token.text.casefold() for token in tokens if dictionary.in_wordlist(token.text)
     }
+    # folded -> None (no mark) | ("hit", suggested, rule_id, extras) | ("unknown",)
+    cache: dict[str, tuple | None] = {}
+    form_counts: dict[str, int] = {}
+    _MAX_PER_FORM = 5
+    _MAX_TOTAL = 800
+    # Neighbor search is the slow path. On long docs skip it entirely — orthography
+    # rules + unknown marks are enough, and suggest_many was dominating wall time.
+    n_tokens = len(tokens)
+    if n_tokens > 3_000:
+        nearby_budget = 0
+    elif n_tokens > 2_000:
+        nearby_budget = 20
+    else:
+        nearby_budget = 120
+    budget = {"nearby": nearby_budget}
     for token in tokens:
+        if len(corrections) >= _MAX_TOTAL:
+            break
         if not _is_cyrillic_word(token.text):
             continue
-        misspelled = lookup_misspelling(token.text)
-        if misspelled:
+        folded = token.text.casefold()
+        # Names depend on capitalization — do not reuse a lowercase decision.
+        cache_key = folded if not _looks_like_name(token.text) else f"^{token.text}"
+        if cache_key in cache:
+            decision = cache[cache_key]
+        else:
+            decision = _spelling_decision(token.text, dictionary, preferred, budget)
+            cache[cache_key] = decision
+        if decision is None:
+            continue
+        seen = form_counts.get(folded, 0)
+        if seen >= _MAX_PER_FORM:
+            continue
+        form_counts[folded] = seen + 1
+        kind = decision[0]
+        if kind == "unknown":
+            corrections.append(_unknown(token))
+        elif kind == "hit":
+            _, suggested, rule_id, extras = decision
+            # Never flag case-only differences (Үндэсний ↔ үндэсний).
+            if suggested.casefold() == token.text.casefold():
+                continue
+            corrections.append(_hit(token, suggested, rule_id, extras))
+    return corrections
+
+
+def _trusted_lexicon_spelling(word: str, dictionary: DictionaryProvider) -> bool:
+    """Explicit curated seed surfaces are authoritative (сарын, даргын, ажилтны).
+
+    Do not trust mere case-expansion membership: truncated stems like «сургуул»
+    expand to wrong «сургуулын» and must still get school rewrites.
+    """
+    if dictionary.is_removed(word):
+        return False
+    return dictionary.in_seed(word)
+
+
+def _spelling_decision(
+    word: str,
+    dictionary: DictionaryProvider,
+    preferred: set[str],
+    budget: dict[str, int] | None = None,
+) -> tuple | None:
+    # Explicit misspellings beat curated trust — fixes bad alternate forms like нотлогоо.
+    misspelled = lookup_misspelling(word)
+    if misspelled:
+        extras: list[str] = []
+        # Curated targets (даргын) need no junk neighbors (дарийн, дарцгийн).
+        if (
+            not dictionary.in_seed(misspelled)
+            and (budget is None or budget.get("nearby", 0) > 0)
+        ):
+            if budget is not None:
+                budget["nearby"] -= 1
             extras = [
                 item
-                for item in dictionary.suggest_many(token.text, preferred=preferred, limit=8)
-                if item != misspelled and _usable_suggestion(token.text, item)
+                for item in dictionary.suggest_many(word, preferred=preferred, limit=3)
+                if item != misspelled and _usable_suggestion(word, item)
             ]
-            corrections.append(_hit(token, misspelled, "common_misspelling", extras))
-            continue
-        if "-" in token.text:
-            continue
-        if dictionary.contains(token.text):
-            if len(token.text) >= 4:
-                reflexive = suggest_x_reflexive(token.text, dictionary)
-                if reflexive:
-                    corrections.append(_hit(token, reflexive, "reflexive_harmony", []))
-            continue
-        if token.text.casefold() in OFFICIAL_REPLACEMENTS:
-            continue
-        result = None
-        alts: list[str] = []
-        if len(token.text) >= 4:
-            result = _suggest(token.text, dictionary)
-            if result and result[1] in _RULE_FIRST:
-                alts = [
-                    item
-                    for item in dictionary.suggest_many(token.text, preferred=preferred, limit=8)
-                    if _usable_suggestion(token.text, item)
-                ]
-                alts = [result[0], *[item for item in alts if item != result[0]]]
-            elif not _is_implausible(token.text):
-                alts = [
-                    item
-                    for item in dictionary.suggest_many(token.text, preferred=preferred, limit=8)
-                    if _usable_suggestion(token.text, item)
-                ]
-                if alts:
-                    primary = alts[0]
-                    if dictionary.prefers_established(token.text, primary):
-                        continue
-                    doubled = any(
-                        primary in (variant, variant.casefold())
-                        for variant in _collapse_duplicate_letters(token.text.casefold())
-                    )
-                    result = (primary, "doubled_letter" if doubled else "nearby_spelling")
-                    alts = _confident_alts(token.text, alts, result, dictionary)
+        return ("hit", misspelled, "common_misspelling", extras)
+    if _trusted_lexicon_spelling(word, dictionary):
+        return None
+    if "-" in word:
+        # даргрийн-д → check head «даргийн», keep «-д» on the suggestion.
+        head, sep, tail = word.partition("-")
+        if not head or not sep:
+            return None
+        head_decision = _spelling_decision(head, dictionary, preferred, budget)
+        if head_decision is None:
+            return None
+        if head_decision[0] == "unknown":
+            return ("unknown",)
+        _, suggested, rule_id, extras = head_decision
+        suffix = sep + tail
+        return (
+            "hit",
+            suggested + suffix,
+            rule_id,
+            [item + suffix for item in extras],
+        )
+    if dictionary.contains(word):
+        # Hunspell may accept wrong school forms — apply high-precision rewrites only.
+        # Do not run free stem peels like i_drop here (харилаа must not become харлаа).
+        school = _suggest(word, dictionary)
         if (
-            not (result and result[1] in _RULE_FIRST)
-            and len(token.text) >= 3
-            and (
-                is_regular_inflection(token.text, dictionary)
-                or dictionary.is_frequent_inflection(token.text)
-            )
+            school
+            and school[0].casefold() != word.casefold()
+            and school[1] in _CONTAINS_SCHOOL_RULES
         ):
-            continue
-        if alts and not (result and result[0] == token.text.casefold()):
-            if not _is_implausible(token.text) or (result and result[1] != "nearby_spelling"):
-                rule_id = result[1] if result else "nearby_spelling"
-                corrections.append(_hit(token, alts[0], rule_id, alts[1:]))
-                continue
-        if dictionary.prefers_established(token.text):
-            continue
-        if _is_implausible(token.text) or (
-            len(token.text) >= 3
-            and dictionary.has_hunspell
-            and not _looks_like_name(token.text)
-            and not _has_wordlist_stem(token.text, dictionary)
-        ):
-            corrections.append(_unknown(token))
-    return corrections
+            return ("hit", school[0], school[1], [])
+        return None
+    if word.casefold() in OFFICIAL_REPLACEMENTS:
+        return None
+    # Sealed long docs only trust the warm cache. Unprobed forms are unverified —
+    # never invent unknown_word / nearby_spelling errors for them (Hunspell would
+    # accept many legal inflections that simply missed the warm budget).
+    sealed_unverified = dictionary.lookups_sealed and not dictionary.lookup_probed(word)
+    result = None
+    alts: list[str] = []
+    if len(word) >= 4:
+        result = _suggest(word, dictionary)
+        # Harmony rules must propose an attested form — never invent junk like мөрийийн.
+        # Stem-derived school forms (sej, -хдаа, байгуулахаар) are valid from a known
+        # infinitive even when the surface form is absent from a minimal test dictionary.
+        # School rules already validate against known stems; do not require the
+        # suggested surface to be pre-listed (мэргэжилтнүүдийн from мэргэжилтэн).
+        # Keep established legal/wiki spellings (дараахь, батласан, …).
+        if result and result[1] in _ESTABLISHED_KEEP and dictionary.prefers_established(word):
+            result = None
+        if result and result[1] in _RULE_FIRST:
+            # Orthography rule is enough — skip expensive neighbor extras.
+            alts = [result[0]]
+        elif sealed_unverified:
+            # Unverified under seal: only keep strong rule hits above; otherwise OK.
+            return None
+        elif not _is_implausible(word):
+            # Long sealed docs exhaust the nearby budget; still accept regular
+            # / established forms instead of dumping them as unknown_word.
+            if len(word) >= 3 and (
+                is_regular_inflection(word, dictionary)
+                or dictionary.is_frequent_inflection(word)
+                or dictionary.prefers_established(word)
+            ):
+                return None
+            if budget is not None and budget.get("nearby", 0) <= 0:
+                # Out of budget ≠ proven misspelling.
+                return None
+            if budget is not None:
+                budget["nearby"] -= 1
+            alts = [
+                item
+                for item in dictionary.suggest_many(word, preferred=preferred, limit=3)
+                if _usable_suggestion(word, item)
+            ]
+            if alts:
+                primary = alts[0]
+                # Frequent real forms (хүсч) must not lose to shorter neighbors (хүч).
+                if dictionary.prefers_established(word):
+                    return None
+                if dictionary.prefers_established(word, primary):
+                    return None
+                doubled = any(
+                    primary in (variant, variant.casefold())
+                    for variant in _collapse_duplicate_letters(word.casefold())
+                )
+                result = (primary, "doubled_letter" if doubled else "nearby_spelling")
+                alts = _confident_alts(word, alts, result, dictionary)
+    elif len(word) >= 3:
+        # Short stems: авя→авъя, өсч→өсөж.
+        sej = suggest_sej_converb(word, dictionary)
+        if sej:
+            result = (sej, "sej_converb")
+            alts = [sej]
+        else:
+            sep = suggest_separator_ye(word, dictionary)
+            if sep:
+                result = (sep, "separator_ye")
+                alts = [sep]
+    curated_neighbor = bool(
+        alts
+        and dictionary.in_wordlist(alts[0])
+        and (
+            _edit_distance(word.casefold(), alts[0].casefold()) <= 2
+            or _is_adjacent_swap(word.casefold(), alts[0].casefold())
+        )
+    )
+    if (
+        not (result and result[1] in _RULE_FIRST)
+        and not curated_neighbor
+        and len(word) >= 3
+        and (
+            is_regular_inflection(word, dictionary)
+            or dictionary.is_frequent_inflection(word)
+        )
+    ):
+        return None
+    if alts and not (result and result[0] == word.casefold()):
+        if result and result[1] == "nearby_spelling" and dictionary.prefers_established(word):
+            return None
+        if not _is_implausible(word) or (result and result[1] != "nearby_spelling"):
+            rule_id = result[1] if result else "nearby_spelling"
+            return ("hit", alts[0], rule_id, alts[1:])
+    if dictionary.prefers_established(word):
+        return None
+    if _is_implausible(word):
+        return ("unknown",)
+    # Only mark unknown after a real Hunspell probe said no. Sealed misses are
+    # unverified and must not flood the editor with false positives.
+    if sealed_unverified:
+        return None
+    if (
+        len(word) >= 3
+        and dictionary.has_hunspell
+        and not _looks_like_name(word)
+        and not _has_wordlist_stem(word, dictionary)
+    ):
+        return ("unknown",)
+    return None
 
 
 def _confident_alts(
@@ -334,6 +592,9 @@ def _suggest(word: str, dictionary: DictionaryProvider) -> tuple[str, str] | Non
     n_g = suggest_n_plural_g(word, dictionary)
     if n_g:
         return n_g, "n_plural_g"
+    agent = suggest_agent_case(word, dictionary)
+    if agent:
+        return agent, "agent_case"
     reflexive = suggest_x_reflexive(word, dictionary)
     if reflexive:
         return reflexive, "reflexive_harmony"
@@ -343,6 +604,18 @@ def _suggest(word: str, dictionary: DictionaryProvider) -> tuple[str, str] | Non
     niy = suggest_niy_genitive(word, dictionary)
     if niy:
         return niy, "n_genitive"
+    sej = suggest_sej_converb(word, dictionary)
+    if sej:
+        return sej, "sej_converb"
+    chih = suggest_chih_spoken(word, dictionary)
+    if chih:
+        return chih, "chih_spoken"
+    sep = suggest_separator_ye(word, dictionary)
+    if sep:
+        return sep, "separator_ye"
+    stem_l = suggest_l_verb_stem(word, dictionary)
+    if stem_l:
+        return stem_l, "l_verb_stem"
     lah = suggest_lah_verb(word, dictionary)
     if lah:
         return lah, "lah_verb"

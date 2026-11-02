@@ -6,6 +6,11 @@ primary_region = "nrt"
 
 [env]
   APP_ENV = "production"
+  # Free shared-1x: a few concurrent checks without paid CPU/Redis.
+  # Software fail-fast (503) still prevents freeze under burst load.
+  CHECK_CONCURRENCY = "8"
+  CHECK_QUEUE_WAIT_SECONDS = "8"
+  # No Redis — memory L1 only (zero extra cost). Set REDIS_URL only if you accept paid cache.
 
 [http_service]
   internal_port = 8080
@@ -20,6 +25,6 @@ primary_region = "nrt"
   destination = "/app/data/persist"
 
 [[vm]]
-  memory = "1gb"
+  memory = "2gb"
   cpu_kind = "shared"
   cpus = 1

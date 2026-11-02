@@ -273,10 +273,12 @@ def suggest_suffix_harmony(word: str, dictionary: DictionaryProvider) -> str | N
         )
         if matched is None:
             continue
-        if len(folded) - len(matched) < 3:
+        # Genitive/accusative stems can be short (үе+ын → үеийн).
+        min_stem = 2 if mapping in (_GENITIVE, _ACCUSATIVE) else 3
+        if len(folded) - len(matched) < min_stem:
             continue
         stem = folded[: -len(matched)]
-        if (mapping is _GENITIVE or mapping is _ACCUSATIVE) and stem[-1:] in "гжшч":
+        if (mapping is _GENITIVE or mapping is _ACCUSATIVE) and stem[-1:] in "гжшчьи":
             continue
         wanted = mapping.get(last_harmony_vowel(stem) or last_vowel(stem) or "")
         if not wanted or wanted == matched:
@@ -286,22 +288,98 @@ def suggest_suffix_harmony(word: str, dictionary: DictionaryProvider) -> str | N
             return candidate
         if matched in _N_CONNECTING and _known_stem(stem, dictionary):
             return candidate
+        # School -ы/-ий: front stem with wrong -ын/-ыг even if surface is rare.
+        if (
+            mapping in (_GENITIVE, _ACCUSATIVE)
+            and wanted.startswith("ий")
+            and _known_stem(stem, dictionary)
+        ):
+            return candidate
     return None
 
 
 def suggest_palatal_case(word: str, dictionary: DictionaryProvider) -> str | None:
-    """After г, ж, ш, ч the genitive/accusative is -ийн/-ийг (давтамжыг → давтамжийг)."""
+    """School -ы/-ий: after ж/ш/ч/ь/и (and soft г) use -ийн/-ийг.
+
+    Never rewrite curated/established -ын/-ыг surfaces (сарын, даргын). Hunspell
+    alone invents junk stems like «сарь»/«дарги» that used to force false
+    сарийн/даргийн suggestions. Reverse those false -ийн forms back to curated -ын.
+    """
     folded = word.casefold()
-    for wrong, right in (("ыг", "ийг"), ("ын", "ийн")):
+    # False soft-г: даргрийн → даргын, сарийн → сарын when -ын is curated literary.
+    for wrong, right in (("ийг", "ыг"), ("ийн", "ын")):
         if not folded.endswith(wrong) or len(folded) < len(wrong) + 2:
             continue
+        if dictionary.in_seed(folded) or dictionary.prefers_established(folded):
+            continue
         stem = folded[: -len(wrong)]
-        if stem[-1:] not in "гжшч":
+        if stem[-1:] != "г":
             continue
         candidate = stem + right
         if candidate == folded:
             continue
-        if _known_stem(stem, dictionary) or dictionary.contains(candidate):
+        if not (
+            dictionary.in_seed(candidate) or dictionary.prefers_established(candidate)
+        ):
+            continue
+        # Real soft stems keep -ийн (анги→ангийн, цаг→цагийн).
+        soft_i = stem + "и"
+        if dictionary.in_seed(soft_i) or dictionary.in_wordlist(soft_i):
+            continue
+        if dictionary.in_seed(stem) and (
+            dictionary.in_seed(stem + wrong) or dictionary.prefers_established(stem + wrong)
+        ):
+            continue
+        return candidate
+    # ямааниин → ямааны (extra н + ийн on a back long-vowel stem).
+    if folded.endswith("ниин") and len(folded) >= 6:
+        candidate = folded[:-4] + "ны"
+        if dictionary.contains(candidate) or dictionary.in_wordlist(candidate):
+            return candidate
+    if folded.endswith("нииг") and len(folded) >= 6:
+        candidate = folded[:-4] + "ныг"
+        if dictionary.contains(candidate) or dictionary.in_wordlist(candidate):
+            return candidate
+    for wrong, right in (("ыг", "ийг"), ("ын", "ийн")):
+        if not folded.endswith(wrong) or len(folded) < len(wrong) + 2:
+            continue
+        # Curated / frequent literary -ын/-ыг (сарын, даргын) must never be
+        # rewritten. Do not use in_wordlist here — case expansions can pollute it.
+        if dictionary.in_seed(folded) or dictionary.prefers_established(folded):
+            return None
+        stem = folded[: -len(wrong)]
+        # сургуулын → сургуулийн only when «сургууль» is a curated soft lemma.
+        # Hunspell-only phantoms like «сарь» must not rewrite «сарын».
+        soft = stem + "ь"
+        if dictionary.in_seed(soft) or dictionary.in_wordlist(soft):
+            candidate = stem + right
+            if candidate != folded:
+                return candidate
+        # Ending letters from the school chart: ж ч ш ь и, and soft г.
+        if stem[-1:] not in "гжшчьи":
+            continue
+        candidate = stem + right
+        if stem.endswith("ь"):
+            candidate = stem[:-1] + right
+        if candidate == folded:
+            continue
+        if stem[-1:] == "г":
+            # Soft г → -ий when the -ий form is attested (цагын → цагийн), or the
+            # -и stem / bare stem is curated (анги, цаг). Never trust Hunspell-only
+            # «дарги» while «даргын» is already literary.
+            if dictionary.contains(candidate) or dictionary.in_wordlist(candidate):
+                return candidate
+            soft_i = stem + "и"
+            if dictionary.in_seed(soft_i) or dictionary.in_wordlist(soft_i):
+                return candidate
+            if dictionary.in_seed(stem) or dictionary.in_wordlist(stem):
+                return candidate
+            continue
+        if (
+            _known_stem(stem, dictionary)
+            or _known_stem(stem.rstrip("ь"), dictionary)
+            or dictionary.contains(candidate)
+        ):
             return candidate
     return None
 
@@ -390,7 +468,7 @@ def is_regular_inflection(word: str, dictionary: DictionaryProvider) -> bool:
         return True
     if _kept_x_reflexive(folded, dictionary):
         return True
-    if _kept_sch_converb(folded, dictionary):
+    if is_literary_chih(folded, dictionary):
         return True
     remaining = folded
     peeled = False
@@ -407,38 +485,296 @@ def is_regular_inflection(word: str, dictionary: DictionaryProvider) -> bool:
     )
 
 
-_SCH_INFINITIVE = {
+# Converb after с: school form is -аж/-эж/-ож/-өж, never bare -ч
+# (хүсч → хүсэж, багасч → багасаж, босч → босож).
+_SEJ_CONVERB = {
+    "а": "аж",
+    "я": "аж",
+    "у": "аж",
+    "ы": "аж",
+    "ю": "аж",
+    "о": "ож",
+    "ё": "ож",
+    "э": "эж",
+    "е": "эж",
+    "и": "эж",
+    "ү": "эж",
+    "ө": "өж",
+}
+
+_SEJ_INFINITIVE = {
     "а": "ах",
     "я": "ах",
     "у": "ах",
     "ы": "ах",
     "ю": "ах",
+    "о": "ох",
+    "ё": "ох",
     "э": "эх",
     "е": "эх",
     "и": "эх",
-    "о": "ох",
-    "ё": "ох",
+    "ү": "эх",
     "ө": "өх",
-    "ү": "өх",
+}
+
+# Mistaken -сч on long-vowel verbs: сэргэсч → сэргээж (сэргээх).
+# Base already ends in the stem vowel; lengthen by one more, then ж/х.
+_LONG_SEJ_LENGTHEN = {
+    "а": "а",
+    "я": "а",
+    "у": "а",
+    "ы": "а",
+    "ю": "а",
+    "о": "о",
+    "ё": "о",
+    "э": "э",
+    "е": "э",
+    "и": "э",
+    "ү": "э",
+    "ө": "ө",
 }
 
 
-def _sch_infinitive(folded: str) -> str | None:
-    """багасч ← багасах: connecting vowel drops and ж is written ч after с."""
+def suggest_sej_converb(word: str, dictionary: DictionaryProvider) -> str | None:
+    """School fix for mistaken -сч converbs on any similar stem.
+
+    хүсч→хүсэж, багасч→багасаж, сэргээсч→сэргээж, сэргэсч→сэргээж,
+    бэлдэсч→бэлдэж, санасч→санаж, авасч→авч, уншсч→уншиж, ярьсч→ярьж.
+    """
+    folded = word.casefold()
     if not folded.endswith("сч") or len(folded) < 3:
         return None
-    stem = folded[:-2]
-    if not stem or not stem[-1:].isalpha():
+    stem = folded[:-1]  # drop ч
+    if not stem.endswith("с") or len(stem) < 2:
         return None
-    tail = _SCH_INFINITIVE.get(last_vowel(stem) or "")
-    if not tail:
-        return None
-    return stem + "с" + tail
+    base = stem[:-1]
+    vowel = last_harmony_vowel(base) or last_vowel(base)
+    vowels = "аэиоуөүяёеюы"
+
+    def accept(candidate: str, *infinitives: str) -> str | None:
+        if not candidate or candidate == folded:
+            return None
+        if not any(_known_stem(inf, dictionary) for inf in infinitives if inf):
+            return None
+        return candidate
+
+    def attested(candidate: str) -> bool:
+        return bool(
+            dictionary.contains(candidate) or dictionary.in_wordlist(candidate)
+        )
+
+    # 1) Stem keeps с: хүсч→хүсэж, багасч→багасаж.
+    sej = _SEJ_CONVERB.get(vowel or "")
+    inf = _SEJ_INFINITIVE.get(vowel or "")
+    if sej and inf:
+        hit = accept(stem + sej, stem + inf)
+        if hit:
+            # Prefer base+ж when that verb is far more established
+            # (оросч→орож, not rare оросож).
+            if (
+                len(base) >= 2
+                and base[-1:] in vowels
+                and _known_stem(base + "х", dictionary)
+                and dictionary.wiki_frequency(base + "х")
+                > dictionary.wiki_frequency(stem + inf)
+            ):
+                return base + "ж"
+            return hit
+        # Infinitive sometimes missing while school converb is attested (загасаж).
+        cand = stem + sej
+        if cand != folded and attested(cand) and len(stem) >= 4:
+            if (
+                len(base) >= 2
+                and base[-1:] in vowels
+                and _known_stem(base + "х", dictionary)
+                and dictionary.wiki_frequency(base + "х")
+                >= max(10, dictionary.wiki_frequency(cand))
+            ):
+                return base + "ж"
+            return cand
+
+    # 2) Long vowel already present: сэргээсч→сэргээж.
+    if len(base) >= 4 and base.endswith(("аа", "ээ", "оо", "өө")):
+        hit = accept(base + "ж", base + "х")
+        if hit:
+            return hit
+
+    # 3) авах/өгөх-type first: авасч→авч, өгөсч→өгч (short в/л/г stems only).
+    if len(base) >= 3 and base[-1:] in vowels:
+        shorter = base[:-1]
+        short_ok = shorter and (
+            shorter[-1:] in "вл"
+            or (len(shorter) <= 2 and shorter[-1:] == "г")
+        )
+        if short_ok:
+            for it in ("ах", "эх", "ох", "өх", "х"):
+                if not _known_stem(shorter + it, dictionary):
+                    continue
+                for ct in ("ж", "ч"):
+                    cand = shorter + ct
+                    if cand != folded and attested(cand):
+                        return cand
+                hit = accept(shorter + "ч", shorter + it)
+                if hit:
+                    return hit
+
+    # 4) Short vs lengthened vowel stem by infinitive frequency:
+    #    сэргэсч→сэргээж (сэргээх ≫ сэргэх), болгосч→болгож (болгох ≫ болгоох).
+    if len(base) >= 3 and base[-1:] in vowels:
+        ranked: list[tuple[int, str]] = []
+        if _known_stem(base + "х", dictionary):
+            ranked.append((dictionary.wiki_frequency(base + "х"), base + "ж"))
+        extra = _LONG_SEJ_LENGTHEN.get(vowel or "")
+        if extra:
+            long_stem = base + extra
+            if _known_stem(long_stem + "х", dictionary):
+                ranked.append(
+                    (dictionary.wiki_frequency(long_stem + "х"), long_stem + "ж")
+                )
+        if ranked:
+            ranked.sort(key=lambda item: (-item[0], len(item[1])))
+            return ranked[0][1]
+
+    # 5) Soft-sign stem: ярьсч→ярьж (ярих).
+    if len(base) >= 3 and base.endswith("ь"):
+        hard = base[:-1]
+        for it in ("их", "эх", "ах", "ох", "өх", "х"):
+            if not _known_stem(hard + it, dictionary):
+                continue
+            for cand in (base + "ж", hard + "иж", hard + "ж"):
+                if cand != folded and attested(cand):
+                    return cand
+            return base + "ж"
+
+    # 6) Consonant-final stem: уншсч→уншиж, явсч→явж, авсч→авч.
+    if len(base) >= 2 and base[-1:] not in vowels + "ь":
+        if any(
+            _known_stem(base + tail, dictionary)
+            for tail in ("их", "эх", "ах", "ох", "өх", "х")
+        ):
+            for candidate in (
+                base + "иж",
+                base + "эж",
+                base + "аж",
+                base + "ож",
+                base + "өж",
+                base + "ж",
+                base + "ч",
+            ):
+                if candidate != folded and attested(candidate):
+                    return candidate
+            for it, ct in (
+                ("их", "иж"),
+                ("эх", "эж"),
+                ("ах", "аж"),
+                ("ох", "ож"),
+                ("өх", "өж"),
+                ("х", "ж"),
+            ):
+                if _known_stem(base + it, dictionary):
+                    if base[-1:] in "вл" and attested(base + "ч"):
+                        return base + "ч"
+                    return base + ct
+    return None
 
 
-def _kept_sch_converb(folded: str, dictionary: DictionaryProvider) -> bool:
-    infinitive = _sch_infinitive(folded)
-    return bool(infinitive and _known_stem(infinitive, dictionary))
+# Completive -чих- (toli.gov.mn §37: Явчих → явчхаад).
+# Vowel-initial tails drop и (чих+аад → чхаад). Consonant tails keep и (чихсан).
+_CHIH_VOWEL_TAILS = ("аад", "ээд", "оод", "өөд")
+_CHIH_CONS_TAILS = ("сан", "сэн", "сон", "сөн", "лаа", "лээ", "лоо", "лөө")
+_CHIH_SPOKEN_TAILS = _CHIH_VOWEL_TAILS + _CHIH_CONS_TAILS
+
+
+def _chih_stem_has_verb(stem: str, dictionary: DictionaryProvider) -> bool:
+    """True when stem belongs to a known verb (яв←явах, хий←хийх, бич←бичих)."""
+    if len(stem) < 2:
+        return False
+    # хийх, байх, очих — stem already ends before х.
+    if _known_stem(stem + "х", dictionary):
+        return True
+    return any(
+        _known_stem(stem + tail, dictionary) for tail in ("ах", "эх", "ох", "өх", "их")
+    )
+
+
+def is_literary_chih(word: str, dictionary: DictionaryProvider) -> bool:
+    """True for official -чих- surface forms (явчхаад, үзчихсэн) on a known verb.
+
+    Vowel tails use -чх- (явчхаад); consonant tails keep -чих- (явчихсан).
+    The non-standard -чихаад is NOT literary — suggest_chih_spoken rewrites it.
+    """
+    folded = word.casefold()
+    for tail in _CHIH_VOWEL_TAILS:
+        if not folded.endswith(tail) or len(folded) < len(tail) + 4:
+            continue
+        body = folded[: -len(tail)]
+        if not body.endswith("чх"):
+            continue
+        stem = body[: -len("чх")]
+        if _chih_stem_has_verb(stem, dictionary):
+            return True
+    for tail in _CHIH_CONS_TAILS:
+        if not folded.endswith(tail) or len(folded) < len(tail) + 5:
+            continue
+        body = folded[: -len(tail)]
+        if not body.endswith("чих"):
+            continue
+        stem = body[: -len("чих")]
+        if _chih_stem_has_verb(stem, dictionary):
+            return True
+    return False
+
+
+def suggest_chih_spoken(word: str, dictionary: DictionaryProvider) -> str | None:
+    """Fix spoken/wrong -чих- forms to toli spelling (явчаад/явчихаад → явчхаад)."""
+    folded = word.casefold()
+
+    # Non-standard -чихаад → -чхаад (и must drop before vowel-initial -аад).
+    for tail in _CHIH_VOWEL_TAILS:
+        if not folded.endswith(tail) or len(folded) < len(tail) + 5:
+            continue
+        body = folded[: -len(tail)]
+        if not body.endswith("чих"):
+            continue
+        stem = body[: -len("чих")]
+        if not _chih_stem_has_verb(stem, dictionary):
+            continue
+        candidate = stem + "чх" + tail
+        if candidate != folded:
+            return candidate
+
+    # Spoken -чаад (х dropped) → -чхаад.
+    for tail in _CHIH_VOWEL_TAILS:
+        if not folded.endswith(tail) or len(folded) < len(tail) + 3:
+            continue
+        body = folded[: -len(tail)]
+        if body.endswith("чх") or body.endswith("чих"):
+            continue
+        if not body.endswith("ч"):
+            continue
+        stem = body[:-1]
+        if not _chih_stem_has_verb(stem, dictionary):
+            continue
+        candidate = stem + "чх" + tail
+        if candidate != folded:
+            return candidate
+
+    # Spoken -чсан/-члээ → -чихсан/-чихлээ (consonant tails keep и).
+    for tail in _CHIH_CONS_TAILS:
+        if not folded.endswith(tail) or len(folded) < len(tail) + 3:
+            continue
+        body = folded[: -len(tail)]
+        if body.endswith("чих"):
+            continue
+        if not body.endswith("ч"):
+            continue
+        stem = body[:-1]
+        if not _chih_stem_has_verb(stem, dictionary):
+            continue
+        candidate = stem + "чих" + tail
+        if candidate != folded:
+            return candidate
+    return None
 
 
 def suggest_niy_genitive(word: str, dictionary: DictionaryProvider) -> str | None:
@@ -484,6 +820,7 @@ def suggest_niy_genitive(word: str, dictionary: DictionaryProvider) -> str | Non
         if not wanted:
             continue
         candidate = stem + wanted + tail
+        # Stem-known is enough — full form need not be listed (биений → биеийн).
         if candidate != folded:
             return candidate
     return None
@@ -552,75 +889,108 @@ def suggest_i_drop(word: str, dictionary: DictionaryProvider) -> str | None:
     return None
 
 
-# -лах/-лэх verbs: before -даг/-сан/-ж/-на the connecting vowel and л may swap or drop.
-# туслах → тусалдаг (not тусладаг); дуулах → дуулдаг; хайрлах → хайрладаг (kept).
+# -лах/-лэх verbs: school -л placement (resonant → vowel after л; obstruent → before л).
+# туслах → тусалдаг; батлах → баталдаг; номлох → номлодог (not номолдог).
 _LAH_VERBS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
     ("лах", "а", ("даг", "сан", "вал", "на", "ж")),
     ("лэх", "э", ("дэг", "сэн", "вэл", "нэ", "ж")),
     ("лох", "о", ("дог", "сон", "вол", "но", "ж")),
     ("лөх", "ө", ("дөг", "сөн", "вөл", "нө", "ж")),
 )
-_KEEP_LAH_STEM = frozenset("лрв")
-_DROP_LAH_STEM = frozenset("аэиоуөү")
+# School chart: м н г л б в р → vowel AFTER л; ц ж з с д т ш ч х → vowel BEFORE л.
+_RESONANT_FOR_L = frozenset("мнлбврг")
+_OBSTRUENT_FOR_L = frozenset("цжзсдтшчх")
 
 
-def _pick_lah_form(
-    stem: str,
-    swapped: str,
-    dropped: str,
-    swapped_ok: bool,
-    dropped_ok: bool,
-) -> str | None:
-    prefer_drop = stem[-1:] in _DROP_LAH_STEM
-    if swapped_ok and dropped_ok:
-        return dropped if prefer_drop else swapped
-    if swapped_ok:
-        return swapped
-    if dropped_ok:
-        return dropped
-    if stem[-1:] in _KEEP_LAH_STEM:
-        return None
-    return dropped if prefer_drop else swapped
+def _lah_infinitive_known(stem: str, vowel: str, dictionary: DictionaryProvider) -> bool:
+    return _known_stem(stem + "л" + vowel + "х", dictionary) or _known_stem(
+        stem + vowel + "л" + "х", dictionary
+    )
 
 
 def _lah_correct_form(folded: str, dictionary: DictionaryProvider) -> str | None:
     """School form of a -лах verb plus -даг/-сан/-ж/-на, or the word itself if already right."""
     for lax, vowel, suffixes in _LAH_VERBS:
-        connector = "л" + vowel
         for suffix in suffixes:
-            if not folded.endswith(suffix) or len(folded) < len(suffix) + len(connector) + 2:
+            if not folded.endswith(suffix) or len(folded) < len(suffix) + 4:
                 continue
             body = folded[: -len(suffix)]
-            if not body.endswith(connector):
-                continue
-            stem = body[: -len(connector)]
-            if len(stem) < 2:
-                continue
-            if not _known_stem(stem + lax, dictionary):
-                continue
-            if stem[-1:] in _KEEP_LAH_STEM:
-                return folded
-            swapped = stem + vowel + "л" + suffix
-            dropped = stem + "л" + suffix
-            chosen = _pick_lah_form(
-                stem,
-                swapped,
-                dropped,
-                _known_stem(swapped, dictionary),
-                _known_stem(dropped, dictionary),
-            )
-            return chosen or folded
+            # Correct resonant order: stem + л + vowel (номлодог).
+            if body.endswith("л" + vowel) and len(body) >= 3:
+                stem = body[: -len("л" + vowel)]
+                if len(stem) >= 2 and stem[-1:] in _RESONANT_FOR_L and _lah_infinitive_known(
+                    stem, vowel, dictionary
+                ):
+                    return folded
+                # Vowel stem: дууладаг → дуулдаг (drop the connector vowel).
+                if len(stem) >= 2 and stem[-1:] in _VOWELS and _known_stem(
+                    stem + "л" + vowel + "х", dictionary
+                ):
+                    candidate = stem + "л" + suffix
+                    if candidate != folded:
+                        return candidate
+                    return folded
+            # Correct / target obstruent order: stem + vowel + л (баталдаг).
+            if body.endswith(vowel + "л") and len(body) >= 3:
+                stem = body[: -len(vowel + "л")]
+                if len(stem) >= 2 and stem[-1:] in _OBSTRUENT_FOR_L and _lah_infinitive_known(
+                    stem, vowel, dictionary
+                ):
+                    return folded
+                # Wrong resonant order номолдог → номлодог.
+                if len(stem) >= 2 and stem[-1:] in _RESONANT_FOR_L and _lah_infinitive_known(
+                    stem, vowel, dictionary
+                ):
+                    return stem + "л" + vowel + suffix
+            # Wrong obstruent order батладаг → баталдаг.
+            if body.endswith("л" + vowel) and len(body) >= 3:
+                stem = body[: -len("л" + vowel)]
+                if len(stem) >= 2 and stem[-1:] in _OBSTRUENT_FOR_L and _lah_infinitive_known(
+                    stem, vowel, dictionary
+                ):
+                    return stem + vowel + "л" + suffix
     return None
 
 
 def suggest_lah_verb(word: str, dictionary: DictionaryProvider) -> str | None:
-    """тусладаг → тусалдаг, эхлэдэг → эхэлдэг, дууладаг → дуулдаг."""
+    """батладаг → баталдаг, номолдог → номлодог, тусладаг → тусалдаг."""
     folded = word.casefold()
     correct = _lah_correct_form(folded, dictionary)
     if correct and correct != folded:
         return correct
     return None
 
+
+def suggest_l_verb_stem(word: str, dictionary: DictionaryProvider) -> str | None:
+    """Bare -л stems: батла→батал, тосла→тосол, зөвөл→зөвлө, номол→номло."""
+    folded = word.casefold()
+    after_map = {"ла": "а", "лэ": "э", "ло": "о", "лө": "ө"}
+    before_map = {"ал": "а", "эл": "э", "ол": "о", "өл": "ө"}
+    # Obstruent + лV (wrong order / wrong vowel) → Vл.
+    for tail, _hint in after_map.items():
+        if not folded.endswith(tail) or len(folded) <= len(tail) + 1:
+            continue
+        stem = folded[: -len(tail)]
+        if stem[-1:] not in _OBSTRUENT_FOR_L:
+            continue
+        for vowel in "аэоө":
+            if _lah_infinitive_known(stem, vowel, dictionary):
+                candidate = stem + vowel + "л"
+                if candidate != folded:
+                    return candidate
+    # Resonant + Vл (wrong order) → лV.
+    for tail, _hint in before_map.items():
+        if not folded.endswith(tail) or len(folded) <= len(tail) + 1:
+            continue
+        stem = folded[: -len(tail)]
+        if stem[-1:] not in _RESONANT_FOR_L:
+            continue
+        for vowel in "аэоө":
+            if _lah_infinitive_known(stem, vowel, dictionary):
+                candidate = stem + "л" + vowel
+                if candidate != folded:
+                    return candidate
+    return None
 
 _X_CONNECT_VOWELS = "аэиоуөү"
 _X_SUFFIX_GROUPS: tuple[tuple[tuple[str, ...], dict[str, str] | None], ...] = (
@@ -647,8 +1017,30 @@ _X_REFLEXIVE = {
 
 
 def suggest_vowel_before_x(word: str, dictionary: DictionaryProvider) -> str | None:
-    """Verb х is written after a vowel: байгуулхаар → байгуулахаар."""
+    """Verb х is written after a vowel: байгуулхаар → байгуулахаар.
+
+    Never rewrite curated/established lemmas, and never treat a known noun that
+    ends in «х» plus case/гүй as a missing-vowel verb form:
+
+      эрхгүй → not эрэхгүй
+      эрхээр → not эрэхээр
+      цонхоор → not цонохоор
+      өрхөөс → not өрөхөөс
+    """
     folded = word.casefold()
+    # Curated / frequent surface forms win over the verb-х school rewrite.
+    if dictionary.in_seed(folded) or dictionary.in_wordlist(folded):
+        return None
+    if dictionary.prefers_established(folded):
+        return None
+
+    def _is_known_x_noun(before: str) -> bool:
+        """True when «before + х» is a curated noun (эрх, цонх, өрх, …)."""
+        if len(before) < 1 or before[-1:] in _VOWELS:
+            return False
+        noun = before + "х"
+        return dictionary.in_seed(noun) or dictionary.in_wordlist(noun)
+
     matched = next(
         (
             tail
@@ -659,13 +1051,15 @@ def suggest_vowel_before_x(word: str, dictionary: DictionaryProvider) -> str | N
     )
     if matched:
         before = folded[: -len(matched)]
-        if before[-1:] not in _VOWELS and before[-1:].isalpha():
+        if before[-1:] not in _VOWELS and before[-1:].isalpha() and not _is_known_x_noun(before):
             found: list[str] = []
             for vowel in _X_CONNECT_VOWELS:
                 infinitive = before + vowel + "х"
                 if not _known_stem(infinitive, dictionary):
                     continue
-                wanted = _X_REFLEXIVE.get(last_vowel(infinitive) or "")
+                wanted = _X_REFLEXIVE.get(
+                    last_harmony_vowel(infinitive) or last_vowel(infinitive) or ""
+                )
                 if not wanted:
                     continue
                 candidate = before + vowel + wanted
@@ -684,6 +1078,9 @@ def suggest_vowel_before_x(word: str, dictionary: DictionaryProvider) -> str | N
         before = folded[: -len(matched)]
         if before[-1:] in _VOWELS or not before[-1:].isalpha():
             continue
+        # Noun ending in х + гүй/case (эрхгүй, эрхээр, цонхоор) — not verb-х.
+        if _is_known_x_noun(before):
+            continue
         found: list[str] = []
         for vowel in _X_CONNECT_VOWELS:
             infinitive = before + vowel + "х"
@@ -692,7 +1089,9 @@ def suggest_vowel_before_x(word: str, dictionary: DictionaryProvider) -> str | N
             if mapping is None:
                 candidate = before + vowel + matched
             else:
-                ending = mapping.get(last_vowel(infinitive) or "")
+                ending = mapping.get(
+                    last_harmony_vowel(infinitive) or last_vowel(infinitive) or ""
+                )
                 if not ending:
                     continue
                 candidate = infinitive + ending
@@ -706,8 +1105,9 @@ def suggest_vowel_before_x(word: str, dictionary: DictionaryProvider) -> str | N
 
 
 def _allowed_x_reflexive(infinitive: str) -> set[str]:
-    """-хдаа/-хдээ/-хдоо/-хдөө follows the last vowel of the infinitive."""
-    wanted = _X_REFLEXIVE.get(last_vowel(infinitive) or "")
+    """-хдаа/-хдээ/-хдоо/-хдөө follows stem harmony (и is transparent)."""
+    vowel = last_harmony_vowel(infinitive) or last_vowel(infinitive) or ""
+    wanted = _X_REFLEXIVE.get(vowel)
     return {wanted} if wanted else set()
 
 
@@ -727,7 +1127,7 @@ def _kept_x_reflexive(folded: str, dictionary: DictionaryProvider) -> bool:
 
 
 def suggest_x_reflexive(word: str, dictionary: DictionaryProvider) -> str | None:
-    """When-doing -хдаа/-хдээ/-хдоо/-хдөө follows the infinitive vowel."""
+    """When-doing -хдаа/-хдээ/-хдоо/-хдөө follows stem harmony (и transparent)."""
     folded = word.casefold()
     matched = next(
         (
@@ -745,7 +1145,8 @@ def suggest_x_reflexive(word: str, dictionary: DictionaryProvider) -> str | None
         return None
     if matched in _allowed_x_reflexive(infinitive):
         return None
-    wanted = _X_REFLEXIVE.get(last_vowel(infinitive) or "")
+    vowel = last_harmony_vowel(infinitive) or last_vowel(infinitive) or ""
+    wanted = _X_REFLEXIVE.get(vowel)
     if not wanted or wanted == matched:
         return None
     return stem + wanted
@@ -825,6 +1226,42 @@ def suggest_n_plural(word: str, dictionary: DictionaryProvider) -> str | None:
     return None
 
 
+# -тан/-тэн nouns also drop а/э before vowel-initial case endings (ажилтаны → ажилтны).
+_AGENT_CASE = (
+    ("таныг", "тныг"),
+    ("тэнийг", "тнийг"),
+    ("танаас", "тнаас"),
+    ("тэнээс", "тнээс"),
+    ("танаар", "тнаар"),
+    ("тэнээр", "тнээр"),
+    ("таны", "тны"),
+    ("тэний", "тний"),
+)
+
+
+def suggest_agent_case(word: str, dictionary: DictionaryProvider) -> str | None:
+    """Keep -тан/-тэн vowel drop on genitive/accusative/ablative/instrumental."""
+    folded = word.casefold()
+    for wrong, right in _AGENT_CASE:
+        if not folded.endswith(wrong) or len(folded) < len(wrong) + 2:
+            continue
+        stem = folded[: -len(wrong)]
+        noun = stem + wrong[:3]  # …тан / …тэн
+        candidate = stem + right
+        if candidate == folded:
+            continue
+        if (
+            dictionary.in_wordlist(candidate)
+            or dictionary.in_seed(candidate)
+            or dictionary.contains(candidate)
+            or dictionary.in_seed(noun)
+            or dictionary.in_wordlist(noun)
+            or dictionary.contains(noun)
+        ):
+            return candidate
+    return None
+
+
 def suggest_n_plural_g(word: str, dictionary: DictionaryProvider) -> str | None:
     """Other н-stems take -гууд/-гүүд (дүнүүд → дүнгүүд)."""
     folded = word.casefold()
@@ -883,6 +1320,15 @@ def suggest_drop_soft_sign(word: str, dictionary: DictionaryProvider) -> str | N
             dictionary.contains(candidate) or dictionary.in_wordlist(candidate)
         ):
             return candidate
+        # аньхад → анхад → анхаад: drop ь then lengthen the last stem vowel.
+        if len(candidate) >= 4 and candidate[-1:] not in _VOWELS:
+            vowel = last_harmony_vowel(candidate[:-1]) or last_vowel(candidate[:-1])
+            if vowel:
+                elongated = candidate[:-1] + vowel + candidate[-1]
+                if elongated != folded and (
+                    dictionary.contains(elongated) or dictionary.in_wordlist(elongated)
+                ):
+                    return elongated
         start = idx + 1
     return _suggest_moved_soft_sign(folded, dictionary)
 
@@ -926,5 +1372,62 @@ def suggest_soft_sign_genitive(word: str, dictionary: DictionaryProvider) -> str
             continue
         candidate = folded[: -len(wrong)] + right
         if dictionary.contains(candidate):
+            return candidate
+    return None
+
+
+def _verb_stem_for_separator(stem: str, dictionary: DictionaryProvider) -> bool:
+    if len(stem) < 2:
+        return False
+    if _known_stem(stem + "х", dictionary):
+        return True
+    return any(_known_stem(stem + tail, dictionary) for tail in ("ах", "эх", "ох", "өх", "их"))
+
+
+def suggest_separator_ye(word: str, dictionary: DictionaryProvider) -> str | None:
+    """Тусгаарлагч ъ/ь: авя→авъя, хүсе→хүсье; авья→авъя when ь-form is unattested."""
+    folded = word.casefold()
+    # Unattested ь on back stems before я/ё → ъ (авья → авъя). Keep attested цохьё.
+    if folded.endswith(("ья", "ьё")) and len(folded) >= 4 and not dictionary.contains(folded):
+        stem = folded[:-2]
+        particle = folded[-1]
+        if (
+            stem
+            and stem[-1:] not in _VOWELS
+            and stem[-1:] not in "ьъ"
+            and (last_harmony_vowel(stem) or last_vowel(stem)) in BACK
+        ):
+            candidate = stem + "ъ" + particle
+            if candidate != folded and (
+                dictionary.contains(candidate) or _verb_stem_for_separator(stem, dictionary)
+            ):
+                return candidate
+    # Wrong ъ on front-vowel stems before е → ь.
+    if folded.endswith("ъе") and len(folded) >= 4:
+        stem = folded[:-2]
+        if (
+            stem
+            and stem[-1:] not in _VOWELS
+            and (last_harmony_vowel(stem) or last_vowel(stem)) in FRONT
+        ):
+            candidate = stem + "ье"
+            if candidate != folded and (
+                dictionary.contains(candidate) or _verb_stem_for_separator(stem, dictionary)
+            ):
+                return candidate
+    # Missing separator before я/ё/е.
+    if len(folded) >= 3 and folded[-1:] in "яёе":
+        particle = folded[-1]
+        stem = folded[:-1]
+        if not stem or stem[-1:] in _VOWELS or stem[-1:] in "ьъ":
+            return None
+        vowel = last_harmony_vowel(stem) or last_vowel(stem)
+        if particle in "яё" and vowel in BACK:
+            candidate = stem + "ъ" + particle
+        elif particle == "е" and vowel in FRONT:
+            candidate = stem + "ь" + particle
+        else:
+            return None
+        if dictionary.contains(candidate) or _verb_stem_for_separator(stem, dictionary):
             return candidate
     return None

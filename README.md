@@ -43,7 +43,7 @@ fly auth login
 fly launch --copy-config --yes --now
 ```
 
-Сайтын хаяг: `https://<app-name>.fly.dev`
+Сайтын хаяг: `https://mongolwrite.com`
 
 ## Tests
 

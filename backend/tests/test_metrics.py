@@ -12,13 +12,13 @@ def test_mark_ready_clears_boot_spikes() -> None:
     metrics.record(8500)
     before = metrics.snapshot()
     assert before["status"] == "starting"
-    assert "юу ч дарах хэрэггүй" in before["advice"]
+    assert before["advice"] == "Асаж байна"
     metrics.mark_ready(warmup_ms=400)
     after = metrics.snapshot()
     assert after["ready"] is True
     assert after["status"] == "ready"
     assert after["outlier_24h"] == 0
-    assert "юу ч дарах хэрэггүй" in after["advice"]
+    assert after["advice"] == "Хэвийн"
 
 
 def test_ready_spike_schedules_auto_heal() -> None:

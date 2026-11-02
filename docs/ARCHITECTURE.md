@@ -70,17 +70,33 @@ Frontend contains no business language rules except debounce and offset mapping.
 
 ## 4. System architecture
 
+![MongolWrite target architecture — APP scale-out, shared cache, spell engine; LLM off](mongolwrite-architecture.png)
+
 ```
-Browser (Next.js + TipTap)
-        |
-        | HTTPS, cookie session
-        v
-FastAPI  -- PostgreSQL
-   |     -- Redis
-   |
-   +-- engine (in-process, no network)
-   +-- AIProvider (V2, outbound, explicit only)
+USERS
+  │
+  ▼
+APP 1 … APP N     (Fly.io · FastAPI + Next · CHECK_CONCURRENCY)
+  │
+  ├── Shared cache (optional Redis L2 · always memory L1)
+  │         │
+  │         ▼
+  └── SPELL ENGINE
+        ├── Hunspell (~621k stems)     ← acceptance
+        ├── Үгийн сан (curated seed)   ← suggestions / admin
+        └── Дүрэм (harmony, …)
+
+Admin ── legalinfo.mn / lexicon export
+
+AI Improve = optional later (LLM off by default)
 ```
+
+**Production today (keep free — no paid Redis / dedicated CPU):**
+
+- 1 Fly `shared-1x` / 2 GB machine + persist volume (volume is single-writer)
+- `CHECK_CONCURRENCY=8`; queue wait → 503 instead of hanging or empty «Алдаагүй»
+- Memory L1 Hunspell cache only (`REDIS_URL` unset — zero cache bill)
+- LLM off the hot path
 
 **Check flow:**
 
@@ -88,9 +104,14 @@ FastAPI  -- PostgreSQL
 2. `POST /api/v1/check/deterministic` with UTF-8 text.
 3. Engine returns `Correction[]` with Unicode code-point offsets.
 4. Frontend maps offsets onto TipTap decorations.
-5. V2: `POST /api/v1/check/ai` only from the Improve action.
+5. Optional later: Improve action may call AI — never the default spell path.
 6. Ranker drops AI suggestions that contradict high-confidence dictionary hits.
 
+**Scale-out only if you accept cost:**
+
+1. Optional Redis (`REDIS_URL`) then more APP machines — Fly volume stays single-writer for admin persist.
+2. Watch admin «Сайтын төлөв» → cache hit% / p50 / `CHECK_CONCURRENCY`.
+3. Paid performance VM / Redis are opt-in; default stays free shared + memory cache.
 ## 5. Folder structure
 
 ```

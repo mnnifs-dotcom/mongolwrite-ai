@@ -21,7 +21,16 @@ def warm_now() -> dict[str, float | bool]:
     _ = engine.dictionary.has_hunspell
     # Mark ready before sample checks so they count as normal traffic, not boot spikes.
     mark_ready(warmup_ms=0)
-    for sample in ("бэлэн", "ажилтангууд одөр", "байгууллага хүсэлт"):
+    for sample in (
+        "бэлэн",
+        "ажилтангууд одөр",
+        "байгууллага хүсэлт",
+        # Prime caches for long official text so the first 50k+ check is not ice-cold.
+        (
+            "Иргэний хуулийн дагуу гэрээ байгуулахдаа талууд эрх үүргээ тодорхой заана. "
+            * 200
+        ),
+    ):
         t1 = time.perf_counter()
         engine.check(sample)
         record((time.perf_counter() - t1) * 1000)
@@ -35,6 +44,18 @@ def _install_auto_heal() -> None:
     set_heal_handler(warm_now)
 
 
+def _prune_candidates_budgeted() -> None:
+    """Background prune so admin overview never pays for it on the request path."""
+    try:
+        from app.engine.hunspell_candidates import prune_clear_error_candidates
+
+        removed = prune_clear_error_candidates()
+        if removed:
+            _log.info("background prune removed %s candidate(s)", removed)
+    except Exception:
+        _log.exception("background candidate prune failed")
+
+
 async def keep_warm_loop(stop: asyncio.Event) -> None:
     """Re-prepare the dictionary periodically. No admin action required."""
     _install_auto_heal()
@@ -45,5 +66,6 @@ async def keep_warm_loop(stop: asyncio.Event) -> None:
         except asyncio.TimeoutError:
             try:
                 await asyncio.to_thread(warm_now)
+                await asyncio.to_thread(_prune_candidates_budgeted)
             except Exception:
                 _log.exception("keep-warm failed")

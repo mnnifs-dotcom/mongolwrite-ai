@@ -50,6 +50,8 @@ def test_glued_question_particle() -> None:
 
 def test_glued_auxiliary() -> None:
     assert suggestion("үзэжбайна", "glued_auxiliary") == "үзэж байна"
+    assert suggestion("ажиллажбайна", "glued_auxiliary") == "ажиллаж байна"
+    assert suggestion("авчбайна", "glued_auxiliary") == "авч байна"
 
 
 def test_common_misspellings() -> None:
@@ -57,7 +59,10 @@ def test_common_misspellings() -> None:
     assert suggestion("гэхмэт", "common_misspelling") == "гэх мэт"
     assert suggestion("байхгуй", "common_misspelling") == "байхгүй"
     assert suggestion("гуйцэтгэх", "common_misspelling") == "гүйцэтгэх"
-    assert suggestion("ямарч", "common_misspelling") == "ямар ч"
+    # «ямарч» is also caught as a glued particle; either rule is fine.
+    assert suggestion("ямарч", "separate_particle") == "ямар ч" or suggestion(
+        "ямарч", "common_misspelling"
+    ) == "ямар ч"
     assert suggestion("шаардлагтай", "common_misspelling") == "шаардлагатай"
     assert suggestion("шаардагтай", "common_misspelling") == "шаардлагатай"
     assert suggestion("шаардлагтайг", "common_misspelling") == "шаардлагатайг"
@@ -168,6 +173,69 @@ def test_vowel_before_verb_x_from_infinitive() -> None:
     )
 
 
+def test_erkhgui_not_rewritten_as_erehgui() -> None:
+    """«эрхгүй» is noun+гүй; must not become «эрэхгүй» via vowel_before_x."""
+    local = LanguageEngine(
+        DictionaryProvider(frozenset({"эрхгүй", "эрх", "эрэх", "байгуулах"}))
+    )
+    assert not any(item.original_text == "эрхгүй" for item in local.check("эрхгүй"))
+    assert not any(item.original_text == "эрхгүй" for item in local.check("тэр эрхгүй байна"))
+    # Verb misspelling still fixed.
+    assert any(
+        item.suggested_text == "байгуулахгүй" and item.rule_id == "vowel_before_x"
+        for item in local.check("байгуулхгүй")
+    )
+
+
+def test_noun_ending_x_case_forms_not_verb_rewritten() -> None:
+    """Known nouns ending in х + case/гүй must not be rewritten as verb-х forms.
+
+    Even when the full surface form is absent from the seed — the noun stem
+    alone is enough to block the false positive.
+    """
+    local = LanguageEngine(
+        DictionaryProvider(
+            frozenset(
+                {
+                    "эрх",
+                    "эрэх",
+                    "өрх",
+                    "өрөх",
+                    "цонх",
+                    "цонох",
+                    "талх",
+                    "талах",
+                    "байгуулах",
+                }
+            )
+        )
+    )
+    keep = (
+        "эрхгүй",
+        "эрхээр",
+        "эрхээс",
+        "эрхэд",
+        "өрхгүй",
+        "өрхөөс",
+        "өрхөд",
+        "цонхоор",
+        "цонхгүй",
+        "талхгүй",
+    )
+    for word in keep:
+        found = [item for item in local.check(word) if item.rule_id == "vowel_before_x"]
+        assert not found, f"{word} wrongly rewritten → {found[0].suggested_text if found else ''}"
+    # Real verb misspellings still corrected.
+    assert any(
+        item.suggested_text == "байгуулахгүй" and item.rule_id == "vowel_before_x"
+        for item in local.check("байгуулхгүй")
+    )
+    assert any(
+        item.suggested_text == "байгуулахаар" and item.rule_id == "vowel_before_x"
+        for item in local.check("байгуулхаар")
+    )
+
+
 def test_palatal_case_from_stem() -> None:
     local = LanguageEngine(DictionaryProvider(frozenset({"давтамж", "цаг", "багш", "ажил"})))
     cases = (
@@ -248,15 +316,36 @@ def test_long_vowel_genitive_is_ny() -> None:
     assert not any(item.original_text == "судалгааны" for item in local.check("судалгааны"))
 
 
-def test_sch_converb_of_known_verb_is_kept() -> None:
-    from app.engine.harmony import is_regular_inflection
+def test_sch_converb_of_known_verb_suggests_vowel_zh() -> None:
+    from app.engine.harmony import is_regular_inflection, suggest_sej_converb
 
-    dictionary = DictionaryProvider(frozenset({"багасах", "босох", "хасах", "өсөх"}))
+    dictionary = DictionaryProvider(
+        frozenset(
+            {
+                "багасах",
+                "багасаж",
+                "босох",
+                "босож",
+                "хасах",
+                "хасаж",
+                "өсөх",
+                "өсөж",
+            }
+        )
+    )
     local = LanguageEngine(dictionary)
-    for word in ("багасч", "босч", "хасч", "өсч"):
-        assert is_regular_inflection(word, dictionary), word
-        assert not any(item.original_text == word for item in local.check(word)), word
-    assert not is_regular_inflection("фысч", dictionary)
+    expected = {
+        "багасч": "багасаж",
+        "босч": "босож",
+        "хасч": "хасаж",
+        "өсч": "өсөж",
+    }
+    for word, want in expected.items():
+        assert not is_regular_inflection(word, dictionary), word
+        assert suggest_sej_converb(word, dictionary) == want, word
+        found = local.check(word)
+        assert any(item.suggested_text == want for item in found), (word, found)
+    assert suggest_sej_converb("фысч", dictionary) is None
 
 
 def test_drop_soft_sign_from_known_stem() -> None:
@@ -306,7 +395,23 @@ def test_n_plural_not_guud() -> None:
 
 
 def test_x_reflexive_harmony() -> None:
-    local = LanguageEngine(DictionaryProvider(frozenset({"боловсруулах", "явах", "бичих", "ойлгох"})))
+    local = LanguageEngine(
+        DictionaryProvider(
+            frozenset(
+                {
+                    "боловсруулах",
+                    "явах",
+                    "бичих",
+                    "ойлгох",
+                    "тавих",
+                    "барих",
+                    "харах",
+                    "авах",
+                    "гарах",
+                }
+            )
+        )
+    )
     found = local.check("боловсруулахдоо")
     assert any(item.suggested_text == "боловсруулахдаа" for item in found)
     assert not any(item.original_text == "боловсруулахдаа" for item in local.check("боловсруулахдаа"))
@@ -314,6 +419,14 @@ def test_x_reflexive_harmony() -> None:
     assert any(item.suggested_text == "бичихдээ" for item in local.check("бичихдаа"))
     assert not any(item.original_text == "явахдаа" for item in local.check("явахдаа"))
     assert not any(item.original_text == "ойлгохдоо" for item in local.check("ойлгохдоо"))
+    # и is transparent: stem а/о… wins over final и → -хдаа/-хдоо, not -хдээ.
+    for correct in ("тавихдаа", "барихдаа", "харахдаа", "авахдаа", "гарахдаа"):
+        assert not any(item.original_text == correct for item in local.check(correct)), correct
+    assert any(item.suggested_text == "тавихдаа" for item in local.check("тавихдээ"))
+    assert any(item.suggested_text == "барихдаа" for item in local.check("барихдээ"))
+    assert any(item.suggested_text == "харахдаа" for item in local.check("харахдээ"))
+    assert any(item.suggested_text == "авахдаа" for item in local.check("авахдээ"))
+    assert any(item.suggested_text == "гарахдаа" for item in local.check("гарахдээ"))
 
 
 def test_n_stem_accusative_g() -> None:
@@ -367,8 +480,12 @@ def test_school_misspellings() -> None:
     assert suggestion("маргаш", "common_misspelling") == "маргааш"
     assert suggestion("зовхон", "common_misspelling") == "зөвхөн"
     assert suggestion("хамгын", "common_misspelling") == "хамгийн"
-    assert suggestion("яагаадгэвэл", "common_misspelling") == "яагаад гэвэл"
-    assert suggestion("байнадаа", "common_misspelling") == "байна даа"
+    assert suggestion("яагаадгэвэл", "glued_words") == "яагаад гэвэл" or suggestion(
+        "яагаадгэвэл", "common_misspelling"
+    ) == "яагаад гэвэл"
+    assert suggestion("байнадаа", "common_misspelling") == "байна даа" or suggestion(
+        "байнадаа", "separate_particle"
+    ) == "байна даа"
 
 
 def test_correct_orthography_is_kept() -> None:
@@ -376,3 +493,200 @@ def test_correct_orthography_is_kept() -> None:
     originals = {item.original_text.casefold() for item in engine.check(text)}
     for word in ("ямар", "ч", "шаардлагатай", "учраас", "одоогоор", "маргааш", "хэрэгтэй"):
         assert word not in originals
+
+
+def test_spoken_chih_becomes_literary() -> None:
+    """toli §37: явчих→явчхаад; spoken явчаад and non-standard явчихаад both fix."""
+    from app.engine.harmony import suggest_chih_spoken
+
+    dictionary = DictionaryProvider()
+    expected = {
+        # Spoken (х dropped) → чхаад / чих+cons
+        "явчаад": "явчхаад",
+        "үзчээд": "үзчхээд",
+        "харчаад": "харчхаад",
+        "гарчаад": "гарчхаад",
+        "хийчээд": "хийчхээд",
+        "ирчээд": "ирчхээд",
+        "явчсан": "явчихсан",
+        "үзчлээ": "үзчихлээ",
+        "биччээд": "биччхээд",
+        # Non-standard -чихаад (и not dropped) → -чхаад
+        "явчихаад": "явчхаад",
+        "үзчихээд": "үзчхээд",
+        "харчихаад": "харчхаад",
+    }
+    for spoken, literary in expected.items():
+        assert suggest_chih_spoken(spoken, dictionary) == literary, spoken
+        assert suggestion(spoken, "chih_spoken") == literary, spoken
+    # Official forms stay clean.
+    assert suggest_chih_spoken("явчхаад", dictionary) is None
+    assert suggest_chih_spoken("үзчхээд", dictionary) is None
+    hun = LanguageEngine(DictionaryProvider())
+    for literary in ("явчхаад", "үзчхээд", "харчхаад", "явчихсан"):
+        found = hun.check(literary)
+        assert found == [], (literary, [(c.rule_id, c.suggested_text) for c in found])
+    # Unrelated -аад forms stay untouched.
+    assert suggest_chih_spoken("танилцаад", dictionary) is None
+    assert "chih_spoken" not in rule_ids("танилцаад")
+
+
+def test_school_yi_genitive_accusative() -> None:
+    """-ы/-ий school chart: back -ы, front -ий; after гжшчьи → -ий."""
+    local = LanguageEngine(DictionaryProvider())
+
+    def hit(word: str, rule_id: str) -> str | None:
+        for item in local.check(word):
+            if item.rule_id == rule_id:
+                return item.suggested_text
+        return None
+
+    assert hit("багшын", "palatal_case") == "багшийн"
+    assert hit("номчыг", "palatal_case") == "номчийг"
+    assert hit("туужын", "palatal_case") == "туужийн"
+    assert hit("ангын", "palatal_case") == "ангийн"
+    assert hit("сургуулын", "palatal_case") == "сургуулийн"
+    assert hit("үеын", "suffix_harmony") == "үеийн"
+    assert hit("ямааниин", "palatal_case") == "ямааны"
+    for word in ("айлын", "багшийн", "ангийн", "үеийн", "ямааны"):
+        assert word not in {item.original_text.casefold() for item in local.check(word)}
+
+
+def test_lexicon_surface_never_marked_misspelled() -> None:
+    """Explicit curated seed surfaces are correct — no spelling rewrites."""
+    local = LanguageEngine(DictionaryProvider())
+    dictionary = local.dictionary
+    assert dictionary.in_seed("сарын")
+    assert dictionary.in_seed("даргын")
+    for word in ("сарын", "даргын", "сургуулийн", "багшийн"):
+        if not dictionary.in_seed(word):
+            continue
+        assert local.check(word) == [], word
+
+
+def test_truncated_soft_stem_does_not_block_school_genitive() -> None:
+    """«сургуул» must not synthesize a trusted «сургуулын» that blocks palatal_case."""
+    local = LanguageEngine(DictionaryProvider(frozenset({"сургууль", "сургуул"})))
+    assert not local.dictionary.in_wordlist("сургуулын")
+    found = local.check("сургуулын")
+    assert any(
+        item.suggested_text == "сургуулийн" and item.rule_id == "palatal_case" for item in found
+    )
+
+
+def test_suggestion_quality_core_cases() -> None:
+    """Common false twins / empty suggestions / bad glued splits."""
+    local = LanguageEngine(DictionaryProvider())
+
+    def primary(word: str) -> tuple[str, str] | None:
+        hits = local.check(word)
+        if not hits:
+            return None
+        item = hits[0]
+        return item.suggested_text.casefold(), item.rule_id or ""
+
+    assert primary("нотолгоо") is None
+    assert primary("нотлогоо") == ("нотолгоо", "common_misspelling")
+    assert primary("ажилтны") is None
+    hit = primary("ажилтаны")
+    assert hit is not None
+    assert hit[0] == "ажилтны"
+    assert " " not in hit[0]
+    assert primary("аньхад") == ("анхаад", "common_misspelling")
+    assert primary("цэврэлсний") == ("цэвэрлэсний", "common_misspelling")
+    assert primary("анхаад") is None
+    assert primary("цэвэрлэсний") is None
+
+
+def test_established_yn_genitive_not_rewritten_to_iy() -> None:
+    """Curated -ын forms must never become false -ийн (сарын≠сарийн, даргын≠даргийн)."""
+    local = LanguageEngine(DictionaryProvider())
+    for word in ("сарын", "даргын", "сарын даргын", "8 дугаар сарын 29-ний өдөр"):
+        flagged = {
+            item.original_text.casefold()
+            for item in local.check(word)
+            if item.rule_id == "palatal_case"
+        }
+        assert "сарын" not in flagged, word
+        assert "даргын" not in flagged, word
+    # Real soft-г / жшч mistakes still rewrite.
+    assert any(
+        item.suggested_text == "цагийн" and item.rule_id == "palatal_case"
+        for item in local.check("цагын")
+    )
+    assert any(
+        item.suggested_text == "багшийн" and item.rule_id == "palatal_case"
+        for item in local.check("багшын")
+    )
+
+
+def test_false_iy_genitive_suggests_established_yn() -> None:
+    """даргийн/сарийн must suggest curated даргын/сарын — not junk neighbors."""
+    local = LanguageEngine(DictionaryProvider())
+    for wrong, right in (("даргийн", "даргын"), ("сарийн", "сарын"), ("даргийг", "даргыг")):
+        hits = local.check(wrong)
+        assert hits, wrong
+        assert hits[0].suggested_text == right, (wrong, hits[0].suggested_text)
+        alts = set(hits[0].suggestions or [])
+        assert right not in alts
+        assert "дарийн" not in alts
+        assert "дарцгийн" not in alts
+
+
+def test_hyphenated_false_iy_still_suggests_yn() -> None:
+    """даргийн-д must not skip spelling because of the hyphen particle."""
+    local = LanguageEngine(DictionaryProvider())
+    hits = local.check("даргийн-д")
+    assert any(item.suggested_text == "даргын-д" for item in hits)
+    hits = local.check(
+        "даргийн-д зөв даргын огт гарахгүй байгаа нь тооны хязгаар биш"
+    )
+    assert any(
+        item.original_text.casefold().startswith("даргийн")
+        and item.suggested_text.casefold().startswith("даргын")
+        for item in hits
+    )
+
+
+def test_school_l_verb_suffix() -> None:
+    """-л verb chart: obstruent → vowel before л; resonant → after л."""
+    local = LanguageEngine(DictionaryProvider())
+
+    def hit(word: str, rule_id: str) -> str | None:
+        for item in local.check(word):
+            if item.rule_id == rule_id:
+                return item.suggested_text
+        return None
+
+    assert hit("батла", "l_verb_stem") == "батал"
+    assert hit("тосла", "l_verb_stem") == "тосол"
+    assert hit("зөвөл", "l_verb_stem") == "зөвлө"
+    assert hit("номол", "l_verb_stem") == "номло"
+    assert hit("батладаг", "lah_verb") == "баталдаг"
+    assert hit("номолдог", "lah_verb") == "номлодог"
+    assert hit("тусладаг", "lah_verb") == "тусалдаг"
+    for word in ("баталдаг", "номлодог", "хайрладаг", "тоолдог"):
+        ids = {item.rule_id for item in local.check(word)}
+        assert "lah_verb" not in ids
+        assert "l_verb_stem" not in ids
+
+
+def test_school_separator_ye() -> None:
+    """Separator ъ/ь before я/ё/е on consonant stems."""
+    local = LanguageEngine(DictionaryProvider())
+
+    def hit(word: str, rule_id: str) -> str | None:
+        for item in local.check(word):
+            if item.rule_id == rule_id:
+                return item.suggested_text
+        return None
+
+    assert hit("авя", "separator_ye") == "авъя"
+    assert hit("харя", "separator_ye") == "харъя"
+    assert hit("олё", "separator_ye") == "олъё"
+    assert hit("угтя", "separator_ye") == "угтъя"
+    assert hit("хүсе", "separator_ye") == "хүсье"
+    assert hit("ире", "separator_ye") == "ирье"
+    assert hit("авья", "separator_ye") == "авъя"
+    for word in ("авъя", "хүсье", "хүргэе", "угаая", "саная", "цохьё"):
+        assert "separator_ye" not in {item.rule_id for item in local.check(word)}
