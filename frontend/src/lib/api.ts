@@ -1150,6 +1150,10 @@ export type BillingOrder = {
   amount_mnt: number;
   currency: string;
   status: string;
+  product_kind?: string;
+  duration_seconds?: number | null;
+  consumed?: boolean;
+  access_token?: string;
   qpay_invoice_id?: string | null;
   qpay_qr_text?: string | null;
   qpay_qr_image?: string | null;
@@ -1234,6 +1238,7 @@ export type SttPublicStatus = {
   price_mnt_per_hour: number;
   low_balance: boolean;
   needs_renewal: boolean;
+  checkout_ready?: boolean;
 };
 
 export type SttSubmitResponse = {
@@ -1243,12 +1248,24 @@ export type SttSubmitResponse = {
   remaining_seconds: number;
   remaining_hours: number;
   price_mnt_per_hour: number;
+  order_id?: string;
 };
 
 export type SttPollResponse = {
   done: boolean;
   transcription: string;
   duration_seconds: number;
+  progress_percent?: number;
+};
+
+export type SttCheckoutResponse = {
+  ok: boolean;
+  order: BillingOrder;
+  checkout_ready: boolean;
+  provider: string;
+  billable_seconds: number;
+  amount_mnt: number;
+  price_mnt_per_hour: number;
 };
 
 export type ChimegeQueueSlot = {
@@ -1300,9 +1317,66 @@ export async function sttStatus(): Promise<SttPublicStatus> {
   return response.json() as Promise<SttPublicStatus>;
 }
 
-export async function sttTranscribe(file: File): Promise<SttSubmitResponse> {
+export async function sttCheckout(body: {
+  duration_seconds: number;
+  filename?: string;
+}): Promise<SttCheckoutResponse> {
+  const response = await fetch(apiUrl("/api/v1/stt/checkout"), {
+    method: "POST",
+    credentials: "include",
+    headers: jsonHeaders(),
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const detail = await response
+      .json()
+      .then((row: { detail?: string }) => row.detail)
+      .catch(() => null);
+    throw new Error(detail || `Төлбөрийн нэхэмжлэх үүсгэхэд алдаа (${response.status})`);
+  }
+  return response.json() as Promise<SttCheckoutResponse>;
+}
+
+export async function fetchSttOrder(
+  orderId: string,
+  accessToken: string,
+): Promise<{ order: BillingOrder; checkout_ready: boolean }> {
+  const response = await fetch(
+    apiUrl(
+      `/api/v1/stt/orders/${encodeURIComponent(orderId)}?access_token=${encodeURIComponent(accessToken)}`,
+    ),
+    { credentials: "include", headers: authHeaders() },
+  );
+  if (!response.ok) throw new Error("Захиалга олдсонгүй");
+  return response.json() as Promise<{ order: BillingOrder; checkout_ready: boolean }>;
+}
+
+export async function syncSttOrder(
+  orderId: string,
+  accessToken: string,
+): Promise<{ order: BillingOrder; paid: boolean }> {
+  const response = await fetch(
+    apiUrl(
+      `/api/v1/stt/orders/${encodeURIComponent(orderId)}/sync?access_token=${encodeURIComponent(accessToken)}`,
+    ),
+    {
+      method: "POST",
+      credentials: "include",
+      headers: authHeaders(),
+    },
+  );
+  if (!response.ok) throw new Error("Төлбөрийн төлөв шалгаж чадсангүй");
+  return response.json() as Promise<{ order: BillingOrder; paid: boolean }>;
+}
+
+export async function sttTranscribe(
+  file: File,
+  payment: { orderId: string; accessToken: string },
+): Promise<SttSubmitResponse> {
   const body = new FormData();
   body.append("file", file, file.name);
+  body.append("order_id", payment.orderId);
+  body.append("access_token", payment.accessToken);
   const response = await fetch(apiUrl("/api/v1/stt/transcribe"), {
     method: "POST",
     credentials: "include",

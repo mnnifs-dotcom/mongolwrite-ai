@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.core import chimege
+from app.core import billing, chimege
 from app.main import app
 
 
@@ -29,6 +29,7 @@ def _isolate_chimege(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(chimege, "persist_dir", lambda: persist)
     monkeypatch.setattr(chimege, "_token_path", lambda: tmp_path / ".chimege_token")
     monkeypatch.setattr(chimege.settings, "chimege_api_token", "")
+    monkeypatch.setattr(billing, "persist_dir", lambda: persist)
     yield
 
 
@@ -39,6 +40,7 @@ def test_public_status_disabled_by_default():
     body = response.json()
     assert body["enabled"] is False
     assert body["price_mnt_per_hour"] == 7000
+    assert "checkout_ready" in body
 
 
 def test_admin_sets_token_and_prepaid():
@@ -69,6 +71,36 @@ def test_insufficient_prepaid_raises():
         chimege.reserve_and_record_usage(duration_seconds=60, filename="x.wav")
 
 
+def _paid_stt_order(*, duration_seconds: float = 12.5) -> tuple[str, str]:
+    created = billing.create_stt_checkout(
+        duration_seconds=duration_seconds,
+        filename="sample.wav",
+        price_mnt_per_hour=7000,
+    )
+    order = created["order"]
+    token = str(order["access_token"])
+    paid = billing.mark_order_paid(str(order["id"]), qpay_payment_id="test-stt")
+    assert paid is not None
+    assert paid["status"] == "paid"
+    assert paid.get("product_kind") == "stt"
+    return str(order["id"]), token
+
+
+def test_transcribe_requires_payment(monkeypatch: pytest.MonkeyPatch):
+    chimege.update_admin(token="test-token", set_prepaid_seconds=3600)
+    monkeypatch.setattr(
+        "app.api.routes_stt.submit_long",
+        lambda audio, token: {"uuid": "job-1", "duration": 12.5},
+    )
+    client = TestClient(app)
+    wav = _silent_wav(1.0)
+    response = client.post(
+        "/api/v1/stt/transcribe",
+        files={"file": ("sample.wav", wav, "audio/wav")},
+    )
+    assert response.status_code == 402
+
+
 def test_transcribe_proxies_without_saving_file(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     chimege.update_admin(token="test-token", set_prepaid_seconds=3600)
 
@@ -78,20 +110,46 @@ def test_transcribe_proxies_without_saving_file(monkeypatch: pytest.MonkeyPatch,
         return {"uuid": "job-1", "duration": 12.5}
 
     monkeypatch.setattr("app.api.routes_stt.submit_long", fake_submit)
+    order_id, access_token = _paid_stt_order(duration_seconds=12.5)
     client = TestClient(app)
     wav = _silent_wav(1.0)
     response = client.post(
         "/api/v1/stt/transcribe",
+        data={"order_id": order_id, "access_token": access_token},
         files={"file": ("sample.wav", wav, "audio/wav")},
     )
     assert response.status_code == 200
     body = response.json()
     assert body["uuid"] == "job-1"
     assert body["duration_seconds"] == 12.5
-    assert body["mnt"] == pytest.approx(round((12.5 / 3600) * 7000, 2))
-    # No audio file should appear under persist.
+    assert body["order_id"] == order_id
+    # Amount is the prepaid QPay quote (1 minute minimum at 7000/hr ≈ 117).
+    assert body["mnt"] == 117
     persist_files = list((tmp_path / "persist").rglob("*"))
     assert not any(p.suffix.lower() in {".wav", ".mp3", ".m4a"} for p in persist_files)
+
+    # Same payment cannot be reused.
+    again = client.post(
+        "/api/v1/stt/transcribe",
+        data={"order_id": order_id, "access_token": access_token},
+        files={"file": ("sample.wav", wav, "audio/wav")},
+    )
+    assert again.status_code == 409
+
+
+def test_checkout_quotes_by_minutes():
+    chimege.update_admin(token="test-token", set_prepaid_seconds=3600)
+    client = TestClient(app)
+    response = client.post(
+        "/api/v1/stt/checkout",
+        json={"duration_seconds": 125, "filename": "talk.mp3"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["billable_seconds"] == 180  # ceil 125s → 3 min
+    assert body["amount_mnt"] == 350  # 3/60 * 7000
+    assert body["order"]["access_token"]
+    assert body["order"]["product_kind"] == "stt"
 
 
 def test_poll_result(monkeypatch: pytest.MonkeyPatch):
@@ -106,6 +164,7 @@ def test_poll_result(monkeypatch: pytest.MonkeyPatch):
     response = client.get("/api/v1/stt/result", params={"uuid": "job-9"})
     assert response.status_code == 200
     assert response.json()["transcription"] == "сайн байна уу"
+    assert response.json()["progress_percent"] == 100
 
 
 def test_new_token_queues_until_previous_seconds_finish(monkeypatch: pytest.MonkeyPatch):
@@ -113,18 +172,15 @@ def test_new_token_queues_until_previous_seconds_finish(monkeypatch: pytest.Monk
     assert chimege.get_api_token() == "trial-token-aaaa"
     assert chimege.remaining_seconds() == pytest.approx(3600)
 
-    # Paid API arrives while trial still has leftovers — must queue, not skip.
     snap = chimege.update_admin(token="paid-token-bbbb", set_prepaid_seconds=7200)
     assert chimege.get_api_token() == "trial-token-aaaa"
     assert snap["queued_count"] >= 1
     assert chimege.remaining_seconds() == pytest.approx(3600 + 7200)
 
-    # Spend almost all trial seconds.
     chimege.reserve_and_record_usage(duration_seconds=3599, filename="a.wav")
     assert chimege.get_api_token() == "trial-token-aaaa"
     assert chimege.active_remaining_seconds() == pytest.approx(1.0)
 
-    # Final second — then next token becomes active with zero leftover skipped.
     chimege.reserve_and_record_usage(duration_seconds=1, filename="b.wav")
     assert chimege.get_api_token() == "paid-token-bbbb"
     assert chimege.active_remaining_seconds() == pytest.approx(7200)
@@ -136,3 +192,25 @@ def test_cannot_skip_active_leftover_for_longer_file():
     with pytest.raises(ValueError, match="Идэвхтэй API"):
         chimege.reserve_and_record_usage(duration_seconds=60, filename="long.wav")
     assert chimege.get_api_token() == "trial-token-aaaa"
+
+
+def test_stt_payment_does_not_activate_plan(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.core.users.persist_dir", lambda: tmp_path)
+    from app.core.users import get_user, upsert_google_user
+
+    user = upsert_google_user(sub="stt-pay", email="stt@example.com", name="STT")
+    before_plan = user.get("plan")
+    before_expires = user.get("plan_expires_at")
+    created = billing.create_stt_checkout(
+        duration_seconds=60,
+        user_id=str(user["id"]),
+        email="stt@example.com",
+        filename="a.wav",
+        price_mnt_per_hour=7000,
+    )
+    billing.mark_order_paid(created["order"]["id"], qpay_payment_id="x")
+    refreshed = get_user(str(user["id"]))
+    assert refreshed is not None
+    assert refreshed.get("plan") == before_plan
+    assert refreshed.get("plan_expires_at") == before_expires
+    assert refreshed.get("plan") not in {"pro_3m", "pro_year"}

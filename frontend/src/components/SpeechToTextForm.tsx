@@ -2,10 +2,15 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
+import { QpayCheckoutPanel } from "@/components/QpayCheckoutPanel";
 import {
+  fetchSttOrder,
+  sttCheckout,
   sttResult,
   sttStatus,
   sttTranscribe,
+  syncSttOrder,
+  type BillingOrder,
   type SttPublicStatus,
 } from "@/lib/api";
 
@@ -17,7 +22,8 @@ function formatHours(seconds: number): string {
 }
 
 function estimateMnt(seconds: number, pricePerHour: number): number {
-  return Math.round((Math.max(0, seconds) / 3600) * pricePerHour);
+  const minutes = Math.max(1, Math.ceil(Math.max(0, seconds) / 60));
+  return Math.max(1, Math.round((minutes / 60) * pricePerHour));
 }
 
 async function readClientDuration(file: File): Promise<number | null> {
@@ -39,23 +45,34 @@ async function readClientDuration(file: File): Promise<number | null> {
   }
 }
 
+type Phase = "idle" | "checkout" | "paying" | "uploading" | "waiting" | "done";
+
 export function SpeechToTextForm() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<SttPublicStatus | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [clientSeconds, setClientSeconds] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
-  const [phase, setPhase] = useState<"idle" | "uploading" | "waiting" | "done">("idle");
+  const [phase, setPhase] = useState<Phase>("idle");
   const [error, setError] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [charged, setCharged] = useState<{ seconds: number; mnt: number } | null>(null);
+  const [progress, setProgress] = useState(0);
+  const [progressLabel, setProgressLabel] = useState("");
+  const [payOrder, setPayOrder] = useState<BillingOrder | null>(null);
+  const [accessToken, setAccessToken] = useState("");
+  const [checkoutReady, setCheckoutReady] = useState(false);
+  const convertAfterPayRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       try {
         const next = await sttStatus();
-        if (!cancelled) setStatus(next);
+        if (!cancelled) {
+          setStatus(next);
+          setCheckoutReady(Boolean(next.checkout_ready));
+        }
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : "Төлөв уншигдсангүй");
@@ -78,42 +95,59 @@ export function SpeechToTextForm() {
     setCharged(null);
     setError(null);
     setPhase("idle");
+    setProgress(0);
+    setProgressLabel("");
+    setPayOrder(null);
+    setAccessToken("");
     setClientSeconds(null);
+    convertAfterPayRef.current = false;
     if (!next) return;
     const seconds = await readClientDuration(next);
     setClientSeconds(seconds);
   }
 
-  async function onSubmit(event: FormEvent) {
-    event.preventDefault();
-    if (!file || busy) return;
+  async function runConversion(paidOrder: BillingOrder, token: string, audio: File) {
     setBusy(true);
     setError(null);
     setText("");
     setPhase("uploading");
+    setProgress(8);
+    setProgressLabel("Файл илгээж байна…");
+    const started = Date.now();
+    const expectedMs = Math.max(15_000, (clientSeconds ?? 60) * 800);
+    let progressTimer: number | null = null;
     try {
-      const submitted = await sttTranscribe(file);
+      progressTimer = window.setInterval(() => {
+        setProgress((prev) => {
+          if (prev >= 92) return prev;
+          const elapsed = Date.now() - started;
+          const timed = Math.min(90, Math.round((elapsed / expectedMs) * 90));
+          return Math.max(prev, Math.max(12, timed));
+        });
+      }, 400);
+
+      const submitted = await sttTranscribe(audio, {
+        orderId: paidOrder.id,
+        accessToken: token,
+      });
       setCharged({ seconds: submitted.duration_seconds, mnt: submitted.mnt });
-      setStatus((prev) =>
-        prev
-          ? {
-              ...prev,
-              remaining_seconds: submitted.remaining_seconds,
-              remaining_hours: submitted.remaining_hours,
-              needs_renewal: submitted.remaining_seconds <= 0,
-              low_balance: submitted.remaining_seconds <= 30 * 60,
-            }
-          : prev,
-      );
       setPhase("waiting");
-      // Poll Chimege via our proxy; audio never stored on our server.
+      setProgress((prev) => Math.max(prev, 35));
+      setProgressLabel("Бичвэр болгож байна…");
+
       let attempts = 0;
       while (attempts < 600) {
         attempts += 1;
         const row = await sttResult(submitted.uuid);
+        const serverPct = row.progress_percent ?? 0;
+        const elapsed = Date.now() - started;
+        const timed = Math.min(95, Math.round((elapsed / expectedMs) * 95));
+        setProgress(row.done ? 100 : Math.max(35, serverPct, timed));
         if (row.done) {
           setText(row.transcription || "");
           setPhase("done");
+          setProgress(100);
+          setProgressLabel("Дууслаа");
           return;
         }
         await new Promise((resolve) => setTimeout(resolve, 1500));
@@ -121,12 +155,74 @@ export function SpeechToTextForm() {
       throw new Error("Хөрвүүлэлт удаан байна. Дахин оролдоно уу.");
     } catch (err) {
       setPhase("idle");
+      setProgress(0);
+      setProgressLabel("");
       setError(err instanceof Error ? err.message : "Хөрвүүлэлт амжилтгүй");
     } finally {
+      if (progressTimer != null) window.clearInterval(progressTimer);
       setBusy(false);
-      // Drop local file handle from UI state after send — browser temp only.
       if (inputRef.current) inputRef.current.value = "";
+      setPayOrder(null);
+      setAccessToken("");
+      convertAfterPayRef.current = false;
     }
+  }
+
+  async function onSubmit(event: FormEvent) {
+    event.preventDefault();
+    if (!file || busy) return;
+    if (clientSeconds == null || clientSeconds <= 0) {
+      setError("Файлын үргэлжлэх хугацаа уншигдсангүй. Өөр файл сонгоно уу.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    setText("");
+    setPhase("checkout");
+    setProgress(0);
+    setProgressLabel("Төлбөрийн дүн тооцоолж байна…");
+    try {
+      const quoted = await sttCheckout({
+        duration_seconds: clientSeconds,
+        filename: file.name,
+      });
+      const token = quoted.order.access_token || "";
+      if (!token) throw new Error("Төлбөрийн эрх үүссэнгүй.");
+      setAccessToken(token);
+      setPayOrder(quoted.order);
+      setCheckoutReady(quoted.checkout_ready);
+      setCharged({
+        seconds: quoted.billable_seconds,
+        mnt: quoted.amount_mnt,
+      });
+      if (quoted.order.status === "paid") {
+        convertAfterPayRef.current = true;
+        await runConversion(quoted.order, token, file);
+        return;
+      }
+      if (!quoted.checkout_ready || !quoted.order.qpay_invoice_id) {
+        throw new Error(
+          quoted.order.note || "QPay төлбөр одоогоор бэлэн биш байна. Дахин оролдоно уу.",
+        );
+      }
+      setPhase("paying");
+      setProgressLabel("QPay-ээр төлнө үү");
+      convertAfterPayRef.current = true;
+    } catch (err) {
+      setPhase("idle");
+      setPayOrder(null);
+      setAccessToken("");
+      setError(err instanceof Error ? err.message : "Төлбөр үүсгэж чадсангүй");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onPaid(order: BillingOrder) {
+    if (!file || !accessToken || !convertAfterPayRef.current) return;
+    if (busy) return;
+    setPayOrder(order);
+    await runConversion(order, accessToken, file);
   }
 
   async function copyText() {
@@ -136,6 +232,7 @@ export function SpeechToTextForm() {
 
   const serviceBlocked =
     status != null && (!status.enabled || status.needs_renewal);
+  const showProgress = phase === "uploading" || phase === "waiting" || (phase === "done" && progress === 100);
 
   return (
     <div className="mw-stt">
@@ -149,6 +246,7 @@ export function SpeechToTextForm() {
         <p className="mw-muted">
           Формат: wav, mp3, m4a, mp4, aac, ogg, flac, webm · дээд хэмжээ 40MB
         </p>
+        <p className="mw-muted">Эхлээд QPay-ээр төлөөд дараа нь бичвэр бэлтгэнэ.</p>
         {serviceBlocked ? (
           <p className="mw-stt-warn">
             {!status?.enabled
@@ -164,7 +262,7 @@ export function SpeechToTextForm() {
           type="file"
           accept="audio/*,video/mp4,video/webm,.wav,.mp3,.m4a,.mp4,.aac,.ogg,.flac,.webm,.wma"
           hidden
-          disabled={busy || serviceBlocked}
+          disabled={busy || serviceBlocked || phase === "paying"}
           onChange={(event) => {
             const next = event.target.files?.[0] ?? null;
             void onPick(next);
@@ -174,7 +272,7 @@ export function SpeechToTextForm() {
           <button
             type="button"
             className="mw-seo-cta mw-seo-cta-inline mw-stt-pick"
-            disabled={busy || serviceBlocked}
+            disabled={busy || serviceBlocked || phase === "paying"}
             onClick={() => inputRef.current?.click()}
           >
             {file ? "Файл солих" : "Файл оруулах"}
@@ -182,13 +280,24 @@ export function SpeechToTextForm() {
           <button
             type="submit"
             className="mw-seo-cta mw-seo-cta-inline"
-            disabled={busy || !file || serviceBlocked}
+            disabled={
+              busy ||
+              !file ||
+              serviceBlocked ||
+              phase === "paying" ||
+              phase === "uploading" ||
+              phase === "waiting"
+            }
           >
-            {phase === "uploading"
-              ? "Илгээж байна…"
-              : phase === "waiting"
-                ? "Хөрвүүлж байна…"
-                : "Бичвэр болгох"}
+            {phase === "checkout"
+              ? "Төлбөр бэлдэж байна…"
+              : phase === "paying"
+                ? "Төлбөр хүлээж байна…"
+                : phase === "uploading"
+                  ? `Илгээж байна… ${progress}%`
+                  : phase === "waiting"
+                    ? `Хөрвүүлж байна… ${progress}%`
+                    : "Бичвэр болгох"}
           </button>
         </div>
         {file ? (
@@ -206,8 +315,37 @@ export function SpeechToTextForm() {
         ) : null}
       </form>
 
+      {payOrder && phase === "paying" && accessToken ? (
+        <QpayCheckoutPanel
+          order={payOrder}
+          checkoutReady={checkoutReady}
+          paidNote="Төлбөр амжилттай. Бичвэр бэлтгэж байна…"
+          onBack={() => {
+            setPhase("idle");
+            setPayOrder(null);
+            setAccessToken("");
+            convertAfterPayRef.current = false;
+          }}
+          fetchOrder={(id) => fetchSttOrder(id, accessToken)}
+          syncOrder={(id) => syncSttOrder(id, accessToken)}
+          onPaid={(order) => void onPaid(order)}
+        />
+      ) : null}
+
+      {showProgress ? (
+        <div className="mw-stt-progress" aria-live="polite">
+          <div className="mw-stt-progress-head">
+            <span>{progressLabel || "Явц"}</span>
+            <strong>{progress}%</strong>
+          </div>
+          <div className="mw-stt-progress-track">
+            <div className="mw-stt-progress-fill" style={{ width: `${progress}%` }} />
+          </div>
+        </div>
+      ) : null}
+
       {error ? <p className="mw-banner">{error}</p> : null}
-      {charged ? (
+      {charged && phase !== "paying" ? (
         <p className="mw-muted">
           Төлбөр: {formatHours(charged.seconds)} · {charged.mnt.toLocaleString("mn-MN")}₮
         </p>
