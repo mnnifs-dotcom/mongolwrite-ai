@@ -26,6 +26,8 @@ function estimateMnt(seconds: number, pricePerHour: number): number {
   return Math.max(1, Math.round((minutes / 60) * pricePerHour));
 }
 
+const MAX_STT_BYTES = 40 * 1024 * 1024;
+
 async function readClientDuration(file: File): Promise<number | null> {
   const url = URL.createObjectURL(file);
   try {
@@ -90,10 +92,8 @@ export function SpeechToTextForm() {
   }, [status, clientSeconds]);
 
   async function onPick(next: File | null) {
-    setFile(next);
     setText("");
     setCharged(null);
-    setError(null);
     setPhase("idle");
     setProgress(0);
     setProgressLabel("");
@@ -101,7 +101,24 @@ export function SpeechToTextForm() {
     setAccessToken("");
     setClientSeconds(null);
     convertAfterPayRef.current = false;
-    if (!next) return;
+    if (!next) {
+      setFile(null);
+      setError(null);
+      return;
+    }
+    // Fail fast before metadata/upload — large files used to hang then show size error.
+    if (next.size > MAX_STT_BYTES) {
+      setFile(null);
+      setError(
+        `Файл хэт том (дээд хэмжээ 40MB). Одоо ${(next.size / (1024 * 1024)).toLocaleString("mn-MN", {
+          maximumFractionDigits: 1,
+        })}MB байна.`,
+      );
+      if (inputRef.current) inputRef.current.value = "";
+      return;
+    }
+    setFile(next);
+    setError(null);
     const seconds = await readClientDuration(next);
     setClientSeconds(seconds);
   }

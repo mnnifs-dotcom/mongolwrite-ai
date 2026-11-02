@@ -67,10 +67,11 @@ async function postCheck(
     document_type: options?.document_type ?? "official_letter",
     style: options?.style ?? "government_official",
   });
-  // Engine targets a few seconds up to ~300k; keep headroom for cold Fly starts.
+  // Shared-1x can be busy; give mid-size docs enough time before aborting.
+  // ~7k chars used to hit the old 20s floor under load → false “хэсэгчлэн” errors.
   const timeoutMs = Math.min(
-    90_000,
-    Math.max(20_000, 12_000 + Math.floor(text.length * 0.25)),
+    120_000,
+    Math.max(55_000, 25_000 + Math.floor(text.length * 0.12)),
   );
   let lastError: Error | null = null;
   for (let attempt = 0; attempt < 2; attempt += 1) {
