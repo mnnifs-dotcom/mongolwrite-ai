@@ -142,20 +142,16 @@ export function SpeechToTextForm() {
           <strong>
             {(status?.price_mnt_per_hour ?? 7000).toLocaleString("mn-MN")}₮ / цаг
           </strong>
-          {" · "}
-          Файл серверт хадгалагдахгүй — Chimege рүү шууд хөрвүүлнэ.
         </p>
         {status ? (
           <p className={status.needs_renewal || status.low_balance ? "mw-stt-warn" : "mw-muted"}>
             {status.enabled
               ? status.needs_renewal
-                ? "Үйлчилгээ түр зогссон — урьдчилсан эрх дууссан."
-                : `Боломжтой эрх: ${Math.round(status.remaining_seconds).toLocaleString("mn-MN")} сек (${formatHours(status.remaining_seconds)})`
-              : "Үйлчилгээ түр унтарсан (API тохируулаагүй)."}
+                ? "Урьдчилсан эрх дууссан."
+                : `${Math.round(status.remaining_seconds).toLocaleString("mn-MN")} сек үлдсэн`
+              : "Үйлчилгээ түр унтарсан."}
           </p>
-        ) : (
-          <p className="mw-muted">Төлөв шалгаж байна…</p>
-        )}
+        ) : null}
       </div>
 
       <form className="mw-stt-form" onSubmit={(event) => void onSubmit(event)}>

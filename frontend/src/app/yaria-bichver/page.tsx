@@ -11,12 +11,11 @@ export const metadata: Metadata = {
   title: {
     absolute: "Яриа бичвэр | MongolWrite",
   },
-  description:
-    "Монгол яриа, аудио файлыг бичвэр болгох. Chimege STT — файл серверт хадгалагдахгүй.",
+  description: "Монгол яриа, аудио файлыг бичвэр болгох. 7000₮/цаг.",
   alternates: { canonical: "/yaria-bichver" },
   openGraph: {
     title: "Яриа бичвэр | MongolWrite",
-    description: "Аудио/видео файлаа бичвэр болгоорой. 7000₮/цаг.",
+    description: "Аудио/видео файлаа бичвэр болгоорой.",
     url: `${SITE}/yaria-bichver`,
     type: "website",
     locale: "mn_MN",
