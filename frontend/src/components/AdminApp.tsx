@@ -460,6 +460,32 @@ export function AdminApp() {
     }
   }
 
+  async function activateNextChimege() {
+    if (chimegeBusy) return;
+    const leftover = Math.round(chimege?.active_remaining_seconds ?? 0);
+    if (
+      !window.confirm(
+        leftover > 0
+          ? `Идэвхтэй API-ийн үлдсэн ${leftover.toLocaleString("mn-MN")} сек-ийг алгасаад дараагийн token-ийг идэвхжүүлэх үү?`
+          : "Дараагийн token-ийг идэвхжүүлэх үү?",
+      )
+    ) {
+      return;
+    }
+    setChimegeBusy(true);
+    setError(null);
+    setStatus("");
+    try {
+      const next = await adminChimegeUpdate({ activate_next: true });
+      setChimege(next);
+      setStatus("Дараагийн API идэвхжлээ");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Идэвхжүүлж чадсангүй");
+    } finally {
+      setChimegeBusy(false);
+    }
+  }
+
   async function onLogin(event: FormEvent) {
     event.preventDefault();
     setError(null);
@@ -1438,12 +1464,24 @@ export function AdminApp() {
                   />
                 </label>
                 <p className="mw-muted">
-                  Идэвхтэй API дээр үлдэгдэл байвал шинэ token автоматаар дараалалд орно.
-                  Үлдэгдэл секунд үлдээнэ үгүй.
+                  Нэг файл зөвхөн идэвхтэй API-ийн үлдэгдлээр хөрвөнө. Дарааллын секунд
+                  автоматаар нэмэгдэхгүй.
                 </p>
-                <button type="submit" className="mw-btn-primary" disabled={chimegeBusy}>
-                  {chimegeBusy ? "Хадгалж байна…" : "Хадгалах"}
-                </button>
+                <div className="mw-stt-actions">
+                  <button type="submit" className="mw-btn-primary" disabled={chimegeBusy}>
+                    {chimegeBusy ? "Хадгалж байна…" : "Хадгалах"}
+                  </button>
+                  {(chimege?.queued_count ?? 0) > 0 ? (
+                    <button
+                      type="button"
+                      className="mw-btn"
+                      disabled={chimegeBusy}
+                      onClick={() => void activateNextChimege()}
+                    >
+                      Дараагийн token идэвхжүүл
+                    </button>
+                  ) : null}
+                </div>
               </form>
 
               {chimege?.usage?.length ? (

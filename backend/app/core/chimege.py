@@ -347,6 +347,31 @@ def admin_snapshot() -> dict[str, Any]:
     }
 
 
+def activate_next_slot(*, waste_active_leftover: bool = True) -> dict[str, Any]:
+    """Move to the next queued token. Optionally burns leftover on the active slot."""
+    with _lock:
+        data = _load()
+        slots = list(data.get("slots") or [])
+        idx = _active_index(slots)
+        if idx is None:
+            raise ValueError("Идэвхтэй API байхгүй.")
+        if idx >= len(slots) - 1:
+            raise ValueError("Дараалалд хүлээгдэж буй token байхгүй.")
+        if waste_active_leftover:
+            # Exhaust current prepaid so _active_index advances to the next slot.
+            slots[idx]["used_seconds"] = float(slots[idx].get("prepaid_seconds") or 0)
+        else:
+            rem = _slot_remaining(slots[idx])
+            if rem > 0.05:
+                raise ValueError(
+                    f"Идэвхтэй API дээр {rem:.0f} сек үлдсэн. "
+                    f"Үлдэгдэл алгасахыг зөвшөөрөх эсвэл богино файлаар дуусга."
+                )
+        data["slots"] = slots
+        _save(data)
+    return admin_snapshot()
+
+
 def update_admin(
     *,
     token: str | None = None,
@@ -354,7 +379,11 @@ def update_admin(
     set_prepaid_seconds: float | None = None,
     price_mnt_per_hour: float | None = None,
     reset_used: bool = False,
+    activate_next: bool = False,
 ) -> dict[str, Any]:
+    if activate_next:
+        return activate_next_slot(waste_active_leftover=True)
+
     with _lock:
         data = _load()
         slots = list(data.get("slots") or [])

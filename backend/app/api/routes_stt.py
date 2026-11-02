@@ -123,6 +123,7 @@ class ChimegeAdminUpdate(BaseModel):
     set_prepaid_hours: float | None = Field(default=None, ge=0, le=10_000)
     price_mnt_per_hour: float | None = Field(default=None, gt=0, le=1_000_000)
     reset_used: bool = False
+    activate_next: bool = False
 
 
 def _http_from_chimege(exc: ChimegeError) -> HTTPException:
@@ -158,6 +159,17 @@ def stt_checkout(body: SttCheckoutRequest, user: AuthedUser) -> dict[str, Any]:
         raise HTTPException(
             status_code=402,
             detail="Үйлчилгээ түр ашиглах боломжгүй.",
+        )
+    # One Chimege job uses only the active token — cannot span queued prepaid.
+    active_rem = float(status.get("active_remaining_seconds") or 0)
+    if body.duration_seconds > active_rem + 0.05:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Идэвхтэй API-д {active_rem:.0f} сек үлдсэн. "
+                f"Энэ файл ~{body.duration_seconds:.0f} сек тул одоо хөрвүүлэх боломжгүй. "
+                f"{active_rem:.0f} сек-ээс богино файл оруулна уу."
+            ),
         )
     try:
         return create_stt_checkout(
@@ -507,4 +519,5 @@ def admin_chimege_update(body: ChimegeAdminUpdate, _: AdminDep) -> dict[str, Any
         set_prepaid_seconds=set_seconds,
         price_mnt_per_hour=body.price_mnt_per_hour,
         reset_used=body.reset_used,
+        activate_next=body.activate_next,
     )

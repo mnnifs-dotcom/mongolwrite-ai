@@ -312,6 +312,27 @@ def test_cannot_skip_active_leftover_for_longer_file():
     assert chimege.get_api_token() == "trial-token-aaaa"
 
 
+def test_activate_next_wastes_active_leftover():
+    chimege.update_admin(token="trial-token-aaaa", set_prepaid_seconds=30)
+    chimege.update_admin(token="paid-token-bbbb", set_prepaid_seconds=3600)
+    assert chimege.get_api_token() == "trial-token-aaaa"
+    snap = chimege.activate_next_slot(waste_active_leftover=True)
+    assert chimege.get_api_token() == "paid-token-bbbb"
+    assert snap["active_remaining_seconds"] == pytest.approx(3600)
+
+
+def test_checkout_rejects_over_active_remaining(monkeypatch: pytest.MonkeyPatch):
+    chimege.update_admin(token="trial-token-aaaa", set_prepaid_seconds=30)
+    chimege.update_admin(token="paid-token-bbbb", set_prepaid_seconds=3600)
+    client = _auth_client()
+    response = client.post(
+        "/api/v1/stt/checkout",
+        json={"duration_seconds": 3000, "filename": "long.m4a"},
+    )
+    assert response.status_code == 400
+    assert "30" in response.json()["detail"] or "үлдсэн" in response.json()["detail"].lower()
+
+
 def test_stt_payment_does_not_activate_plan(tmp_path, monkeypatch):
     monkeypatch.setattr("app.core.users.persist_dir", lambda: tmp_path)
     from app.core.users import get_user, upsert_google_user

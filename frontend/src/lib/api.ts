@@ -1235,6 +1235,7 @@ export type SttPublicStatus = {
   enabled: boolean;
   remaining_seconds: number;
   remaining_hours: number;
+  active_remaining_seconds?: number;
   used_seconds: number;
   prepaid_seconds: number;
   price_mnt_per_hour: number;
@@ -1506,6 +1507,7 @@ export async function adminChimegeUpdate(body: {
   set_prepaid_hours?: number;
   price_mnt_per_hour?: number;
   reset_used?: boolean;
+  activate_next?: boolean;
 }): Promise<ChimegeAdminSnapshot> {
   const response = await fetch(apiUrl("/api/v1/admin/chimege"), {
     method: "POST",

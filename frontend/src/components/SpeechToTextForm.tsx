@@ -345,6 +345,13 @@ export function SpeechToTextForm() {
       setError("Файлын үргэлжлэх хугацаа уншигдсангүй. Өөр файл сонгоно уу.");
       return;
     }
+    const activeRem = status?.active_remaining_seconds;
+    if (activeRem != null && clientSeconds > activeRem + 0.05) {
+      setError(
+        `Одоо хөрвүүлэх боломжтой дээд хэмжээ ${Math.floor(activeRem).toLocaleString("mn-MN")} сек. Энэ файл ~${Math.ceil(clientSeconds).toLocaleString("mn-MN")} сек.`,
+      );
+      return;
+    }
 
     const existing = loadPaidSession();
     if (existing) {
@@ -505,6 +512,9 @@ export function SpeechToTextForm() {
         </p>
         <p className="mw-muted">
           Формат: wav, mp3, m4a, mp4, aac, ogg, flac, webm · дээд хэмжээ {MAX_STT_MB}MB
+          {status?.active_remaining_seconds != null
+            ? ` · одоо хөрвүүлэх дээд ~${Math.max(0, Math.floor(status.active_remaining_seconds)).toLocaleString("mn-MN")} сек`
+            : ""}
         </p>
         {serviceBlocked ? (
           <p className="mw-stt-warn">
