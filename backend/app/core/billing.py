@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import logging
+import math
+import secrets
 import threading
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -18,6 +20,11 @@ from app.engine.dictionary import persist_dir
 
 _lock = threading.Lock()
 _log = logging.getLogger(__name__)
+
+# Speech-to-text one-shot invoices (no plan activation).
+STT_PRODUCT_KIND = "stt"
+STT_MIN_BILLABLE_SECONDS = 60.0
+STT_DURATION_SLACK = 1.25  # allow Chimege duration slightly over quoted length
 
 
 def _orders_path() -> Path:
@@ -187,8 +194,8 @@ def create_checkout(
     }
 
 
-def public_order(order: dict[str, Any]) -> dict[str, Any]:
-    return {
+def public_order(order: dict[str, Any], *, include_access_token: bool = False) -> dict[str, Any]:
+    out: dict[str, Any] = {
         "id": order.get("id"),
         "sender_invoice_no": order.get("sender_invoice_no"),
         "plan_id": order.get("plan_id"),
@@ -196,6 +203,9 @@ def public_order(order: dict[str, Any]) -> dict[str, Any]:
         "amount_mnt": order.get("amount_mnt"),
         "currency": order.get("currency", "MNT"),
         "status": order.get("status"),
+        "product_kind": order.get("product_kind") or "plan",
+        "duration_seconds": order.get("duration_seconds"),
+        "consumed": bool(order.get("consumed")),
         "qpay_invoice_id": order.get("qpay_invoice_id"),
         "qpay_qr_text": order.get("qpay_qr_text"),
         "qpay_qr_image": order.get("qpay_qr_image"),
@@ -206,6 +216,173 @@ def public_order(order: dict[str, Any]) -> dict[str, Any]:
         "paid_at": order.get("paid_at"),
         "note": order.get("note") or "",
     }
+    if include_access_token and order.get("access_token"):
+        out["access_token"] = order.get("access_token")
+    return out
+
+
+def stt_billable_seconds(duration_seconds: float) -> float:
+    """Round up to whole minutes; minimum one minute."""
+    seconds = max(0.0, float(duration_seconds))
+    minutes = max(1, int(math.ceil(seconds / 60.0)))
+    return float(minutes * 60)
+
+
+def create_stt_checkout(
+    *,
+    duration_seconds: float,
+    user_id: str = "",
+    email: str = "",
+    filename: str = "",
+    price_mnt_per_hour: float,
+) -> dict[str, Any]:
+    """Create a QPay invoice for one speech→text conversion. Pay before convert."""
+    if float(duration_seconds) <= 0:
+        raise ValueError("Файлын үргэлжлэх хугацаа олдсонгүй.")
+    billable = stt_billable_seconds(duration_seconds)
+    rate = float(price_mnt_per_hour)
+    if rate <= 0:
+        raise ValueError("Үнэ тохируулаагүй.")
+    amount_mnt = max(1, int(round((billable / 3600.0) * rate)))
+    order_id = str(uuid.uuid4())
+    access_token = secrets.token_urlsafe(24)
+    sender_invoice_no = f"ST-{order_id.replace('-', '').upper()[:20]}"
+    stamped = _now()
+    minutes = int(billable // 60)
+    product = f"MongolWrite · Яриа→бичвэр · {minutes} мин"
+    order: dict[str, Any] = {
+        "id": order_id,
+        "sender_invoice_no": sender_invoice_no,
+        "user_id": (user_id or "")[:80],
+        "email": (email or "")[:200],
+        "plan_id": "stt",
+        "plan_name": "Яриа→бичвэр",
+        "product_kind": STT_PRODUCT_KIND,
+        "amount_mnt": amount_mnt,
+        "duration_seconds": billable,
+        "quoted_duration_seconds": round(float(duration_seconds), 2),
+        "filename": (filename or "")[:120],
+        "access_token": access_token,
+        "consumed": False,
+        "chimege_uuid": None,
+        "duration_days": None,
+        "currency": "MNT",
+        "provider": "qpay",
+        "status": "pending",
+        "qpay_invoice_id": None,
+        "qpay_qr_text": None,
+        "qpay_qr_image": None,
+        "qpay_short_url": None,
+        "qpay_urls": [],
+        "created_at": _iso(stamped),
+        "updated_at": _iso(stamped),
+        "paid_at": None,
+        "expires_at": _iso(stamped + timedelta(hours=2)),
+        "product": product,
+        "events": [],
+    }
+    _append_event(order, "created", f"stt seconds={billable} amount={amount_mnt}")
+
+    if qpay_configured():
+        try:
+            invoice = create_invoice(
+                sender_invoice_no=sender_invoice_no,
+                amount_mnt=amount_mnt,
+                description=product[:255],
+                receiver_code="terminal",
+                order_id=order_id,
+            )
+            order["status"] = "awaiting_payment"
+            order["qpay_invoice_id"] = invoice["invoice_id"]
+            order["qpay_qr_text"] = invoice.get("qr_text")
+            order["qpay_qr_image"] = invoice.get("qr_image")
+            order["qpay_short_url"] = invoice.get("short_url")
+            order["qpay_urls"] = invoice.get("urls") or []
+            order["note"] = "QPay нэхэмжлэх үүссэн. Төлсний дараа бичвэр бэлтгэнэ."
+            _append_event(order, "invoice_created", str(invoice["invoice_id"]))
+        except QPayError as exc:
+            _log.exception("QPay STT invoice create failed")
+            order["status"] = "provider_error"
+            order["note"] = str(exc)
+            _append_event(order, "invoice_error", str(exc))
+    else:
+        order["status"] = "pending_provider"
+        order["note"] = "QPay код хүлээгдэж байна. Захиалга бүртгэгдлээ."
+        _append_event(order, "pending_provider")
+
+    with _lock:
+        orders = _load_orders()
+        orders[order_id] = order
+        _save_orders(orders)
+
+    return {
+        "ok": True,
+        "order": public_order(order, include_access_token=True),
+        "checkout_ready": qpay_configured(),
+        "provider": "qpay",
+        "billable_seconds": billable,
+        "amount_mnt": amount_mnt,
+        "price_mnt_per_hour": rate,
+    }
+
+
+def _access_token_ok(expected: str, provided: str) -> bool:
+    left = (expected or "").encode("utf-8")
+    right = (provided or "").strip().encode("utf-8")
+    if not left or len(left) != len(right):
+        return False
+    return secrets.compare_digest(left, right)
+
+
+def get_stt_order(order_id: str, access_token: str) -> dict[str, Any] | None:
+    order = get_order(order_id)
+    if not order or order.get("product_kind") != STT_PRODUCT_KIND:
+        return None
+    expected = str(order.get("access_token") or "")
+    if not _access_token_ok(expected, access_token):
+        return None
+    return order
+
+
+def consume_stt_order(
+    order_id: str,
+    *,
+    access_token: str,
+    chimege_uuid: str,
+    actual_duration_seconds: float,
+) -> dict[str, Any]:
+    """Mark a paid STT order as used (one transcription). Raises ValueError on misuse."""
+    with _lock:
+        orders = _load_orders()
+        order = orders.get(order_id)
+        if not order or order.get("product_kind") != STT_PRODUCT_KIND:
+            raise ValueError("Төлбөрийн захиалга олдсонгүй.")
+        expected = str(order.get("access_token") or "")
+        if not _access_token_ok(expected, access_token):
+            raise ValueError("Төлбөрийн эрх буруу.")
+        if order.get("status") != "paid":
+            raise ValueError("Эхлээд төлбөрөө төлнө үү.")
+        if order.get("consumed"):
+            raise ValueError("Энэ төлбөрөөр аль хэдийн хөрвүүлсэн.")
+        paid_seconds = float(order.get("duration_seconds") or 0)
+        actual = max(0.0, float(actual_duration_seconds))
+        # Already paid — always fulfill. Log soft overrun for admin review.
+        overrun = bool(paid_seconds > 0 and actual > paid_seconds * STT_DURATION_SLACK + 1)
+        stamped = _iso(_now())
+        order["consumed"] = True
+        order["chimege_uuid"] = (chimege_uuid or "")[:80]
+        order["actual_duration_seconds"] = round(actual, 2)
+        order["duration_overrun"] = overrun
+        order["updated_at"] = stamped
+        order["note"] = "Төлбөр баталгаажсан · бичвэр бэлтгэж байна."
+        _append_event(
+            order,
+            "consumed",
+            f"{chimege_uuid or ''}{' overrun' if overrun else ''}",
+        )
+        orders[order_id] = order
+        _save_orders(orders)
+        return dict(order)
 
 
 def get_order(order_id: str) -> dict[str, Any] | None:
@@ -237,7 +414,7 @@ def find_order_by_qpay_invoice_id(invoice_id: str) -> dict[str, Any] | None:
 
 
 def mark_order_paid(order_id: str, *, qpay_payment_id: str = "") -> dict[str, Any] | None:
-    """Mark invoice paid and activate the user plan (verified callback / poll)."""
+    """Mark invoice paid; activate plan for subscription orders only (not STT)."""
     with _lock:
         orders = _load_orders()
         order = orders.get(order_id)
@@ -249,7 +426,12 @@ def mark_order_paid(order_id: str, *, qpay_payment_id: str = "") -> dict[str, An
         order["status"] = "paid"
         order["paid_at"] = stamped
         order["updated_at"] = stamped
-        order["note"] = "Төлбөр амжилттай. Эрх идэвхжүүлэгдлээ."
+        is_stt = order.get("product_kind") == STT_PRODUCT_KIND
+        order["note"] = (
+            "Төлбөр амжилттай. Одоо бичвэр болгоно."
+            if is_stt
+            else "Төлбөр амжилттай. Эрх идэвхжүүлэгдлээ."
+        )
         if qpay_payment_id:
             order["qpay_payment_id"] = qpay_payment_id
         _append_event(order, "paid", qpay_payment_id or "")
@@ -257,11 +439,15 @@ def mark_order_paid(order_id: str, *, qpay_payment_id: str = "") -> dict[str, An
         _save_orders(orders)
         snapshot = dict(order)
 
-    activate_plan_for_user(
-        str(snapshot["user_id"]),
-        str(snapshot["plan_id"]),
-        duration_days=int(snapshot.get("duration_days") or 0) or None,
-    )
+    if snapshot.get("product_kind") != STT_PRODUCT_KIND:
+        user_id = str(snapshot.get("user_id") or "").strip()
+        plan_id = str(snapshot.get("plan_id") or "").strip()
+        if user_id and plan_id and plan_id != "stt":
+            activate_plan_for_user(
+                user_id,
+                plan_id,
+                duration_days=int(snapshot.get("duration_days") or 0) or None,
+            )
     return snapshot
 
 

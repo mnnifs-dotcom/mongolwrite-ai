@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     openai_base_url: str = "https://api.openai.com/v1"
     openai_model: str = "gpt-4o"
+    # Optional Chimege STT token (prefer admin UI / data/.chimege_token).
+    chimege_api_token: str = ""
     # QPay — leave empty until merchant credentials arrive; checkout stays stub-ready.
     qpay_client_id: str = ""
     qpay_client_secret: str = ""

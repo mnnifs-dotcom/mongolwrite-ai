@@ -144,5 +144,10 @@ else:
         "/aldaa-medegdeh/",
     )
     _html_page(_frontend / "tolbor.html", "/tolbor", "/tolbor/")
+    _html_page(
+        _frontend / "yaria-bichver.html",
+        "/yaria-bichver",
+        "/yaria-bichver/",
+    )
 
     app.mount("/", StaticFiles(directory=_frontend, html=True), name="frontend")

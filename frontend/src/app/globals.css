@@ -669,6 +669,7 @@ body {
 
 .mw-top-actions .mw-btn,
 .mw-top-actions .mw-btn-primary,
+.mw-top-actions .mw-btn-stt,
 .mw-top-actions .mw-menu-trigger {
   min-height: 36px;
 }
@@ -1022,6 +1023,31 @@ body {
   text-rendering: optimizeLegibility;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.mw-top-actions .mw-btn-stt {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  border: 1px solid color-mix(in srgb, var(--accent, #1f6fad) 42%, var(--line));
+  background: linear-gradient(180deg, #eef6fc 0%, #e3f0fa 55%, #fff 100%);
+  color: var(--accent, #1f6fad);
+  font-weight: 750;
+  padding: 8px 14px;
+  border-radius: 11px;
+  white-space: nowrap;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.85) inset,
+    0 4px 14px rgba(31, 111, 173, 0.16);
+}
+
+.mw-top-actions .mw-btn-stt:hover {
+  background: linear-gradient(180deg, #e4f1fb 0%, #d5e9f8 100%);
+  border-color: var(--accent, #1f6fad);
+  color: #155a92;
+  box-shadow: 0 6px 16px rgba(31, 111, 173, 0.22);
+  transform: translateY(-1px);
 }
 
 .mw-top-actions .mw-btn-convert {
@@ -3721,4 +3747,163 @@ label {
   color: var(--link-hover);
   text-decoration: none;
   border-bottom-color: color-mix(in srgb, var(--accent) 50%, transparent);
+}
+
+/* Speech-to-text (Chimege) */
+.mw-stt {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.mw-stt-meta p {
+  margin: 0.25rem 0;
+}
+
+.mw-stt-warn {
+  color: #a14a12;
+  font-weight: 650;
+}
+
+.mw-stt-form {
+  display: grid;
+  gap: 0.85rem;
+  max-width: 36rem;
+}
+
+.mw-stt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  align-items: center;
+}
+
+.mw-stt-actions .mw-seo-cta-inline {
+  margin: 0;
+  width: auto;
+  min-width: 10.5rem;
+}
+
+.mw-stt-pick {
+  background: #fff !important;
+  color: var(--accent, #1f6fad) !important;
+  border: 1.5px solid color-mix(in srgb, var(--accent, #1f6fad) 55%, #fff) !important;
+  box-shadow: none !important;
+}
+
+.mw-stt-pick:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent, #1f6fad) 8%, #fff) !important;
+}
+
+.mw-stt-progress {
+  display: grid;
+  gap: 0.45rem;
+  max-width: 36rem;
+  margin-top: 0.35rem;
+}
+
+.mw-stt-progress-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.95rem;
+  color: var(--muted, #5b6b7c);
+}
+
+.mw-stt-progress-head strong {
+  color: var(--ink, #16324f);
+  font-variant-numeric: tabular-nums;
+}
+
+.mw-stt-progress-track {
+  height: 0.55rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent, #1f6fad) 12%, #e8eef4);
+  overflow: hidden;
+}
+
+.mw-stt-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--accent, #1f6fad) 75%, #0d4a7a),
+    var(--accent, #1f6fad)
+  );
+  transition: width 0.35s ease;
+}
+
+.mw-stt-result {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.mw-stt-result-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.mw-stt-result-head h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.mw-stt-textarea {
+  width: 100%;
+  min-height: 14rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--border, #c9d4e0) 80%, transparent);
+  border-radius: 10px;
+  font: inherit;
+  line-height: 1.55;
+  resize: vertical;
+  background: #fff;
+}
+
+.mw-admin-form {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: 1.25rem;
+  max-width: 28rem;
+}
+
+.mw-admin-form label {
+  display: grid;
+  gap: 0.35rem;
+  font-weight: 650;
+  font-size: 0.92rem;
+}
+
+.mw-admin-form input {
+  font: inherit;
+  font-weight: 500;
+  padding: 0.55rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--border, #c9d4e0) 85%, transparent);
+}
+
+.mw-table-wrap {
+  overflow-x: auto;
+  margin-top: 0.5rem;
+}
+
+.mw-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.mw-table th,
+.mw-table td {
+  text-align: left;
+  padding: 0.45rem 0.55rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--border, #c9d4e0) 70%, transparent);
+}
+
+.mw-table th {
+  font-weight: 700;
+  color: color-mix(in srgb, var(--text, #1a2a3a) 80%, transparent);
 }

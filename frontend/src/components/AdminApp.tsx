@@ -35,10 +35,13 @@ import {
   adminFeedbackList,
   adminFeedbackDelete,
   adminFeedbackPurgeTests,
+  adminChimegeGet,
+  adminChimegeUpdate,
   type AdminAddedWord,
   type AdminFeedbackItem,
   type AdminUser,
   type AdminUsersPage,
+  type ChimegeAdminSnapshot,
   type FailedLawItem,
   type HunspellCandidate,
   type LegalBotStatus,
@@ -65,6 +68,7 @@ type AdminSection =
   | "review"
   | "users"
   | "legal"
+  | "chimege"
   | "health";
 
 const PAGE_SIZE = 400;
@@ -194,6 +198,11 @@ export function AdminApp() {
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
   const [editPlan, setEditPlan] = useState<"free" | "pro_3m" | "pro_year">("free");
   const [editExpiry, setEditExpiry] = useState("");
+  const [chimege, setChimege] = useState<ChimegeAdminSnapshot | null>(null);
+  const [chimegeToken, setChimegeToken] = useState("");
+  const [chimegeAddHours, setChimegeAddHours] = useState("");
+  const [chimegeSetHours, setChimegeSetHours] = useState("");
+  const [chimegeBusy, setChimegeBusy] = useState(false);
 
   const applyOverview = useCallback((next: SiteOverview) => {
     setOverview(next);
@@ -406,6 +415,50 @@ export function AdminApp() {
     void loadLaws();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authed, section]);
+
+  useEffect(() => {
+    if (!authed || section !== "chimege") return;
+    void loadChimege();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authed, section]);
+
+  async function loadChimege() {
+    try {
+      const next = await adminChimegeGet();
+      setChimege(next);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Chimege уншигдсангүй");
+    }
+  }
+
+  async function saveChimege(event: FormEvent) {
+    event.preventDefault();
+    setChimegeBusy(true);
+    setError(null);
+    setStatus("");
+    try {
+      const add = chimegeAddHours.trim() ? Number(chimegeAddHours) : undefined;
+      const setHours = chimegeSetHours.trim() ? Number(chimegeSetHours) : undefined;
+      const next = await adminChimegeUpdate({
+        token: chimegeToken.trim() ? chimegeToken.trim() : undefined,
+        add_prepaid_hours:
+          add != null && Number.isFinite(add) && add > 0 ? add : undefined,
+        set_prepaid_hours:
+          setHours != null && Number.isFinite(setHours) && setHours >= 0
+            ? setHours
+            : undefined,
+      });
+      setChimege(next);
+      setChimegeToken("");
+      setChimegeAddHours("");
+      setChimegeSetHours("");
+      setStatus("Chimege тохиргоо хадгаллаа");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Хадгалж чадсангүй");
+    } finally {
+      setChimegeBusy(false);
+    }
+  }
 
   async function onLogin(event: FormEvent) {
     event.preventDefault();
@@ -1207,6 +1260,7 @@ export function AdminApp() {
       label: "legalinfo.mn",
       count: lawsRemainingCount || lawsCatalogCount || legalPreview?.trusted_count,
     },
+    { id: "chimege", label: "Яриа API" },
     { id: "overview", label: "Тойм" },
     { id: "health", label: "Сайтын төлөв" },
   ];
@@ -1256,6 +1310,176 @@ export function AdminApp() {
         <div className="mw-admin mw-admin-pane">
           {error ? <p className="mw-banner">{error}</p> : null}
           {status ? <p className="mw-admin-status">{status}</p> : null}
+
+          {section === "chimege" ? (
+            <section className="mw-admin-card">
+              <h2>Chimege яриа → бичвэр</h2>
+              <p className="mw-muted">
+                Урьдчилсан төлбөрт API token оруулж, үлдэгдэл секунд/цагаа хянана. Үнэ{" "}
+                {(chimege?.price_mnt_per_hour ?? 7000).toLocaleString("mn-MN")}₮/цаг.
+                Аудио серверт хадгалагдахгүй. Шинэ token оруулахад өмнөх API-ийн үлдэгдэл
+                секунд бүрэн дууссаны дараа л дараагийнх нь идэвхжинэ.
+              </p>
+              {chimege ? (
+                <div className="mw-overview-grid" style={{ marginTop: "1rem" }}>
+                  <div className="mw-overview-tile">
+                    <span>Идэвхтэй API</span>
+                    <strong>{chimege.has_token ? "Холбогдсон" : "Байхгүй"}</strong>
+                    <em>{chimege.token_masked || "token оруулаагүй"}</em>
+                  </div>
+                  <div className="mw-overview-tile">
+                    <span>Идэвхтэй үлдэгдэл</span>
+                    <strong>
+                      {Math.round(
+                        chimege.active_remaining_seconds ?? chimege.remaining_seconds,
+                      ).toLocaleString("mn-MN")}{" "}
+                      сек
+                    </strong>
+                    <em>
+                      нийт{" "}
+                      {Math.round(chimege.remaining_seconds).toLocaleString("mn-MN")} сек ·{" "}
+                      {chimege.remaining_mnt_value.toLocaleString("mn-MN")}₮
+                    </em>
+                  </div>
+                  <div className="mw-overview-tile">
+                    <span>Зарцуулсан</span>
+                    <strong>
+                      {Math.round(chimege.used_seconds).toLocaleString("mn-MN")} сек
+                    </strong>
+                    <em>{chimege.prepaid_mnt_spent.toLocaleString("mn-MN")}₮</em>
+                  </div>
+                  <div className="mw-overview-tile">
+                    <span>Төлөв</span>
+                    <strong>
+                      {chimege.needs_renewal
+                        ? "Сунгах хэрэгтэй"
+                        : chimege.low_balance
+                          ? "Бага үлдсэн"
+                          : "Хэвийн"}
+                    </strong>
+                    <em>
+                      дараалал: {(chimege.queued_count ?? 0).toLocaleString("mn-MN")} ·{" "}
+                      <a href="/yaria-bichver" target="_blank" rel="noreferrer">
+                        /yaria-bichver
+                      </a>
+                    </em>
+                  </div>
+                </div>
+              ) : (
+                <p className="mw-muted">Уншиж байна…</p>
+              )}
+              {chimege?.queue_note ? (
+                <p className="mw-muted" style={{ marginTop: "0.75rem" }}>
+                  {chimege.queue_note}
+                </p>
+              ) : null}
+              {chimege?.queue?.length ? (
+                <div className="mw-table-wrap" style={{ marginTop: "0.75rem" }}>
+                  <table className="mw-table">
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>Token</th>
+                        <th>Үлдсэн сек</th>
+                        <th>Төлөв</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {chimege.queue.map((slot) => (
+                        <tr key={`${slot.index}-${slot.token_masked}`}>
+                          <td>{slot.index + 1}</td>
+                          <td>{slot.token_masked}</td>
+                          <td>{Math.round(slot.remaining_seconds).toLocaleString("mn-MN")}</td>
+                          <td>
+                            {slot.active
+                              ? "Идэвхтэй"
+                              : slot.queued
+                                ? "Хүлээгдэж буй"
+                                : "Дууссан"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
+
+              <form className="mw-admin-form" onSubmit={(event) => void saveChimege(event)}>
+                <label>
+                  Шинэ / солих API token
+                  <input
+                    type="password"
+                    autoComplete="off"
+                    placeholder={chimege?.token_masked || "Chimege Token"}
+                    value={chimegeToken}
+                    onChange={(event) => setChimegeToken(event.target.value)}
+                  />
+                </label>
+                <label>
+                  Энэ token-д нэмэх урьдчилсан цаг
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    placeholder="ж: 1 (= 3600 сек)"
+                    value={chimegeAddHours}
+                    onChange={(event) => setChimegeAddHours(event.target.value)}
+                  />
+                </label>
+                <label>
+                  Энэ token-ийн нийт урьдчилсан цагийг тавих
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    placeholder="ж: 1"
+                    value={chimegeSetHours}
+                    onChange={(event) => setChimegeSetHours(event.target.value)}
+                  />
+                </label>
+                <p className="mw-muted">
+                  Идэвхтэй API дээр үлдэгдэл байвал шинэ token автоматаар дараалалд орно.
+                  Үлдэгдэл секунд үлдээнэ үгүй.
+                </p>
+                <button type="submit" className="mw-btn-primary" disabled={chimegeBusy}>
+                  {chimegeBusy ? "Хадгалж байна…" : "Хадгалах"}
+                </button>
+              </form>
+
+              {chimege?.usage?.length ? (
+                <div style={{ marginTop: "1.25rem" }}>
+                  <h3>Сүүлийн хэрэглээ</h3>
+                  <div className="mw-table-wrap">
+                    <table className="mw-table">
+                      <thead>
+                        <tr>
+                          <th>Огноо</th>
+                          <th>Файл</th>
+                          <th>Үргэлжлэх</th>
+                          <th>₮</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {chimege.usage.slice(0, 40).map((row) => (
+                          <tr key={`${row.at}-${row.uuid || row.filename}`}>
+                            <td>{formatWhen(row.at)}</td>
+                            <td>{row.filename || "—"}</td>
+                            <td>
+                              {(row.duration_seconds / 60).toLocaleString("mn-MN", {
+                                maximumFractionDigits: 1,
+                              })}{" "}
+                              мин
+                            </td>
+                            <td>{row.mnt.toLocaleString("mn-MN")}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : null}
+            </section>
+          ) : null}
 
           {section === "health" && overview?.health ? (
             <section className="mw-admin-card">

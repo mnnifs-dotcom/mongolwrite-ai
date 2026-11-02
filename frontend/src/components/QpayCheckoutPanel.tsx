@@ -20,11 +20,18 @@ function asUrls(value: unknown): QpayUrl[] {
   return value.filter((row): row is QpayUrl => Boolean(row && typeof row === "object"));
 }
 
+type OrderFetchResult = { order: BillingOrder; checkout_ready?: boolean };
+type OrderSyncResult = { order: BillingOrder; paid: boolean };
+
 type Props = {
   order: BillingOrder;
   checkoutReady: boolean;
   onPaid?: (order: BillingOrder) => void;
   onBack?: () => void;
+  /** Override default billing fetch (e.g. guest STT order + access token). */
+  fetchOrder?: (orderId: string) => Promise<OrderFetchResult>;
+  syncOrder?: (orderId: string) => Promise<OrderSyncResult>;
+  paidNote?: string;
 };
 
 /** Local order status only — never auto-hit QPay payment/check. */
@@ -36,12 +43,19 @@ export function QpayCheckoutPanel({
   checkoutReady,
   onPaid,
   onBack,
+  fetchOrder,
+  syncOrder,
+  paidNote = "Эрх идэвхжлээ.",
 }: Props) {
   const [order, setOrder] = useState(initial);
   const [syncing, setSyncing] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const onPaidRef = useRef(onPaid);
   onPaidRef.current = onPaid;
+  const fetchOrderRef = useRef(fetchOrder);
+  fetchOrderRef.current = fetchOrder;
+  const syncOrderRef = useRef(syncOrder);
+  syncOrderRef.current = syncOrder;
 
   useEffect(() => {
     setOrder(initial);
@@ -59,7 +73,8 @@ export function QpayCheckoutPanel({
     const tick = async () => {
       if (Date.now() - started > LOCAL_POLL_MAX_MS) return;
       try {
-        const result = await fetchBillingOrder(order.id);
+        const loader = fetchOrderRef.current ?? ((id: string) => fetchBillingOrder(id));
+        const result = await loader(order.id);
         if (cancelled) return;
         setOrder(result.order);
         if (result.order.status === "paid") onPaidRef.current?.(result.order);
@@ -93,7 +108,8 @@ export function QpayCheckoutPanel({
   async function onManualSync() {
     setSyncing(true);
     try {
-      const result = await syncBillingOrder(order.id);
+      const syncer = syncOrderRef.current ?? ((id: string) => syncBillingOrder(id));
+      const result = await syncer(order.id);
       setOrder(result.order);
       if (result.paid) onPaidRef.current?.(result.order);
     } finally {
@@ -123,7 +139,7 @@ export function QpayCheckoutPanel({
       </header>
 
       {paid ? (
-        <p className="mw-qpay-note">Эрх идэвхжлээ.</p>
+        <p className="mw-qpay-note">{paidNote}</p>
       ) : ready ? (
         <div className="mw-qpay-body">
           {qrSrc ? (

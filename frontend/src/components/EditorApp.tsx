@@ -871,6 +871,9 @@ export function EditorApp() {
                   <a href="/ugiin-aldaga-shalgah" role="menuitem" onClick={closeMenu}>
                     Үгийн алдаа шалгах
                   </a>
+                  <a href="/yaria-bichver" role="menuitem" onClick={closeMenu}>
+                    Яриа бичвэр
+                  </a>
                   <a href="/aldaa-medegdeh" role="menuitem" onClick={closeMenu}>
                     Алдаа мэдэгдэх
                   </a>
@@ -895,6 +898,9 @@ export function EditorApp() {
                 void onPickFile(file);
               }}
             />
+            <a href="/yaria-bichver" className="mw-btn mw-btn-stt">
+              Яриа → бичвэр
+            </a>
             <button
               type="button"
               className="mw-btn mw-btn-convert"
@@ -955,6 +961,7 @@ export function EditorApp() {
                 </strong>
               </div>
               <div className="mw-editor-legal">
+                <a href="/yaria-bichver">Яриа бичвэр</a>
                 <a href="/tolbor">Төлбөр</a>
                 <a href="/aldaa-medegdeh">Алдаа мэдэгдэх</a>
                 <a href="/uilchilgeenii-nokhtsol">Үйлчилгээний нөхцөл</a>

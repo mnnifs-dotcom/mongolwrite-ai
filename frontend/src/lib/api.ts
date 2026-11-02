@@ -1150,6 +1150,10 @@ export type BillingOrder = {
   amount_mnt: number;
   currency: string;
   status: string;
+  product_kind?: string;
+  duration_seconds?: number | null;
+  consumed?: boolean;
+  access_token?: string;
   qpay_invoice_id?: string | null;
   qpay_qr_text?: string | null;
   qpay_qr_image?: string | null;
@@ -1223,4 +1227,208 @@ export async function syncBillingOrder(
   );
   if (!response.ok) throw new Error("Төлбөрийн төлөв шалгаж чадсангүй");
   return response.json() as Promise<{ order: BillingOrder; paid: boolean }>;
+}
+
+export type SttPublicStatus = {
+  enabled: boolean;
+  remaining_seconds: number;
+  remaining_hours: number;
+  used_seconds: number;
+  prepaid_seconds: number;
+  price_mnt_per_hour: number;
+  low_balance: boolean;
+  needs_renewal: boolean;
+  checkout_ready?: boolean;
+};
+
+export type SttSubmitResponse = {
+  uuid: string;
+  duration_seconds: number;
+  mnt: number;
+  remaining_seconds: number;
+  remaining_hours: number;
+  price_mnt_per_hour: number;
+  order_id?: string;
+};
+
+export type SttPollResponse = {
+  done: boolean;
+  transcription: string;
+  duration_seconds: number;
+  progress_percent?: number;
+};
+
+export type SttCheckoutResponse = {
+  ok: boolean;
+  order: BillingOrder;
+  checkout_ready: boolean;
+  provider: string;
+  billable_seconds: number;
+  amount_mnt: number;
+  price_mnt_per_hour: number;
+};
+
+export type ChimegeQueueSlot = {
+  index: number;
+  token_masked: string;
+  prepaid_seconds: number;
+  used_seconds: number;
+  remaining_seconds: number;
+  remaining_hours: number;
+  active: boolean;
+  queued: boolean;
+  exhausted: boolean;
+};
+
+export type ChimegeAdminSnapshot = {
+  has_token: boolean;
+  token_masked: string;
+  prepaid_seconds: number;
+  used_seconds: number;
+  remaining_seconds: number;
+  remaining_hours: number;
+  active_remaining_seconds?: number;
+  prepaid_mnt_spent: number;
+  remaining_mnt_value: number;
+  price_mnt_per_hour: number;
+  low_balance: boolean;
+  needs_renewal: boolean;
+  updated_at?: string | null;
+  queued_count?: number;
+  queue_note?: string;
+  queue?: ChimegeQueueSlot[];
+  usage: Array<{
+    at: string;
+    duration_seconds: number;
+    mnt: number;
+    filename?: string;
+    user_id?: string | null;
+    uuid?: string | null;
+    token_masked?: string;
+  }>;
+};
+
+export async function sttStatus(): Promise<SttPublicStatus> {
+  const response = await fetch(apiUrl("/api/v1/stt/status"), {
+    credentials: "include",
+    headers: authHeaders(),
+  });
+  if (!response.ok) throw new Error("Яриа→бичвэр төлөв уншигдсангүй");
+  return response.json() as Promise<SttPublicStatus>;
+}
+
+export async function sttCheckout(body: {
+  duration_seconds: number;
+  filename?: string;
+}): Promise<SttCheckoutResponse> {
+  const response = await fetch(apiUrl("/api/v1/stt/checkout"), {
+    method: "POST",
+    credentials: "include",
+    headers: jsonHeaders(),
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const detail = await response
+      .json()
+      .then((row: { detail?: string }) => row.detail)
+      .catch(() => null);
+    throw new Error(detail || `Төлбөрийн нэхэмжлэх үүсгэхэд алдаа (${response.status})`);
+  }
+  return response.json() as Promise<SttCheckoutResponse>;
+}
+
+export async function fetchSttOrder(
+  orderId: string,
+  accessToken: string,
+): Promise<{ order: BillingOrder; checkout_ready: boolean }> {
+  const response = await fetch(
+    apiUrl(
+      `/api/v1/stt/orders/${encodeURIComponent(orderId)}?access_token=${encodeURIComponent(accessToken)}`,
+    ),
+    { credentials: "include", headers: authHeaders() },
+  );
+  if (!response.ok) throw new Error("Захиалга олдсонгүй");
+  return response.json() as Promise<{ order: BillingOrder; checkout_ready: boolean }>;
+}
+
+export async function syncSttOrder(
+  orderId: string,
+  accessToken: string,
+): Promise<{ order: BillingOrder; paid: boolean }> {
+  const response = await fetch(
+    apiUrl(
+      `/api/v1/stt/orders/${encodeURIComponent(orderId)}/sync?access_token=${encodeURIComponent(accessToken)}`,
+    ),
+    {
+      method: "POST",
+      credentials: "include",
+      headers: authHeaders(),
+    },
+  );
+  if (!response.ok) throw new Error("Төлбөрийн төлөв шалгаж чадсангүй");
+  return response.json() as Promise<{ order: BillingOrder; paid: boolean }>;
+}
+
+export async function sttTranscribe(
+  file: File,
+  payment: { orderId: string; accessToken: string },
+): Promise<SttSubmitResponse> {
+  const body = new FormData();
+  body.append("file", file, file.name);
+  body.append("order_id", payment.orderId);
+  body.append("access_token", payment.accessToken);
+  const response = await fetch(apiUrl("/api/v1/stt/transcribe"), {
+    method: "POST",
+    credentials: "include",
+    headers: authHeaders(),
+    body,
+  });
+  if (!response.ok) {
+    const detail = await response
+      .json()
+      .then((row: { detail?: string }) => row.detail)
+      .catch(() => null);
+    throw new Error(detail || `Хөрвүүлэлт амжилтгүй (${response.status})`);
+  }
+  return response.json() as Promise<SttSubmitResponse>;
+}
+
+export async function sttResult(uuid: string): Promise<SttPollResponse> {
+  const response = await fetch(
+    apiUrl(`/api/v1/stt/result?uuid=${encodeURIComponent(uuid)}`),
+    { credentials: "include", headers: authHeaders() },
+  );
+  if (!response.ok) {
+    const detail = await response
+      .json()
+      .then((row: { detail?: string }) => row.detail)
+      .catch(() => null);
+    throw new Error(detail || "Бичвэр уншигдсангүй");
+  }
+  return response.json() as Promise<SttPollResponse>;
+}
+
+export async function adminChimegeGet(): Promise<ChimegeAdminSnapshot> {
+  const response = await fetch(apiUrl("/api/v1/admin/chimege"), {
+    credentials: "include",
+  });
+  if (!response.ok) throw new Error("Chimege тохиргоо уншигдсангүй");
+  return response.json() as Promise<ChimegeAdminSnapshot>;
+}
+
+export async function adminChimegeUpdate(body: {
+  token?: string;
+  add_prepaid_hours?: number;
+  set_prepaid_hours?: number;
+  price_mnt_per_hour?: number;
+  reset_used?: boolean;
+}): Promise<ChimegeAdminSnapshot> {
+  const response = await fetch(apiUrl("/api/v1/admin/chimege"), {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) throw new Error("Chimege тохиргоо хадгалагдаагүй");
+  return response.json() as Promise<ChimegeAdminSnapshot>;
 }
