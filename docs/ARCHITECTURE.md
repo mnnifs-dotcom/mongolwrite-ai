@@ -91,12 +91,12 @@ Admin ── legalinfo.mn / lexicon export
 AI Improve = optional later (LLM off by default)
 ```
 
-**Production capacity (proactive, before freeze):**
+**Production today (keep free — no paid Redis / dedicated CPU):**
 
-- 1 Fly machine on `performance-4x` / 8 GB + persist volume (volume is single-writer)
-- `CHECK_CONCURRENCY=24` parallel spell-checks; queue wait → 503 instead of hanging
-- Redis L2 (`REDIS_URL`) for Hunspell membership across restarts / future APP N
-- Hunspell path: process L1 → Redis L2 → `.lookup()`; LLM off the hot path
+- 1 Fly `shared-1x` / 2 GB machine + persist volume (volume is single-writer)
+- `CHECK_CONCURRENCY=8`; queue wait → 503 instead of hanging or empty «Алдаагүй»
+- Memory L1 Hunspell cache only (`REDIS_URL` unset — zero cache bill)
+- LLM off the hot path
 
 **Check flow:**
 
@@ -107,11 +107,11 @@ AI Improve = optional later (LLM off by default)
 5. Optional later: Improve action may call AI — never the default spell path.
 6. Ranker drops AI suggestions that contradict high-confidence dictionary hits.
 
-**Scale-out when traffic grows further:**
+**Scale-out only if you accept cost:**
 
-1. Redis first (shared Hunspell cache), then more APP machines — Fly volume stays single-writer for admin persist.
+1. Optional Redis (`REDIS_URL`) then more APP machines — Fly volume stays single-writer for admin persist.
 2. Watch admin «Сайтын төлөв» → cache hit% / p50 / `CHECK_CONCURRENCY`.
-3. True hundreds of *simultaneous long-doc* checks need horizontal APP N (split persist) — short school checks are covered by vertical scale + Redis.
+3. Paid performance VM / Redis are opt-in; default stays free shared + memory cache.
 ## 5. Folder structure
 
 ```
