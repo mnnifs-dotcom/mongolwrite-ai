@@ -206,6 +206,7 @@ def public_order(order: dict[str, Any], *, include_access_token: bool = False) -
         "product_kind": order.get("product_kind") or "plan",
         "duration_seconds": order.get("duration_seconds"),
         "consumed": bool(order.get("consumed")),
+        "chimege_uuid": order.get("chimege_uuid"),
         "qpay_invoice_id": order.get("qpay_invoice_id"),
         "qpay_qr_text": order.get("qpay_qr_text"),
         "qpay_qr_image": order.get("qpay_qr_image"),
@@ -344,14 +345,14 @@ def get_stt_order(order_id: str, access_token: str) -> dict[str, Any] | None:
     return order
 
 
-def consume_stt_order(
+def bind_stt_job(
     order_id: str,
     *,
     access_token: str,
     chimege_uuid: str,
     actual_duration_seconds: float,
 ) -> dict[str, Any]:
-    """Mark a paid STT order as used (one transcription). Raises ValueError on misuse."""
+    """Attach Chimege job to a paid order. Not consumed until transcript is delivered."""
     with _lock:
         orders = _load_orders()
         order = orders.get(order_id)
@@ -364,25 +365,73 @@ def consume_stt_order(
             raise ValueError("Эхлээд төлбөрөө төлнө үү.")
         if order.get("consumed"):
             raise ValueError("Энэ төлбөрөөр аль хэдийн хөрвүүлсэн.")
+        existing_uuid = str(order.get("chimege_uuid") or "").strip()
+        if existing_uuid and existing_uuid == (chimege_uuid or "").strip():
+            return dict(order)
+        if existing_uuid:
+            # Keep the first submitted job — client can resume polling it.
+            return dict(order)
         paid_seconds = float(order.get("duration_seconds") or 0)
         actual = max(0.0, float(actual_duration_seconds))
-        # Already paid — always fulfill. Log soft overrun for admin review.
         overrun = bool(paid_seconds > 0 and actual > paid_seconds * STT_DURATION_SLACK + 1)
         stamped = _iso(_now())
-        order["consumed"] = True
         order["chimege_uuid"] = (chimege_uuid or "")[:80]
         order["actual_duration_seconds"] = round(actual, 2)
         order["duration_overrun"] = overrun
         order["updated_at"] = stamped
-        order["note"] = "Төлбөр баталгаажсан · бичвэр бэлтгэж байна."
-        _append_event(
-            order,
-            "consumed",
-            f"{chimege_uuid or ''}{' overrun' if overrun else ''}",
-        )
+        order["note"] = "Төлбөр амжилттай · бичвэр бэлтгэж байна."
+        _append_event(order, "submitted", chimege_uuid or "")
         orders[order_id] = order
         _save_orders(orders)
         return dict(order)
+
+
+def complete_stt_order(
+    order_id: str,
+    *,
+    access_token: str,
+    chimege_uuid: str = "",
+) -> dict[str, Any]:
+    """Mark paid STT order delivered after transcript is ready (safe to call twice)."""
+    with _lock:
+        orders = _load_orders()
+        order = orders.get(order_id)
+        if not order or order.get("product_kind") != STT_PRODUCT_KIND:
+            raise ValueError("Төлбөрийн захиалга олдсонгүй.")
+        expected = str(order.get("access_token") or "")
+        if not _access_token_ok(expected, access_token):
+            raise ValueError("Төлбөрийн эрх буруу.")
+        if order.get("status") != "paid":
+            raise ValueError("Эхлээд төлбөрөө төлнө үү.")
+        if order.get("consumed"):
+            return dict(order)
+        stamped = _iso(_now())
+        if chimege_uuid and not order.get("chimege_uuid"):
+            order["chimege_uuid"] = chimege_uuid[:80]
+        order["consumed"] = True
+        order["delivered_at"] = stamped
+        order["updated_at"] = stamped
+        order["note"] = "Бичвэр амжилттай бэлтгэгдлээ."
+        _append_event(order, "delivered", str(order.get("chimege_uuid") or ""))
+        orders[order_id] = order
+        _save_orders(orders)
+        return dict(order)
+
+
+def consume_stt_order(
+    order_id: str,
+    *,
+    access_token: str,
+    chimege_uuid: str,
+    actual_duration_seconds: float,
+) -> dict[str, Any]:
+    """Deprecated alias — binds the job; delivery completes separately."""
+    return bind_stt_job(
+        order_id,
+        access_token=access_token,
+        chimege_uuid=chimege_uuid,
+        actual_duration_seconds=actual_duration_seconds,
+    )
 
 
 def get_order(order_id: str) -> dict[str, Any] | None:

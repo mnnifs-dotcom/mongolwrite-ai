@@ -11,7 +11,8 @@ from pydantic import BaseModel, Field
 from app.core import chimege
 from app.core.auth import require_admin
 from app.core.billing import (
-    consume_stt_order,
+    bind_stt_job,
+    complete_stt_order,
     create_stt_checkout,
     get_stt_order,
     public_order,
@@ -71,6 +72,7 @@ class SttPollResponse(BaseModel):
     transcription: str = ""
     duration_seconds: float = 0.0
     progress_percent: int = 0
+    order_completed: bool = False
 
 
 class ChimegeAdminUpdate(BaseModel):
@@ -182,6 +184,20 @@ async def stt_transcribe(
     if order.get("consumed"):
         raise HTTPException(status_code=409, detail="Энэ төлбөрөөр аль хэдийн хөрвүүлсэн.")
 
+    price = float(status["price_mnt_per_hour"])
+    existing_uuid = str(order.get("chimege_uuid") or "").strip()
+    # Paid but convert stalled — resume the same job without charging again.
+    if existing_uuid:
+        return SttSubmitResponse(
+            uuid=existing_uuid,
+            duration_seconds=float(order.get("actual_duration_seconds") or order.get("duration_seconds") or 0),
+            mnt=float(order.get("amount_mnt") or 0),
+            remaining_seconds=float(status["remaining_seconds"]),
+            remaining_hours=float(status["remaining_hours"]),
+            price_mnt_per_hour=price,
+            order_id=order_id,
+        )
+
     name = (file.filename or "audio").strip() or "audio"
     lower = name.lower()
     if not any(lower.endswith(suf) for suf in ALLOWED_SUFFIXES):
@@ -222,7 +238,7 @@ async def stt_transcribe(
         duration = 0.5
 
     try:
-        consume_stt_order(
+        bind_stt_job(
             order_id,
             access_token=access_token,
             chimege_uuid=uuid,
@@ -243,7 +259,6 @@ async def stt_transcribe(
         _log.error("chimege prepaid exhausted after paid STT order %s: %s", order_id, exc)
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
-    price = float(status["price_mnt_per_hour"])
     return SttSubmitResponse(
         uuid=uuid,
         duration_seconds=round(duration, 2),
@@ -256,7 +271,11 @@ async def stt_transcribe(
 
 
 @router.get("/result", response_model=SttPollResponse)
-def stt_result(uuid: str) -> SttPollResponse:
+def stt_result(
+    uuid: str,
+    order_id: str = "",
+    access_token: str = "",
+) -> SttPollResponse:
     uuid = (uuid or "").strip()
     if not uuid:
         raise HTTPException(status_code=400, detail="UUID оруулна уу.")
@@ -269,11 +288,23 @@ def stt_result(uuid: str) -> SttPollResponse:
         raise _http_from_chimege(exc) from exc
     done = bool(row.get("done"))
     duration = float(row.get("duration") or 0)
+    order_completed = False
+    if done and order_id and access_token:
+        try:
+            complete_stt_order(
+                order_id,
+                access_token=access_token,
+                chimege_uuid=uuid,
+            )
+            order_completed = True
+        except ValueError:
+            order_completed = False
     return SttPollResponse(
         done=done,
         transcription=str(row.get("transcription") or ""),
         duration_seconds=duration,
         progress_percent=_estimate_progress(done=done, duration_seconds=duration),
+        order_completed=order_completed,
     )
 
 

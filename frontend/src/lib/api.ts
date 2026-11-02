@@ -1394,11 +1394,19 @@ export async function sttTranscribe(
   return response.json() as Promise<SttSubmitResponse>;
 }
 
-export async function sttResult(uuid: string): Promise<SttPollResponse> {
-  const response = await fetch(
-    apiUrl(`/api/v1/stt/result?uuid=${encodeURIComponent(uuid)}`),
-    { credentials: "include", headers: authHeaders() },
-  );
+export async function sttResult(
+  uuid: string,
+  payment?: { orderId: string; accessToken: string },
+): Promise<SttPollResponse> {
+  const params = new URLSearchParams({ uuid });
+  if (payment?.orderId && payment.accessToken) {
+    params.set("order_id", payment.orderId);
+    params.set("access_token", payment.accessToken);
+  }
+  const response = await fetch(apiUrl(`/api/v1/stt/result?${params.toString()}`), {
+    credentials: "include",
+    headers: authHeaders(),
+  });
   if (!response.ok) {
     const detail = await response
       .json()

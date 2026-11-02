@@ -6,11 +6,10 @@ primary_region = "nrt"
 
 [env]
   APP_ENV = "production"
-  # Free shared-1x (1 CPU): keep concurrency low so each check finishes fast
-  # instead of 8 jobs thrashing the same core (client then times out).
-  CHECK_CONCURRENCY = "2"
-  CHECK_QUEUE_WAIT_SECONDS = "25"
-  # No Redis — memory L1 only (zero extra cost). Set REDIS_URL only if you accept paid cache.
+  # performance-1x: dedicated CPU — raise concurrency safely.
+  CHECK_CONCURRENCY = "4"
+  CHECK_QUEUE_WAIT_SECONDS = "20"
+  # REDIS_URL set via `fly secrets` when Upstash Redis is attached.
 
 [http_service]
   internal_port = 8080
@@ -25,6 +24,6 @@ primary_region = "nrt"
   destination = "/app/data/persist"
 
 [[vm]]
-  memory = "2gb"
-  cpu_kind = "shared"
+  memory = "4gb"
+  cpu_kind = "performance"
   cpus = 1

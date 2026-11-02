@@ -99,7 +99,7 @@ export function PricingPlans() {
     <div className="mw-pricing">
       {!authed ? (
         <p className="mw-pricing-active" role="status">
-          Шинэ бүртгэлд <strong>14 хоногийн үнэгүй туршилт</strong>.
+          Шинэ бүртгэлд <strong>7 хоногийн үнэгүй туршилт</strong>.
         </p>
       ) : null}
       {user?.is_paid && expiryLabel ? (

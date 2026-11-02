@@ -27,6 +27,35 @@ function estimateMnt(seconds: number, pricePerHour: number): number {
 }
 
 const MAX_STT_BYTES = 40 * 1024 * 1024;
+const STT_PAY_KEY = "mw_stt_paid_order";
+
+type PaidSession = {
+  orderId: string;
+  accessToken: string;
+  amountMnt: number;
+  billableSeconds: number;
+};
+
+function loadPaidSession(): PaidSession | null {
+  try {
+    const raw = sessionStorage.getItem(STT_PAY_KEY);
+    if (!raw) return null;
+    const row = JSON.parse(raw) as PaidSession;
+    if (!row?.orderId || !row?.accessToken) return null;
+    return row;
+  } catch {
+    return null;
+  }
+}
+
+function savePaidSession(row: PaidSession | null) {
+  try {
+    if (!row) sessionStorage.removeItem(STT_PAY_KEY);
+    else sessionStorage.setItem(STT_PAY_KEY, JSON.stringify(row));
+  } catch {
+    /* ignore */
+  }
+}
 
 async function readClientDuration(file: File): Promise<number | null> {
   const url = URL.createObjectURL(file);
@@ -93,14 +122,18 @@ export function SpeechToTextForm() {
 
   async function onPick(next: File | null) {
     setText("");
-    setCharged(null);
     setPhase("idle");
     setProgress(0);
     setProgressLabel("");
-    setPayOrder(null);
-    setAccessToken("");
     setClientSeconds(null);
-    convertAfterPayRef.current = false;
+    // Keep a paid-but-undelivered session so retry does not charge again.
+    const paid = loadPaidSession();
+    if (!paid) {
+      setPayOrder(null);
+      setAccessToken("");
+      setCharged(null);
+      convertAfterPayRef.current = false;
+    }
     if (!next) {
       setFile(null);
       setError(null);
@@ -130,6 +163,13 @@ export function SpeechToTextForm() {
     setPhase("uploading");
     setProgress(8);
     setProgressLabel("Файл илгээж байна…");
+    savePaidSession({
+      orderId: paidOrder.id,
+      accessToken: token,
+      amountMnt: paidOrder.amount_mnt,
+      billableSeconds: Number(paidOrder.duration_seconds || clientSeconds || 60),
+    });
+    const payment = { orderId: paidOrder.id, accessToken: token };
     const started = Date.now();
     const expectedMs = Math.max(15_000, (clientSeconds ?? 60) * 800);
     let progressTimer: number | null = null;
@@ -143,10 +183,7 @@ export function SpeechToTextForm() {
         });
       }, 400);
 
-      const submitted = await sttTranscribe(audio, {
-        orderId: paidOrder.id,
-        accessToken: token,
-      });
+      const submitted = await sttTranscribe(audio, payment);
       setCharged({ seconds: submitted.duration_seconds, mnt: submitted.mnt });
       setPhase("waiting");
       setProgress((prev) => Math.max(prev, 35));
@@ -155,7 +192,7 @@ export function SpeechToTextForm() {
       let attempts = 0;
       while (attempts < 600) {
         attempts += 1;
-        const row = await sttResult(submitted.uuid);
+        const row = await sttResult(submitted.uuid, payment);
         const serverPct = row.progress_percent ?? 0;
         const elapsed = Date.now() - started;
         const timed = Math.min(95, Math.round((elapsed / expectedMs) * 95));
@@ -165,6 +202,10 @@ export function SpeechToTextForm() {
           setPhase("done");
           setProgress(100);
           setProgressLabel("Дууслаа");
+          savePaidSession(null);
+          setPayOrder(null);
+          setAccessToken("");
+          convertAfterPayRef.current = false;
           return;
         }
         await new Promise((resolve) => setTimeout(resolve, 1500));
@@ -175,13 +216,13 @@ export function SpeechToTextForm() {
       setProgress(0);
       setProgressLabel("");
       setError(err instanceof Error ? err.message : "Хөрвүүлэлт амжилтгүй");
+      // Keep paid session — next click retries convert without new QPay.
+      setAccessToken(token);
+      setPayOrder(paidOrder);
+      convertAfterPayRef.current = true;
     } finally {
       if (progressTimer != null) window.clearInterval(progressTimer);
       setBusy(false);
-      if (inputRef.current) inputRef.current.value = "";
-      setPayOrder(null);
-      setAccessToken("");
-      convertAfterPayRef.current = false;
     }
   }
 
@@ -192,6 +233,34 @@ export function SpeechToTextForm() {
       setError("Файлын үргэлжлэх хугацаа уншигдсангүй. Өөр файл сонгоно уу.");
       return;
     }
+
+    // Already paid this session — convert again, do not open QPay.
+    const existing = loadPaidSession();
+    if (existing) {
+      setBusy(true);
+      setError(null);
+      try {
+        const statusRow = await fetchSttOrder(existing.orderId, existing.accessToken);
+        if (statusRow.order.status === "paid" && !statusRow.order.consumed) {
+          setAccessToken(existing.accessToken);
+          setPayOrder(statusRow.order);
+          setCharged({
+            seconds: existing.billableSeconds,
+            mnt: existing.amountMnt,
+          });
+          await runConversion(statusRow.order, existing.accessToken, file);
+          return;
+        }
+        if (statusRow.order.consumed) {
+          savePaidSession(null);
+        }
+      } catch {
+        /* fall through to new checkout */
+      } finally {
+        setBusy(false);
+      }
+    }
+
     setBusy(true);
     setError(null);
     setText("");
@@ -227,8 +296,6 @@ export function SpeechToTextForm() {
       convertAfterPayRef.current = true;
     } catch (err) {
       setPhase("idle");
-      setPayOrder(null);
-      setAccessToken("");
       setError(err instanceof Error ? err.message : "Төлбөр үүсгэж чадсангүй");
     } finally {
       setBusy(false);
@@ -239,6 +306,12 @@ export function SpeechToTextForm() {
     if (!file || !accessToken || !convertAfterPayRef.current) return;
     if (busy) return;
     setPayOrder(order);
+    savePaidSession({
+      orderId: order.id,
+      accessToken,
+      amountMnt: order.amount_mnt,
+      billableSeconds: Number(order.duration_seconds || clientSeconds || 60),
+    });
     await runConversion(order, accessToken, file);
   }
 

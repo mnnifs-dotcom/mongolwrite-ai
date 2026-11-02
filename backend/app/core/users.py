@@ -168,7 +168,7 @@ def upsert_google_user(
             existing["last_login_at"] = now_iso
             row = existing
         else:
-            # First signup: one-time 14-day paid-equivalent trial.
+            # First signup: one-time 7-day paid-equivalent trial.
             trial_expires = (now + timedelta(days=TRIAL_DURATION_DAYS)).isoformat()
             row = {
                 "id": sub,

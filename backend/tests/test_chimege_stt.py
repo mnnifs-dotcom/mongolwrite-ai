@@ -128,13 +128,24 @@ def test_transcribe_proxies_without_saving_file(monkeypatch: pytest.MonkeyPatch,
     persist_files = list((tmp_path / "persist").rglob("*"))
     assert not any(p.suffix.lower() in {".wav", ".mp3", ".m4a"} for p in persist_files)
 
-    # Same payment cannot be reused.
+    # Same paid order resumes the job (no second charge) until delivered.
     again = client.post(
         "/api/v1/stt/transcribe",
         data={"order_id": order_id, "access_token": access_token},
         files={"file": ("sample.wav", wav, "audio/wav")},
     )
-    assert again.status_code == 409
+    assert again.status_code == 200
+    assert again.json()["uuid"] == "job-1"
+
+    from app.core import billing as billing_mod
+
+    billing_mod.complete_stt_order(order_id, access_token=access_token, chimege_uuid="job-1")
+    blocked = client.post(
+        "/api/v1/stt/transcribe",
+        data={"order_id": order_id, "access_token": access_token},
+        files={"file": ("sample.wav", wav, "audio/wav")},
+    )
+    assert blocked.status_code == 409
 
 
 def test_checkout_quotes_by_minutes():

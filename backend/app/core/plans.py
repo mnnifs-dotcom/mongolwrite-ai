@@ -12,11 +12,11 @@ GUEST_CHECK_MAX_CHARS = 500
 FREE_CHECK_MAX_CHARS = 1_500
 
 # Three user classes (+ one-time trial for new signups):
-#   0) trial — 14 хоног (зөвхөн анх бүртгүүлэхэд)
+#   0) trial — 7 хоног (зөвхөн анх бүртгүүлэхэд)
 #   1) free — үнэгүй
 #   2) pro_3m — 3 сар · ₮6,000
 #   3) pro_year — 1 жил · ₮19,900
-TRIAL_DURATION_DAYS = 14
+TRIAL_DURATION_DAYS = 7
 
 PLANS: dict[str, dict[str, Any]] = {
     "trial": {
