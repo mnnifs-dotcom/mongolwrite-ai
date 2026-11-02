@@ -134,6 +134,9 @@ export function SpeechToTextForm() {
     await navigator.clipboard.writeText(text);
   }
 
+  const serviceBlocked =
+    status != null && (!status.enabled || status.needs_renewal);
+
   return (
     <div className="mw-stt">
       <div className="mw-stt-meta">
@@ -143,13 +146,14 @@ export function SpeechToTextForm() {
             {(status?.price_mnt_per_hour ?? 7000).toLocaleString("mn-MN")}₮ / цаг
           </strong>
         </p>
-        {status ? (
-          <p className={status.needs_renewal || status.low_balance ? "mw-stt-warn" : "mw-muted"}>
-            {status.enabled
-              ? status.needs_renewal
-                ? "Урьдчилсан эрх дууссан."
-                : `${Math.round(status.remaining_seconds).toLocaleString("mn-MN")} сек үлдсэн`
-              : "Үйлчилгээ түр унтарсан."}
+        <p className="mw-muted">
+          Формат: wav, mp3, m4a, mp4, aac, ogg, flac, webm · дээд хэмжээ 40MB
+        </p>
+        {serviceBlocked ? (
+          <p className="mw-stt-warn">
+            {!status?.enabled
+              ? "Үйлчилгээ түр унтарсан."
+              : "Үйлчилгээ түр ашиглах боломжгүй."}
           </p>
         ) : null}
       </div>
@@ -158,9 +162,9 @@ export function SpeechToTextForm() {
         <input
           ref={inputRef}
           type="file"
-          accept="audio/*,video/mp4,video/webm,.wav,.mp3,.m4a,.mp4,.ogg,.flac,.webm"
+          accept="audio/*,video/mp4,video/webm,.wav,.mp3,.m4a,.mp4,.aac,.ogg,.flac,.webm,.wma"
           hidden
-          disabled={busy || !status?.enabled || !!status?.needs_renewal}
+          disabled={busy || serviceBlocked}
           onChange={(event) => {
             const next = event.target.files?.[0] ?? null;
             void onPick(next);
@@ -170,7 +174,7 @@ export function SpeechToTextForm() {
           <button
             type="button"
             className="mw-seo-cta mw-seo-cta-inline mw-stt-pick"
-            disabled={busy || !status?.enabled || !!status?.needs_renewal}
+            disabled={busy || serviceBlocked}
             onClick={() => inputRef.current?.click()}
           >
             {file ? "Файл солих" : "Файл оруулах"}
@@ -178,7 +182,7 @@ export function SpeechToTextForm() {
           <button
             type="submit"
             className="mw-seo-cta mw-seo-cta-inline"
-            disabled={busy || !file || !status?.enabled || !!status?.needs_renewal}
+            disabled={busy || !file || serviceBlocked}
           >
             {phase === "uploading"
               ? "Илгээж байна…"
@@ -205,7 +209,7 @@ export function SpeechToTextForm() {
       {error ? <p className="mw-banner">{error}</p> : null}
       {charged ? (
         <p className="mw-muted">
-          Хассан: {formatHours(charged.seconds)} · {charged.mnt.toLocaleString("mn-MN")}₮
+          Төлбөр: {formatHours(charged.seconds)} · {charged.mnt.toLocaleString("mn-MN")}₮
         </p>
       ) : null}
 
