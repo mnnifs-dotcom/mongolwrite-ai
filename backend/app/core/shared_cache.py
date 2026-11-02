@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
 from typing import Any
 
 from app.core.config import settings
@@ -21,8 +22,11 @@ _DEFAULT_TTL = 60 * 60 * 24 * 14  # 14 days
 
 _lock = threading.Lock()
 _client: Any | None = None
-_tried = False
 _connected = False
+_last_attempt = 0.0
+# After a failed connect, wait before retrying so boot races (Upstash not ready)
+# do not permanently disable Redis for the process lifetime.
+_RETRY_AFTER_SEC = 15.0
 
 # Process-local counters (aggregated into metrics.snapshot).
 _stats_lock = threading.Lock()
@@ -69,22 +73,25 @@ def record_miss() -> None:
 
 
 def _get_client() -> Any | None:
-    global _client, _tried, _connected
+    global _client, _connected, _last_attempt
     url = settings.redis_url.strip()
     if not url:
         return None
     with _lock:
-        if _tried:
-            return _client if _connected else None
-        _tried = True
+        if _connected and _client is not None:
+            return _client
+        now = time.monotonic()
+        if _last_attempt and (now - _last_attempt) < _RETRY_AFTER_SEC:
+            return None
+        _last_attempt = now
         try:
             import redis  # type: ignore[import-untyped]
 
             client = redis.Redis.from_url(
                 url,
                 decode_responses=True,
-                socket_connect_timeout=0.4,
-                socket_timeout=0.4,
+                socket_connect_timeout=1.5,
+                socket_timeout=1.0,
                 health_check_interval=30,
             )
             client.ping()
@@ -95,8 +102,21 @@ def _get_client() -> Any | None:
         except Exception as exc:
             _connected = False
             _client = None
-            _log.warning("shared cache: Redis unavailable (%s) — using memory only", exc)
+            _log.warning(
+                "shared cache: Redis unavailable (%s) — memory only; retry in %ss",
+                exc,
+                int(_RETRY_AFTER_SEC),
+            )
             return None
+
+
+def _mark_disconnected() -> None:
+    global _client, _connected, _last_attempt
+    with _lock:
+        _client = None
+        _connected = False
+        # Allow an immediate reconnect attempt on the next call.
+        _last_attempt = 0.0
 
 
 def get_hunspell_membership(folded: str) -> bool | None:
@@ -109,6 +129,7 @@ def get_hunspell_membership(folded: str) -> bool | None:
     except Exception:
         with _stats_lock:
             _stats["redis_errors"] += 1
+        _mark_disconnected()
         return None
     if raw is None:
         return None
@@ -128,15 +149,16 @@ def set_hunspell_membership(folded: str, ok: bool, *, ttl: int = _DEFAULT_TTL) -
     except Exception:
         with _stats_lock:
             _stats["redis_errors"] += 1
+        _mark_disconnected()
 
 
 def reset_for_tests() -> None:
     """Clear connection + counters (unit tests only)."""
-    global _client, _tried, _connected
+    global _client, _connected, _last_attempt
     with _lock:
         _client = None
-        _tried = False
         _connected = False
+        _last_attempt = 0.0
     with _stats_lock:
         for key in _stats:
             _stats[key] = 0
