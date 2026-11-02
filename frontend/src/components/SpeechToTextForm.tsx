@@ -33,7 +33,8 @@ function normalizeTranscript(value: string): string {
     .replace(/([^\s-])-\s*[\r\n]+([^\s-])/g, "$1$2");
 }
 
-const MAX_STT_BYTES = 40 * 1024 * 1024;
+const MAX_STT_BYTES = 120 * 1024 * 1024;
+const MAX_STT_MB = Math.round(MAX_STT_BYTES / (1024 * 1024));
 const STT_PAY_KEY = "mw_stt_paid_order";
 
 type PaidSession = {
@@ -165,7 +166,7 @@ export function SpeechToTextForm() {
     if (next.size > MAX_STT_BYTES) {
       setFile(null);
       setError(
-        `Файл хэт том (дээд хэмжээ 40MB). Одоо ${(next.size / (1024 * 1024)).toLocaleString("mn-MN", {
+        `Файл хэт том (дээд хэмжээ ${MAX_STT_MB}MB). Одоо ${(next.size / (1024 * 1024)).toLocaleString("mn-MN", {
           maximumFractionDigits: 1,
         })}MB байна.`,
       );
@@ -397,7 +398,7 @@ export function SpeechToTextForm() {
           </strong>
         </p>
         <p className="mw-muted">
-          Формат: wav, mp3, m4a, mp4, aac, ogg, flac, webm · дээд хэмжээ 40MB
+          Формат: wav, mp3, m4a, mp4, aac, ogg, flac, webm · дээд хэмжээ {MAX_STT_MB}MB
         </p>
         {serviceBlocked ? (
           <p className="mw-stt-warn">

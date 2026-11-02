@@ -8,8 +8,8 @@ from typing import Any
 import httpx
 
 CHIMEGE_BASE = "https://api.chimege.com/v1.2"
-# Proxy budget: stream through RAM then discard. Keep modest to protect Fly shared VM.
-MAX_UPLOAD_BYTES = 40 * 1024 * 1024
+# In-memory proxy only (never disk). 120MB fits performance-1x 4GB; larger = longer upload.
+MAX_UPLOAD_BYTES = 120 * 1024 * 1024
 ALLOWED_SUFFIXES = (
     ".wav",
     ".mp3",
