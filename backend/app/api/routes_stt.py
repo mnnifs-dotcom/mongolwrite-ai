@@ -124,6 +124,7 @@ class ChimegeAdminUpdate(BaseModel):
     price_mnt_per_hour: float | None = Field(default=None, gt=0, le=1_000_000)
     reset_used: bool = False
     activate_next: bool = False
+    slot_index: int | None = Field(default=None, ge=0, le=100)
 
 
 def _http_from_chimege(exc: ChimegeError) -> HTTPException:
@@ -520,4 +521,5 @@ def admin_chimege_update(body: ChimegeAdminUpdate, _: AdminDep) -> dict[str, Any
         price_mnt_per_hour=body.price_mnt_per_hour,
         reset_used=body.reset_used,
         activate_next=body.activate_next,
+        slot_index=body.slot_index,
     )

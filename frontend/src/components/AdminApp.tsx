@@ -203,6 +203,8 @@ export function AdminApp() {
   const [chimegeAddHours, setChimegeAddHours] = useState("");
   const [chimegeSetHours, setChimegeSetHours] = useState("");
   const [chimegeBusy, setChimegeBusy] = useState(false);
+  const [chimegeSlotIndex, setChimegeSlotIndex] = useState<number | null>(null);
+  const [chimegeTopupHours, setChimegeTopupHours] = useState("");
 
   const applyOverview = useCallback((next: SiteOverview) => {
     setOverview(next);
@@ -481,6 +483,34 @@ export function AdminApp() {
       setStatus("Дараагийн API идэвхжлээ");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Идэвхжүүлж чадсангүй");
+    } finally {
+      setChimegeBusy(false);
+    }
+  }
+
+  async function topupSelectedSlot(event: FormEvent) {
+    event.preventDefault();
+    if (chimegeSlotIndex == null || chimegeBusy) return;
+    const hours = Number(chimegeTopupHours);
+    if (!Number.isFinite(hours) || hours <= 0) {
+      setError("Нэмэх цагаа оруулна уу");
+      return;
+    }
+    setChimegeBusy(true);
+    setError(null);
+    setStatus("");
+    try {
+      const next = await adminChimegeUpdate({
+        slot_index: chimegeSlotIndex,
+        add_prepaid_hours: hours,
+      });
+      setChimege(next);
+      setChimegeTopupHours("");
+      setStatus(
+        `${next.queue?.[chimegeSlotIndex]?.token_masked || "Token"} дээр ${hours} цаг нэмлээ`,
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Цаг нэмж чадсангүй");
     } finally {
       setChimegeBusy(false);
     }
@@ -1412,7 +1442,20 @@ export function AdminApp() {
                     </thead>
                     <tbody>
                       {chimege.queue.map((slot) => (
-                        <tr key={`${slot.index}-${slot.token_masked}`}>
+                        <tr
+                          key={`${slot.index}-${slot.token_masked}`}
+                          className={
+                            chimegeSlotIndex === slot.index
+                              ? "mw-row-selected"
+                              : undefined
+                          }
+                          style={{ cursor: "pointer" }}
+                          onClick={() => {
+                            setChimegeSlotIndex(slot.index);
+                            setChimegeTopupHours("");
+                            setError(null);
+                          }}
+                        >
                           <td>{slot.index + 1}</td>
                           <td>{slot.token_masked}</td>
                           <td>{Math.round(slot.remaining_seconds).toLocaleString("mn-MN")}</td>
@@ -1430,9 +1473,58 @@ export function AdminApp() {
                 </div>
               ) : null}
 
+              {chimegeSlotIndex != null && chimege?.queue?.[chimegeSlotIndex] ? (
+                <form
+                  className="mw-admin-form"
+                  style={{ marginTop: "0.85rem" }}
+                  onSubmit={(event) => void topupSelectedSlot(event)}
+                >
+                  <p>
+                    <strong>{chimege.queue[chimegeSlotIndex].token_masked}</strong>
+                    {" · "}
+                    үлдсэн{" "}
+                    {Math.round(
+                      chimege.queue[chimegeSlotIndex].remaining_seconds,
+                    ).toLocaleString("mn-MN")}{" "}
+                    сек
+                  </p>
+                  <label>
+                    Цаг нэмэх
+                    <input
+                      type="number"
+                      min="0.1"
+                      step="0.1"
+                      placeholder="ж: 1 (= 3600 сек)"
+                      value={chimegeTopupHours}
+                      onChange={(event) => setChimegeTopupHours(event.target.value)}
+                    />
+                  </label>
+                  <div className="mw-stt-actions">
+                    <button type="submit" className="mw-btn-primary" disabled={chimegeBusy}>
+                      {chimegeBusy ? "Нэмж байна…" : "Цаг нэмэх"}
+                    </button>
+                    <button
+                      type="button"
+                      className="mw-btn"
+                      disabled={chimegeBusy}
+                      onClick={() => {
+                        setChimegeSlotIndex(null);
+                        setChimegeTopupHours("");
+                      }}
+                    >
+                      Болих
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <p className="mw-muted" style={{ marginTop: "0.75rem" }}>
+                  Token дээр дарж цаг нэмнэ.
+                </p>
+              )}
+
               <form className="mw-admin-form" onSubmit={(event) => void saveChimege(event)}>
                 <label>
-                  Шинэ / солих API token
+                  Шинэ API token
                   <input
                     type="password"
                     autoComplete="off"
@@ -1442,34 +1534,30 @@ export function AdminApp() {
                   />
                 </label>
                 <label>
-                  Энэ token-д нэмэх урьдчилсан цаг
+                  Шинэ token-д өгөх цаг
                   <input
                     type="number"
                     min="0"
                     step="0.1"
-                    placeholder="ж: 1 (= 3600 сек)"
+                    placeholder="ж: 5"
                     value={chimegeAddHours}
                     onChange={(event) => setChimegeAddHours(event.target.value)}
                   />
                 </label>
                 <label>
-                  Энэ token-ийн нийт урьдчилсан цагийг тавих
+                  Шинэ token-ийн нийт цагийг тавих
                   <input
                     type="number"
                     min="0"
                     step="0.1"
-                    placeholder="ж: 1"
+                    placeholder="ж: 5"
                     value={chimegeSetHours}
                     onChange={(event) => setChimegeSetHours(event.target.value)}
                   />
                 </label>
-                <p className="mw-muted">
-                  Нэг файл зөвхөн идэвхтэй API-ийн үлдэгдлээр хөрвөнө. Дарааллын секунд
-                  автоматаар нэмэгдэхгүй.
-                </p>
                 <div className="mw-stt-actions">
                   <button type="submit" className="mw-btn-primary" disabled={chimegeBusy}>
-                    {chimegeBusy ? "Хадгалж байна…" : "Хадгалах"}
+                    {chimegeBusy ? "Хадгалж байна…" : "Шинэ token нэмэх"}
                   </button>
                   {(chimege?.queued_count ?? 0) > 0 ? (
                     <button

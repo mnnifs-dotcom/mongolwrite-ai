@@ -321,6 +321,14 @@ def test_activate_next_wastes_active_leftover():
     assert snap["active_remaining_seconds"] == pytest.approx(3600)
 
 
+def test_topup_existing_slot_by_index():
+    chimege.update_admin(token="trial-token-aaaa", set_prepaid_seconds=1000)
+    before = chimege.active_remaining_seconds()
+    snap = chimege.update_admin(slot_index=0, add_prepaid_seconds=3600)
+    assert snap["active_remaining_seconds"] == pytest.approx(before + 3600)
+    assert chimege.get_api_token() == "trial-token-aaaa"
+
+
 def test_checkout_rejects_over_active_remaining(monkeypatch: pytest.MonkeyPatch):
     chimege.update_admin(token="trial-token-aaaa", set_prepaid_seconds=30)
     chimege.update_admin(token="paid-token-bbbb", set_prepaid_seconds=3600)

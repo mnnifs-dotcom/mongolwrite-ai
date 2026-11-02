@@ -1508,6 +1508,7 @@ export async function adminChimegeUpdate(body: {
   price_mnt_per_hour?: number;
   reset_used?: boolean;
   activate_next?: boolean;
+  slot_index?: number;
 }): Promise<ChimegeAdminSnapshot> {
   const response = await fetch(apiUrl("/api/v1/admin/chimege"), {
     method: "POST",

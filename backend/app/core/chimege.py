@@ -380,6 +380,7 @@ def update_admin(
     price_mnt_per_hour: float | None = None,
     reset_used: bool = False,
     activate_next: bool = False,
+    slot_index: int | None = None,
 ) -> dict[str, Any]:
     if activate_next:
         return activate_next_slot(waste_active_leftover=True)
@@ -390,6 +391,11 @@ def update_admin(
         cleaned = token.strip() if token is not None else None
 
         prepaid_target_idx: int | None = None
+
+        # Top up / set hours on an existing slot by index (no token re-entry).
+        if slot_index is not None and 0 <= int(slot_index) < len(slots):
+            prepaid_target_idx = int(slot_index)
+            cleaned = None
 
         if cleaned:
             active_idx = _active_index(slots)
