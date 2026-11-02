@@ -34,6 +34,7 @@ class SttPublicStatus(BaseModel):
     enabled: bool
     remaining_seconds: float
     remaining_hours: float
+    active_remaining_seconds: float = 0.0
     used_seconds: float
     prepaid_seconds: float
     price_mnt_per_hour: float
