@@ -62,6 +62,22 @@ def test_public_status_disabled_by_default():
     assert "checkout_ready" in body
 
 
+def test_public_status_hides_prepaid_balance():
+    chimege.update_admin(token="secret-token-xxxx", set_prepaid_seconds=18_000)
+    client = TestClient(app)
+    response = client.get("/api/v1/stt/status")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["enabled"] is True
+    assert body["remaining_seconds"] == 0
+    assert body["active_remaining_seconds"] == 0
+    assert body["prepaid_seconds"] == 0
+    assert body["used_seconds"] == 0
+    assert body["price_mnt_per_hour"] == 7000
+    # Internal snapshot still has the real balance for admin.
+    assert chimege.public_status()["active_remaining_seconds"] == pytest.approx(18_000)
+
+
 def test_checkout_requires_login():
     chimege.update_admin(token="test-token", set_prepaid_seconds=3600)
     client = TestClient(app)
@@ -338,7 +354,10 @@ def test_checkout_rejects_over_active_remaining(monkeypatch: pytest.MonkeyPatch)
         json={"duration_seconds": 3000, "filename": "long.m4a"},
     )
     assert response.status_code == 400
-    assert "30" in response.json()["detail"] or "үлдсэн" in response.json()["detail"].lower()
+    detail = response.json()["detail"].lower()
+    assert "хэт урт" in detail or "богино" in detail
+    assert "30" not in response.json()["detail"]
+    assert "api" not in detail
 
 
 def test_stt_payment_does_not_activate_plan(tmp_path, monkeypatch):

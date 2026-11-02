@@ -144,33 +144,37 @@ def _estimate_progress(*, done: bool, duration_seconds: float, started_hint: flo
 def stt_status() -> SttPublicStatus:
     row = chimege.public_status()
     row["checkout_ready"] = qpay_configured()
-    return SttPublicStatus(**row)
+    # Never show prepaid/API leftover seconds to customers.
+    return SttPublicStatus(
+        enabled=bool(row["enabled"]),
+        remaining_seconds=0.0,
+        remaining_hours=0.0,
+        active_remaining_seconds=0.0,
+        used_seconds=0.0,
+        prepaid_seconds=0.0,
+        price_mnt_per_hour=float(row["price_mnt_per_hour"]),
+        low_balance=False,
+        needs_renewal=bool(row["needs_renewal"]),
+        checkout_ready=bool(row["checkout_ready"]),
+    )
 
 
 @router.post("/checkout")
 def stt_checkout(body: SttCheckoutRequest, user: AuthedUser) -> dict[str, Any]:
     """Quote audio length → QPay invoice. Conversion starts only after payment."""
     status = chimege.public_status()
-    if not status["enabled"]:
+    if not status["enabled"] or status["remaining_seconds"] <= 0:
         raise HTTPException(
-            status_code=503,
-            detail="Яриа→бичвэр түр унтарсан (API тохируулаагүй).",
-        )
-    if status["remaining_seconds"] <= 0:
-        raise HTTPException(
-            status_code=402,
+            status_code=503 if not status["enabled"] else 402,
             detail="Үйлчилгээ түр ашиглах боломжгүй.",
         )
     # One Chimege job uses only the active token — cannot span queued prepaid.
+    # Do not expose prepaid leftover seconds to customers.
     active_rem = float(status.get("active_remaining_seconds") or 0)
     if body.duration_seconds > active_rem + 0.05:
         raise HTTPException(
             status_code=400,
-            detail=(
-                f"Идэвхтэй API-д {active_rem:.0f} сек үлдсэн. "
-                f"Энэ файл ~{body.duration_seconds:.0f} сек тул одоо хөрвүүлэх боломжгүй. "
-                f"{active_rem:.0f} сек-ээс богино файл оруулна уу."
-            ),
+            detail="Файл хэт урт байна. Богино файл оруулна уу.",
         )
     try:
         return create_stt_checkout(
@@ -235,14 +239,9 @@ async def stt_transcribe(
     """Accept paid upload quickly, then submit to Chimege in the background."""
     _log.info("stt transcribe start order=%s filename=%s", order_id, getattr(file, "filename", ""))
     status = chimege.public_status()
-    if not status["enabled"]:
+    if not status["enabled"] or status["remaining_seconds"] <= 0:
         raise HTTPException(
-            status_code=503,
-            detail="Яриа→бичвэр түр унтарсан (API тохируулаагүй).",
-        )
-    if status["remaining_seconds"] <= 0:
-        raise HTTPException(
-            status_code=402,
+            status_code=503 if not status["enabled"] else 402,
             detail="Үйлчилгээ түр ашиглах боломжгүй.",
         )
 
@@ -263,8 +262,8 @@ async def stt_transcribe(
                     order.get("actual_duration_seconds") or order.get("duration_seconds") or 0
                 ),
                 mnt=float(order.get("amount_mnt") or 0),
-                remaining_seconds=float(status["remaining_seconds"]),
-                remaining_hours=float(status["remaining_hours"]),
+                remaining_seconds=0.0,
+                remaining_hours=0.0,
                 price_mnt_per_hour=float(status["price_mnt_per_hour"]),
                 order_id=order_id,
                 pending=False,
@@ -286,8 +285,8 @@ async def stt_transcribe(
                 order.get("actual_duration_seconds") or order.get("duration_seconds") or 0
             ),
             mnt=float(order.get("amount_mnt") or 0),
-            remaining_seconds=float(status["remaining_seconds"]),
-            remaining_hours=float(status["remaining_hours"]),
+            remaining_seconds=0.0,
+            remaining_hours=0.0,
             price_mnt_per_hour=price,
             order_id=order_id,
             pending=False,
@@ -306,8 +305,8 @@ async def stt_transcribe(
                 inflight.get("duration") or order.get("duration_seconds") or 0
             ),
             mnt=float(order.get("amount_mnt") or 0),
-            remaining_seconds=float(status["remaining_seconds"]),
-            remaining_hours=float(status["remaining_hours"]),
+            remaining_seconds=0.0,
+            remaining_hours=0.0,
             price_mnt_per_hour=price,
             order_id=order_id,
             pending=not bool(real_uuid),
@@ -340,7 +339,7 @@ async def stt_transcribe(
 
     token = chimege.get_api_token()
     if not token:
-        raise HTTPException(status_code=503, detail="API тохируулаагүй.")
+        raise HTTPException(status_code=503, detail="Үйлчилгээ түр ашиглах боломжгүй.")
 
     job = start_submit_job(
         order_id=order_id,
@@ -362,8 +361,8 @@ async def stt_transcribe(
         uuid=pending_uuid(order_id),
         duration_seconds=float(order.get("duration_seconds") or 0),
         mnt=float(order.get("amount_mnt") or 0),
-        remaining_seconds=float(status["remaining_seconds"]),
-        remaining_hours=float(status["remaining_hours"]),
+        remaining_seconds=0.0,
+        remaining_hours=0.0,
         price_mnt_per_hour=price,
         order_id=order_id,
         pending=True,
