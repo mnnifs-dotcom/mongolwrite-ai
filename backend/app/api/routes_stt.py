@@ -11,12 +11,13 @@ from pydantic import BaseModel, Field
 from app.core import chimege
 from app.core.auth import require_admin
 from app.core.billing import (
-    bind_stt_job,
+    clear_stt_job,
     complete_stt_order,
     create_stt_checkout,
     get_stt_order,
     public_order,
     qpay_configured,
+    reopen_stt_order_without_transcript,
     sync_order_payment,
 )
 from app.core.chimege_client import (
@@ -24,9 +25,18 @@ from app.core.chimege_client import (
     MAX_UPLOAD_BYTES,
     ChimegeError,
     fetch_transcript,
-    submit_long,
+    is_failed_transcription,
 )
 from app.core.devices import DEVICE_HEADER, enforce_device
+from app.core.stt_jobs import (
+    discard_job,
+    get_job,
+    is_pending_uuid,
+    order_id_from_pending,
+    pending_progress,
+    pending_uuid,
+    start_submit_job,
+)
 from app.core.user_auth import optional_user
 from app.core.users import touch_last_check
 
@@ -65,6 +75,8 @@ class SttSubmitResponse(BaseModel):
     remaining_hours: float
     price_mnt_per_hour: float
     order_id: str = ""
+    pending: bool = False
+    phase: str = ""
 
 
 class SttPollResponse(BaseModel):
@@ -73,6 +85,8 @@ class SttPollResponse(BaseModel):
     duration_seconds: float = 0.0
     progress_percent: int = 0
     order_completed: bool = False
+    uuid: str = ""
+    phase: str = ""
 
 
 class ChimegeAdminUpdate(BaseModel):
@@ -91,10 +105,9 @@ def _estimate_progress(*, done: bool, duration_seconds: float, started_hint: flo
     """Rough progress for UI when Chimege has no native percent."""
     if done:
         return 100
-    # Without server-side start time, return a soft mid value; client overlays time-based %.
     if duration_seconds > 0:
-        return 35
-    return 20
+        return 62
+    return 55
 
 
 @router.get("/status", response_model=SttPublicStatus)
@@ -163,7 +176,8 @@ async def stt_transcribe(
     user: UserDep = None,
     x_mw_device_id: DeviceHeader = None,
 ) -> SttSubmitResponse:
-    """Require paid STT order, then Chimege stt-long. Audio stays in memory only."""
+    """Accept paid upload quickly, then submit to Chimege in the background."""
+    _log.info("stt transcribe start order=%s filename=%s", order_id, getattr(file, "filename", ""))
     status = chimege.public_status()
     if not status["enabled"]:
         raise HTTPException(
@@ -182,20 +196,64 @@ async def stt_transcribe(
     if order.get("status") != "paid":
         raise HTTPException(status_code=402, detail="Эхлээд төлбөрөө төлнө үү.")
     if order.get("consumed"):
-        raise HTTPException(status_code=409, detail="Энэ төлбөрөөр аль хэдийн хөрвүүлсэн.")
+        cached = str(order.get("transcription") or "").strip()
+        existing_uuid = str(order.get("chimege_uuid") or "").strip()
+        if cached:
+            return SttSubmitResponse(
+                uuid=existing_uuid or pending_uuid(order_id),
+                duration_seconds=float(
+                    order.get("actual_duration_seconds") or order.get("duration_seconds") or 0
+                ),
+                mnt=float(order.get("amount_mnt") or 0),
+                remaining_seconds=float(status["remaining_seconds"]),
+                remaining_hours=float(status["remaining_hours"]),
+                price_mnt_per_hour=float(status["price_mnt_per_hour"]),
+                order_id=order_id,
+                pending=False,
+                phase="delivered",
+            )
+        # Legacy: marked delivered but text never cached — reopen for one free retry.
+        reopened = reopen_stt_order_without_transcript(order_id, access_token=access_token)
+        if not reopened or reopened.get("consumed"):
+            raise HTTPException(status_code=409, detail="Энэ төлбөрөөр аль хэдийн хөрвүүлсэн.")
+        order = reopened
 
     price = float(status["price_mnt_per_hour"])
     existing_uuid = str(order.get("chimege_uuid") or "").strip()
-    # Paid but convert stalled — resume the same job without charging again.
+    # Paid but convert already submitted — resume polling the same Chimege job.
     if existing_uuid:
         return SttSubmitResponse(
             uuid=existing_uuid,
-            duration_seconds=float(order.get("actual_duration_seconds") or order.get("duration_seconds") or 0),
+            duration_seconds=float(
+                order.get("actual_duration_seconds") or order.get("duration_seconds") or 0
+            ),
             mnt=float(order.get("amount_mnt") or 0),
             remaining_seconds=float(status["remaining_seconds"]),
             remaining_hours=float(status["remaining_hours"]),
             price_mnt_per_hour=price,
             order_id=order_id,
+            pending=False,
+            phase="ready",
+        )
+
+    inflight = get_job(order_id)
+    if inflight and inflight.get("phase") == "error":
+        discard_job(order_id)
+        inflight = None
+    if inflight and inflight.get("phase") in {"queued", "uploading", "ready"}:
+        real_uuid = str(inflight.get("uuid") or "").strip()
+        return SttSubmitResponse(
+            uuid=real_uuid or pending_uuid(order_id),
+            duration_seconds=float(
+                inflight.get("duration") or order.get("duration_seconds") or 0
+            ),
+            mnt=float(order.get("amount_mnt") or 0),
+            remaining_seconds=float(status["remaining_seconds"]),
+            remaining_hours=float(status["remaining_hours"]),
+            price_mnt_per_hour=price,
+            order_id=order_id,
+            pending=not bool(real_uuid),
+            phase=str(inflight.get("phase") or "queued"),
         )
 
     name = (file.filename or "audio").strip() or "audio"
@@ -206,7 +264,7 @@ async def stt_transcribe(
             detail="Зөвшөөрөх өргөтгөл: wav, mp3, m4a, mp4, ogg, flac, webm…",
         )
 
-    # Read once into RAM; never write to persist/.
+    # Read once into RAM; never write to persist/. Return before Chimege upload.
     audio = await file.read(MAX_UPLOAD_BYTES + 1)
     size = len(audio)
     if size > MAX_UPLOAD_BYTES:
@@ -224,49 +282,35 @@ async def stt_transcribe(
             touch_last_check(user_id)
 
     token = chimege.get_api_token()
-    try:
-        submitted = submit_long(audio, token)
-    except ChimegeError as exc:
-        _log.warning("chimege submit failed: %s", exc)
-        raise _http_from_chimege(exc) from exc
-    finally:
-        audio = b""
+    if not token:
+        raise HTTPException(status_code=503, detail="API тохируулаагүй.")
 
-    duration = float(submitted.get("duration") or 0)
-    uuid = str(submitted.get("uuid") or "")
-    if duration <= 0:
-        duration = 0.5
-
-    try:
-        bind_stt_job(
-            order_id,
-            access_token=access_token,
-            chimege_uuid=uuid,
-            actual_duration_seconds=duration,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=402, detail=str(exc)) from exc
-
-    try:
-        usage = chimege.reserve_and_record_usage(
-            duration_seconds=duration,
-            filename=name,
-            user_id=str((user or {}).get("id") or "") or None,
-            chimege_uuid=uuid,
-        )
-    except ValueError as exc:
-        # Payment already taken; surface soft failure so admin can top up API.
-        _log.error("chimege prepaid exhausted after paid STT order %s: %s", order_id, exc)
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    job = start_submit_job(
+        order_id=order_id,
+        access_token=access_token,
+        audio=audio,
+        filename=name,
+        token=token,
+        user_id=str((user or {}).get("id") or "") or None,
+    )
+    audio = b""
+    _log.info(
+        "stt transcribe accepted order=%s bytes=%s phase=%s",
+        order_id,
+        size,
+        job.get("phase"),
+    )
 
     return SttSubmitResponse(
-        uuid=uuid,
-        duration_seconds=round(duration, 2),
-        mnt=float(order.get("amount_mnt") or usage["mnt"]),
-        remaining_seconds=float(usage["remaining_seconds"]),
-        remaining_hours=float(usage["remaining_hours"]),
+        uuid=pending_uuid(order_id),
+        duration_seconds=float(order.get("duration_seconds") or 0),
+        mnt=float(order.get("amount_mnt") or 0),
+        remaining_seconds=float(status["remaining_seconds"]),
+        remaining_hours=float(status["remaining_hours"]),
         price_mnt_per_hour=price,
         order_id=order_id,
+        pending=True,
+        phase=str(job.get("phase") or "queued"),
     )
 
 
@@ -277,34 +321,117 @@ def stt_result(
     access_token: str = "",
 ) -> SttPollResponse:
     uuid = (uuid or "").strip()
-    if not uuid:
-        raise HTTPException(status_code=400, detail="UUID оруулна уу.")
+    order_id = (order_id or "").strip()
+    if is_pending_uuid(uuid) and not order_id:
+        order_id = order_id_from_pending(uuid)
+
+    # Served transcript from a completed paid order (Chimege deletes UUID quickly).
+    if order_id and access_token:
+        order = get_stt_order(order_id, access_token)
+        if order and order.get("consumed"):
+            cached = str(order.get("transcription") or "").strip()
+            if cached:
+                return SttPollResponse(
+                    done=True,
+                    transcription=cached,
+                    duration_seconds=float(
+                        order.get("actual_duration_seconds") or order.get("duration_seconds") or 0
+                    ),
+                    progress_percent=100,
+                    order_completed=True,
+                    uuid=str(order.get("chimege_uuid") or uuid),
+                    phase="delivered",
+                )
+
+    # Background submit still running (or failed).
+    if order_id:
+        job = get_job(order_id)
+        if job:
+            phase = str(job.get("phase") or "")
+            if phase == "error":
+                detail = str(job.get("error") or "Хөрвүүлэлт амжилтгүй")
+                discard_job(order_id)
+                raise HTTPException(status_code=502, detail=detail)
+            real_uuid = str(job.get("uuid") or "").strip()
+            if not real_uuid:
+                return SttPollResponse(
+                    done=False,
+                    transcription="",
+                    duration_seconds=float(job.get("duration") or 0),
+                    progress_percent=pending_progress(job),
+                    uuid=pending_uuid(order_id),
+                    phase=phase or "queued",
+                )
+            uuid = real_uuid
+
+    if not uuid or is_pending_uuid(uuid):
+        # Still waiting for background bind — keep polling.
+        if order_id:
+            order = get_stt_order(order_id, access_token) if access_token else None
+            bound = str((order or {}).get("chimege_uuid") or "").strip()
+            if bound:
+                uuid = bound
+            else:
+                return SttPollResponse(
+                    done=False,
+                    progress_percent=24,
+                    uuid=pending_uuid(order_id) if order_id else "",
+                    phase="queued",
+                )
+        else:
+            raise HTTPException(status_code=400, detail="UUID оруулна уу.")
+
     token = chimege.get_api_token()
     if not token:
         raise HTTPException(status_code=503, detail="API тохируулаагүй.")
     try:
         row = fetch_transcript(uuid, token)
     except ChimegeError as exc:
+        if exc.status_code == 404 and order_id and access_token:
+            # Dead UUID — free the paid order so the client can re-upload.
+            clear_stt_job(order_id, access_token=access_token, reason=str(exc))
+            discard_job(order_id)
         raise _http_from_chimege(exc) from exc
+
     done = bool(row.get("done"))
     duration = float(row.get("duration") or 0)
+    text = str(row.get("transcription") or "")
     order_completed = False
+
+    if done and is_failed_transcription(text):
+        if order_id and access_token:
+            clear_stt_job(
+                order_id,
+                access_token=access_token,
+                reason="chimege failed transcription",
+            )
+            discard_job(order_id)
+        raise HTTPException(
+            status_code=422,
+            detail="Аудиог бичвэр болгож чадсангүй. Өөр файл туршина уу.",
+        )
+
     if done and order_id and access_token:
         try:
             complete_stt_order(
                 order_id,
                 access_token=access_token,
                 chimege_uuid=uuid,
+                transcription=text,
             )
             order_completed = True
+            discard_job(order_id)
         except ValueError:
             order_completed = False
+
     return SttPollResponse(
         done=done,
-        transcription=str(row.get("transcription") or ""),
+        transcription=text if done else "",
         duration_seconds=duration,
         progress_percent=_estimate_progress(done=done, duration_seconds=duration),
         order_completed=order_completed,
+        uuid=uuid,
+        phase="done" if done else "processing",
     )
 
 

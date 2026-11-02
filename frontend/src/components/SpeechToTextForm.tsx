@@ -80,6 +80,10 @@ type Phase = "idle" | "checkout" | "paying" | "uploading" | "waiting" | "done";
 
 export function SpeechToTextForm() {
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<File | null>(null);
+  const accessTokenRef = useRef("");
+  const busyRef = useRef(false);
+  const convertAfterPayRef = useRef(false);
   const [status, setStatus] = useState<SttPublicStatus | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [clientSeconds, setClientSeconds] = useState<number | null>(null);
@@ -93,7 +97,18 @@ export function SpeechToTextForm() {
   const [payOrder, setPayOrder] = useState<BillingOrder | null>(null);
   const [accessToken, setAccessToken] = useState("");
   const [checkoutReady, setCheckoutReady] = useState(false);
-  const convertAfterPayRef = useRef(false);
+
+  useEffect(() => {
+    busyRef.current = busy;
+  }, [busy]);
+
+  useEffect(() => {
+    accessTokenRef.current = accessToken;
+  }, [accessToken]);
+
+  useEffect(() => {
+    fileRef.current = file;
+  }, [file]);
 
   useEffect(() => {
     let cancelled = false;
@@ -161,7 +176,7 @@ export function SpeechToTextForm() {
     setError(null);
     setText("");
     setPhase("uploading");
-    setProgress(8);
+    setProgress(4);
     setProgressLabel("Файл илгээж байна…");
     savePaidSession({
       orderId: paidOrder.id,
@@ -171,32 +186,49 @@ export function SpeechToTextForm() {
     });
     const payment = { orderId: paidOrder.id, accessToken: token };
     const started = Date.now();
-    const expectedMs = Math.max(15_000, (clientSeconds ?? 60) * 800);
+    // Long audio (e.g. 40+ мин) needs generous poll budget; Chimege often finishes faster.
+    const expectedMs = Math.max(45_000, (clientSeconds ?? 60) * 350);
     let progressTimer: number | null = null;
     try {
+      const submitted = await sttTranscribe(audio, payment, {
+        onUploadProgress: (pct) => {
+          // Map raw upload 0–100 → UI 5–42 while bytes leave the browser.
+          const mapped = Math.max(5, Math.min(42, Math.round(5 + pct * 0.37)));
+          setProgress((prev) => Math.max(prev, mapped));
+          setProgressLabel("Файл илгээж байна…");
+        },
+      });
+      setCharged({ seconds: submitted.duration_seconds, mnt: submitted.mnt });
+      setPhase("waiting");
+      setProgress((prev) => Math.max(prev, submitted.pending ? 45 : 55));
+      setProgressLabel(
+        submitted.pending ? "Сервер Chimege-д илгээж байна…" : "Бичвэр болгож байна…",
+      );
+
+      let pollUuid = submitted.uuid;
       progressTimer = window.setInterval(() => {
         setProgress((prev) => {
           if (prev >= 92) return prev;
           const elapsed = Date.now() - started;
-          const timed = Math.min(90, Math.round((elapsed / expectedMs) * 90));
-          return Math.max(prev, Math.max(12, timed));
+          const timed = Math.min(90, Math.round(45 + (elapsed / expectedMs) * 45));
+          return Math.max(prev, timed);
         });
-      }, 400);
-
-      const submitted = await sttTranscribe(audio, payment);
-      setCharged({ seconds: submitted.duration_seconds, mnt: submitted.mnt });
-      setPhase("waiting");
-      setProgress((prev) => Math.max(prev, 35));
-      setProgressLabel("Бичвэр болгож байна…");
+      }, 500);
 
       let attempts = 0;
-      while (attempts < 600) {
+      while (attempts < 900) {
         attempts += 1;
-        const row = await sttResult(submitted.uuid, payment);
+        const row = await sttResult(pollUuid, payment);
+        if (row.uuid && row.uuid !== pollUuid) pollUuid = row.uuid;
         const serverPct = row.progress_percent ?? 0;
         const elapsed = Date.now() - started;
-        const timed = Math.min(95, Math.round((elapsed / expectedMs) * 95));
-        setProgress(row.done ? 100 : Math.max(35, serverPct, timed));
+        const timed = Math.min(95, Math.round(45 + (elapsed / expectedMs) * 50));
+        const phaseLabel =
+          row.phase === "queued" || row.phase === "uploading"
+            ? "Сервер Chimege-д илгээж байна…"
+            : "Бичвэр болгож байна…";
+        setProgressLabel(phaseLabel);
+        setProgress(row.done ? 100 : Math.max(45, serverPct, timed));
         if (row.done) {
           setText(row.transcription || "");
           setPhase("done");
@@ -252,6 +284,28 @@ export function SpeechToTextForm() {
           return;
         }
         if (statusRow.order.consumed) {
+          // Delivered earlier — try to pull cached transcript without recharging.
+          try {
+            const uuid = String(statusRow.order.chimege_uuid || "");
+            if (uuid) {
+              const row = await sttResult(uuid, {
+                orderId: existing.orderId,
+                accessToken: existing.accessToken,
+              });
+              if (row.done && row.transcription) {
+                setText(row.transcription);
+                setPhase("done");
+                setProgress(100);
+                setProgressLabel("Дууслаа");
+                savePaidSession(null);
+                setPayOrder(null);
+                setAccessToken("");
+                return;
+              }
+            }
+          } catch {
+            /* fall through */
+          }
           savePaidSession(null);
         }
       } catch {
@@ -303,16 +357,18 @@ export function SpeechToTextForm() {
   }
 
   async function onPaid(order: BillingOrder) {
-    if (!file || !accessToken || !convertAfterPayRef.current) return;
-    if (busy) return;
+    const audio = fileRef.current;
+    const token = accessTokenRef.current;
+    if (!audio || !token || !convertAfterPayRef.current) return;
+    if (busyRef.current) return;
     setPayOrder(order);
     savePaidSession({
       orderId: order.id,
-      accessToken,
+      accessToken: token,
       amountMnt: order.amount_mnt,
       billableSeconds: Number(order.duration_seconds || clientSeconds || 60),
     });
-    await runConversion(order, accessToken, file);
+    await runConversion(order, token, audio);
   }
 
   async function copyText() {

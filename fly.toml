@@ -19,6 +19,11 @@ primary_region = "nrt"
   min_machines_running = 1
   processes = ["app"]
 
+  # Long STT uploads (up to 40MB) need more than the default ~60s idle window.
+  [http_service.http_options]
+    idle_timeout = 600
+    read_timeout = 600
+
 [[mounts]]
   source = "mongolwrite_data"
   destination = "/app/data/persist"

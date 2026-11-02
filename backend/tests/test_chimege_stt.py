@@ -89,7 +89,7 @@ def _paid_stt_order(*, duration_seconds: float = 12.5) -> tuple[str, str]:
 def test_transcribe_requires_payment(monkeypatch: pytest.MonkeyPatch):
     chimege.update_admin(token="test-token", set_prepaid_seconds=3600)
     monkeypatch.setattr(
-        "app.api.routes_stt.submit_long",
+        "app.core.stt_jobs.submit_long",
         lambda audio, token: {"uuid": "job-1", "duration": 12.5},
     )
     client = TestClient(app)
@@ -109,7 +109,8 @@ def test_transcribe_proxies_without_saving_file(monkeypatch: pytest.MonkeyPatch,
         assert len(audio) > 1000
         return {"uuid": "job-1", "duration": 12.5}
 
-    monkeypatch.setattr("app.api.routes_stt.submit_long", fake_submit)
+    # Background job calls submit_long from stt_jobs (not routes_stt).
+    monkeypatch.setattr("app.core.stt_jobs.submit_long", fake_submit)
     order_id, access_token = _paid_stt_order(duration_seconds=12.5)
     client = TestClient(app)
     wav = _silent_wav(1.0)
@@ -120,13 +121,42 @@ def test_transcribe_proxies_without_saving_file(monkeypatch: pytest.MonkeyPatch,
     )
     assert response.status_code == 200
     body = response.json()
-    assert body["uuid"] == "job-1"
-    assert body["duration_seconds"] == 12.5
+    assert body["pending"] is True
+    assert body["uuid"].startswith("pending:")
     assert body["order_id"] == order_id
     # Amount is the prepaid QPay quote (1 minute minimum at 7000/hr ≈ 117).
     assert body["mnt"] == 117
     persist_files = list((tmp_path / "persist").rglob("*"))
     assert not any(p.suffix.lower() in {".wav", ".mp3", ".m4a"} for p in persist_files)
+
+    # Wait for background Chimege submit to bind the real UUID.
+    import time
+
+    from app.core import billing as billing_mod
+    from app.core import stt_jobs
+
+    deadline = time.time() + 5
+    bound = None
+    while time.time() < deadline:
+        bound = billing_mod.get_stt_order(order_id, access_token)
+        if bound and bound.get("chimege_uuid") == "job-1":
+            break
+        time.sleep(0.05)
+    assert bound is not None
+    assert bound.get("chimege_uuid") == "job-1"
+
+    # Polling pending uuid resolves to the Chimege job.
+    monkeypatch.setattr(
+        "app.api.routes_stt.fetch_transcript",
+        lambda uuid, token: {"done": False, "transcription": "", "duration": 12.5},
+    )
+    poll = client.get(
+        "/api/v1/stt/result",
+        params={"uuid": body["uuid"], "order_id": order_id, "access_token": access_token},
+    )
+    assert poll.status_code == 200
+    assert poll.json()["done"] is False
+    assert poll.json()["uuid"] == "job-1"
 
     # Same paid order resumes the job (no second charge) until delivered.
     again = client.post(
@@ -136,16 +166,29 @@ def test_transcribe_proxies_without_saving_file(monkeypatch: pytest.MonkeyPatch,
     )
     assert again.status_code == 200
     assert again.json()["uuid"] == "job-1"
+    assert again.json()["pending"] is False
 
-    from app.core import billing as billing_mod
-
-    billing_mod.complete_stt_order(order_id, access_token=access_token, chimege_uuid="job-1")
-    blocked = client.post(
+    billing_mod.complete_stt_order(
+        order_id,
+        access_token=access_token,
+        chimege_uuid="job-1",
+        transcription="сайн байна уу",
+    )
+    stt_jobs.discard_job(order_id)
+    resumed = client.post(
         "/api/v1/stt/transcribe",
         data={"order_id": order_id, "access_token": access_token},
         files={"file": ("sample.wav", wav, "audio/wav")},
     )
-    assert blocked.status_code == 409
+    # Consumed orders with cached transcript resume delivery instead of 409.
+    assert resumed.status_code == 200
+    assert resumed.json()["phase"] == "delivered"
+    cached = client.get(
+        "/api/v1/stt/result",
+        params={"uuid": "job-1", "order_id": order_id, "access_token": access_token},
+    )
+    assert cached.status_code == 200
+    assert cached.json()["transcription"] == "сайн байна уу"
 
 
 def test_checkout_quotes_by_minutes():

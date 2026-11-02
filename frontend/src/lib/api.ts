@@ -1154,6 +1154,7 @@ export type BillingOrder = {
   product_kind?: string;
   duration_seconds?: number | null;
   consumed?: boolean;
+  chimege_uuid?: string | null;
   access_token?: string;
   qpay_invoice_id?: string | null;
   qpay_qr_text?: string | null;
@@ -1250,6 +1251,8 @@ export type SttSubmitResponse = {
   remaining_hours: number;
   price_mnt_per_hour: number;
   order_id?: string;
+  pending?: boolean;
+  phase?: string;
 };
 
 export type SttPollResponse = {
@@ -1257,6 +1260,9 @@ export type SttPollResponse = {
   transcription: string;
   duration_seconds: number;
   progress_percent?: number;
+  order_completed?: boolean;
+  uuid?: string;
+  phase?: string;
 };
 
 export type SttCheckoutResponse = {
@@ -1373,25 +1379,62 @@ export async function syncSttOrder(
 export async function sttTranscribe(
   file: File,
   payment: { orderId: string; accessToken: string },
+  options?: {
+    onUploadProgress?: (percent: number) => void;
+    signal?: AbortSignal;
+  },
 ): Promise<SttSubmitResponse> {
   const body = new FormData();
   body.append("file", file, file.name);
   body.append("order_id", payment.orderId);
   body.append("access_token", payment.accessToken);
-  const response = await fetch(apiUrl("/api/v1/stt/transcribe"), {
-    method: "POST",
-    credentials: "include",
-    headers: authHeaders(),
-    body,
+
+  // XHR so large m4a uploads report real progress (fetch has no upload events).
+  return new Promise<SttSubmitResponse>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", apiUrl("/api/v1/stt/transcribe"));
+    xhr.withCredentials = true;
+    xhr.timeout = 10 * 60 * 1000; // 10 min — long files to our server only
+    const headers = authHeaders();
+    for (const [key, value] of Object.entries(headers)) {
+      if (key.toLowerCase() === "content-type") continue;
+      xhr.setRequestHeader(key, value);
+    }
+    xhr.upload.onprogress = (event) => {
+      if (!event.lengthComputable || !options?.onUploadProgress) return;
+      const pct = Math.max(1, Math.min(99, Math.round((event.loaded / event.total) * 100)));
+      options.onUploadProgress(pct);
+    };
+    xhr.onload = () => {
+      let payload: unknown = null;
+      try {
+        payload = xhr.responseText ? JSON.parse(xhr.responseText) : null;
+      } catch {
+        payload = null;
+      }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(payload as SttSubmitResponse);
+        return;
+      }
+      const detail =
+        payload && typeof payload === "object" && "detail" in payload
+          ? String((payload as { detail?: string }).detail || "")
+          : "";
+      reject(new Error(detail || `Хөрвүүлэлт амжилтгүй (${xhr.status})`));
+    };
+    xhr.onerror = () => reject(new Error("Сүлжээний алдаа. Дахин оролдоно уу."));
+    xhr.ontimeout = () =>
+      reject(new Error("Файл илгээхэд хэт удаж байна. Дахин оролдоно уу."));
+    xhr.onabort = () => reject(new Error("Цуцлагдлаа."));
+    if (options?.signal) {
+      if (options.signal.aborted) {
+        xhr.abort();
+        return;
+      }
+      options.signal.addEventListener("abort", () => xhr.abort(), { once: true });
+    }
+    xhr.send(body);
   });
-  if (!response.ok) {
-    const detail = await response
-      .json()
-      .then((row: { detail?: string }) => row.detail)
-      .catch(() => null);
-    throw new Error(detail || `Хөрвүүлэлт амжилтгүй (${response.status})`);
-  }
-  return response.json() as Promise<SttSubmitResponse>;
 }
 
 export async function sttResult(

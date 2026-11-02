@@ -266,6 +266,7 @@ def create_stt_checkout(
         "access_token": access_token,
         "consumed": False,
         "chimege_uuid": None,
+        "usage_recorded": False,
         "duration_days": None,
         "currency": "MNT",
         "provider": "qpay",
@@ -386,11 +387,102 @@ def bind_stt_job(
         return dict(order)
 
 
+def mark_stt_usage_recorded(order_id: str, *, access_token: str) -> dict[str, Any] | None:
+    """Remember prepaid seconds were deducted so retries do not double-charge."""
+    with _lock:
+        orders = _load_orders()
+        order = orders.get(order_id)
+        if not order or order.get("product_kind") != STT_PRODUCT_KIND:
+            return None
+        expected = str(order.get("access_token") or "")
+        if not _access_token_ok(expected, access_token):
+            return None
+        order["usage_recorded"] = True
+        order["updated_at"] = _iso(_now())
+        orders[order_id] = order
+        _save_orders(orders)
+        return dict(order)
+
+
+def stt_usage_already_recorded(order_id: str, access_token: str) -> bool:
+    order = get_stt_order(order_id, access_token)
+    return bool(order and order.get("usage_recorded"))
+
+
+def clear_stt_job(
+    order_id: str,
+    *,
+    access_token: str,
+    reason: str = "",
+) -> dict[str, Any] | None:
+    """Drop a failed/expired Chimege UUID so the paid order can submit again."""
+    with _lock:
+        orders = _load_orders()
+        order = orders.get(order_id)
+        if not order or order.get("product_kind") != STT_PRODUCT_KIND:
+            return None
+        expected = str(order.get("access_token") or "")
+        if not _access_token_ok(expected, access_token):
+            return None
+        if order.get("consumed") and str(order.get("transcription") or "").strip():
+            return dict(order)
+        order["chimege_uuid"] = None
+        order["actual_duration_seconds"] = None
+        order["consumed"] = False
+        order.pop("delivered_at", None)
+        order.pop("transcription", None)
+        order["updated_at"] = _iso(_now())
+        order["note"] = "Хөрвүүлэлт тасалдсан. Дахин оролдоно уу."
+        _append_event(order, "submit_cleared", (reason or "")[:200])
+        orders[order_id] = order
+        _save_orders(orders)
+        return dict(order)
+
+
+def reopen_stt_order_without_transcript(
+    order_id: str,
+    *,
+    access_token: str,
+) -> dict[str, Any] | None:
+    """One-shot recovery: paid+consumed but no cached text (legacy hang)."""
+    with _lock:
+        orders = _load_orders()
+        order = orders.get(order_id)
+        if not order or order.get("product_kind") != STT_PRODUCT_KIND:
+            return None
+        expected = str(order.get("access_token") or "")
+        if not _access_token_ok(expected, access_token):
+            return None
+        if order.get("status") != "paid":
+            return None
+        if str(order.get("transcription") or "").strip():
+            return dict(order)
+        if not order.get("consumed"):
+            return dict(order)
+        # Prior submit already drained Chimege prepaid — do not charge again on retry.
+        events = order.get("events") or []
+        if order.get("usage_recorded") or any(
+            isinstance(ev, dict) and ev.get("kind") == "submitted" for ev in events
+        ):
+            order["usage_recorded"] = True
+        order["consumed"] = False
+        order["chimege_uuid"] = None
+        order["actual_duration_seconds"] = None
+        order.pop("delivered_at", None)
+        order["updated_at"] = _iso(_now())
+        order["note"] = "Бичвэр хадгалагдаагүй. Дахин хөрвүүлнэ үү."
+        _append_event(order, "reopened_empty_delivery", "")
+        orders[order_id] = order
+        _save_orders(orders)
+        return dict(order)
+
+
 def complete_stt_order(
     order_id: str,
     *,
     access_token: str,
     chimege_uuid: str = "",
+    transcription: str = "",
 ) -> dict[str, Any]:
     """Mark paid STT order delivered after transcript is ready (safe to call twice)."""
     with _lock:
@@ -404,10 +496,19 @@ def complete_stt_order(
         if order.get("status") != "paid":
             raise ValueError("Эхлээд төлбөрөө төлнө үү.")
         if order.get("consumed"):
+            # Refresh cached transcript if a later poll still has text.
+            text = (transcription or "").strip()
+            if text and not str(order.get("transcription") or "").strip():
+                order["transcription"] = text[:200_000]
+                orders[order_id] = order
+                _save_orders(orders)
             return dict(order)
         stamped = _iso(_now())
         if chimege_uuid and not order.get("chimege_uuid"):
             order["chimege_uuid"] = chimege_uuid[:80]
+        text = (transcription or "").strip()
+        if text:
+            order["transcription"] = text[:200_000]
         order["consumed"] = True
         order["delivered_at"] = stamped
         order["updated_at"] = stamped

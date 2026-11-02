@@ -45,8 +45,11 @@ def submit_long(audio: bytes, token: str) -> dict[str, Any]:
         "Content-Type": "application/octet-stream",
         "Token": token.strip(),
     }
+    # Large m4a (30–40+ мин) can take several minutes to upload to Chimege.
     try:
-        with httpx.Client(timeout=httpx.Timeout(120.0, connect=15.0)) as client:
+        with httpx.Client(
+            timeout=httpx.Timeout(connect=20.0, read=300.0, write=300.0, pool=30.0)
+        ) as client:
             response = client.post(f"{CHIMEGE_BASE}/stt-long", content=audio, headers=headers)
     except httpx.HTTPError as exc:
         raise ChimegeError(f"Chimege холболт салсан: {exc}", status_code=502) from exc
@@ -86,7 +89,7 @@ def fetch_transcript(uuid: str, token: str) -> dict[str, Any]:
         raise ChimegeError("UUID байхгүй.", status_code=400)
     headers = {"Token": token.strip(), "UUID": uuid.strip()}
     try:
-        with httpx.Client(timeout=httpx.Timeout(60.0, connect=10.0)) as client:
+        with httpx.Client(timeout=httpx.Timeout(45.0, connect=10.0)) as client:
             response = client.get(f"{CHIMEGE_BASE}/stt-long-transcript", headers=headers)
     except httpx.HTTPError as exc:
         raise ChimegeError(f"Chimege холболт салсан: {exc}", status_code=502) from exc
@@ -98,15 +101,13 @@ def fetch_transcript(uuid: str, token: str) -> dict[str, Any]:
             status_code=403,
             error_code=str(code) if code else "1000",
         )
-    if response.status_code >= 400:
-        raise ChimegeError(
-            response.text.strip() or "Чөлөөт бичвэр уншигдсангүй.",
-            status_code=502,
-        )
+
+    raw_text = (response.text or "").strip()
+    payload: Any
     try:
-        payload = response.json()
-    except ValueError as exc:
-        raise ChimegeError("Chimege хариу буруу JSON.", status_code=502) from exc
+        payload = response.json() if raw_text else {}
+    except ValueError:
+        payload = {}
 
     # API sometimes returns a list with one object, sometimes a bare object.
     if isinstance(payload, list):
@@ -116,10 +117,20 @@ def fetch_transcript(uuid: str, token: str) -> dict[str, Any]:
     else:
         row = {}
 
-    if row.get("message") and "uuid" in str(row.get("message")).lower():
+    message = str(row.get("message") or raw_text)
+    missing_uuid = "uuid" in message.lower() and (
+        "exist" in message.lower() or "олдсонгүй" in message.lower() or "doesn't" in message.lower()
+    )
+    if response.status_code >= 400 or missing_uuid:
+        if missing_uuid:
+            raise ChimegeError(
+                "Хөрвүүлэлтийн UUID олдсонгүй эсвэл аль хэдийн дууссан.",
+                status_code=404,
+                error_code="uuid_missing",
+            )
         raise ChimegeError(
-            "Хөрвүүлэлтийн UUID олдсонгүй эсвэл аль хэдийн дууссан.",
-            status_code=404,
+            raw_text or "Чөлөөт бичвэр уншигдсангүй.",
+            status_code=502,
         )
 
     done = bool(row.get("done"))
@@ -129,3 +140,17 @@ def fetch_transcript(uuid: str, token: str) -> dict[str, Any]:
     except (TypeError, ValueError):
         duration = 0.0
     return {"done": done, "transcription": text, "duration": max(0.0, duration)}
+
+
+def is_failed_transcription(text: str) -> bool:
+    """Chimege sometimes returns done=true with an English failure phrase."""
+    lowered = (text or "").strip().lower()
+    if not lowered:
+        return True
+    markers = (
+        "can't transcribe",
+        "cannot transcribe",
+        "file error",
+        "transcribe!, file error",
+    )
+    return any(marker in lowered for marker in markers)
