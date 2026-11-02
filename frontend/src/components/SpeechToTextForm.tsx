@@ -26,6 +26,13 @@ function estimateMnt(seconds: number, pricePerHour: number): number {
   return Math.max(1, Math.round((minutes / 60) * pricePerHour));
 }
 
+/** Keep words whole — strip soft hyphens and "-" line wraps from STT text. */
+function normalizeTranscript(value: string): string {
+  return value
+    .replace(/[\u00ad\u200b\ufeff]/g, "")
+    .replace(/([^\s-])-\s*[\r\n]+([^\s-])/g, "$1$2");
+}
+
 const MAX_STT_BYTES = 40 * 1024 * 1024;
 const STT_PAY_KEY = "mw_stt_paid_order";
 
@@ -230,7 +237,7 @@ export function SpeechToTextForm() {
         setProgressLabel(phaseLabel);
         setProgress(row.done ? 100 : Math.max(45, serverPct, timed));
         if (row.done) {
-          setText(row.transcription || "");
+          setText(normalizeTranscript(row.transcription || ""));
           setPhase("done");
           setProgress(100);
           setProgressLabel("Дууслаа");
@@ -293,7 +300,7 @@ export function SpeechToTextForm() {
                 accessToken: existing.accessToken,
               });
               if (row.done && row.transcription) {
-                setText(row.transcription);
+                setText(normalizeTranscript(row.transcription));
                 setPhase("done");
                 setProgress(100);
                 setProgressLabel("Дууслаа");

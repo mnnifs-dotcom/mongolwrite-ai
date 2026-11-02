@@ -221,6 +221,13 @@ def test_poll_result(monkeypatch: pytest.MonkeyPatch):
     assert response.json()["progress_percent"] == 100
 
 
+def test_normalize_transcription_rejoins_hyphen_linebreaks():
+    from app.core.chimege_client import normalize_transcription
+
+    raw = "Сайн бай\u00adна уу та бүхэн-\nтэй уулзлаа"
+    assert normalize_transcription(raw) == "Сайн байна уу та бүхэнтэй уулзлаа"
+
+
 def test_new_token_queues_until_previous_seconds_finish(monkeypatch: pytest.MonkeyPatch):
     chimege.update_admin(token="trial-token-aaaa", set_prepaid_seconds=3600)
     assert chimege.get_api_token() == "trial-token-aaaa"

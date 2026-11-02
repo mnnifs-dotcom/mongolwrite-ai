@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import httpx
@@ -27,6 +28,21 @@ class ChimegeError(RuntimeError):
         super().__init__(message)
         self.status_code = status_code
         self.error_code = error_code
+
+
+def normalize_transcription(text: str) -> str:
+    """Keep Mongolian words whole — drop soft hyphens and line-wrap dashes."""
+    value = str(text or "")
+    # Soft hyphen (U+00AD) and similar invisible break marks.
+    for ch in ("\u00ad", "\u200b", "\ufeff"):
+        value = value.replace(ch, "")
+    # Word broken across lines as "хэсэг-\nлэл" → "хэсэглэл".
+    value = re.sub(
+        r"([^\s\-])-\s*[\r\n]+([^\s\-])",
+        r"\1\2",
+        value,
+    )
+    return value
 
 
 def submit_long(audio: bytes, token: str) -> dict[str, Any]:
@@ -134,7 +150,7 @@ def fetch_transcript(uuid: str, token: str) -> dict[str, Any]:
         )
 
     done = bool(row.get("done"))
-    text = str(row.get("transcription") or "")
+    text = normalize_transcription(str(row.get("transcription") or ""))
     try:
         duration = float(row.get("duration") or 0)
     except (TypeError, ValueError):

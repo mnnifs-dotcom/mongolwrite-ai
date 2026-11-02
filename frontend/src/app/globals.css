@@ -71,7 +71,9 @@ body {
   font-family: var(--font-sans);
   text-align: justify;
   text-justify: inter-word;
-  hyphens: auto;
+  /* Mongolian words must stay whole — never insert "-" at line wraps. */
+  hyphens: none;
+  -webkit-hyphens: none;
 }
 
 * {
@@ -1134,6 +1136,10 @@ body {
   font-family: var(--font-sans);
   text-align: justify;
   text-justify: inter-word;
+  hyphens: none;
+  -webkit-hyphens: none;
+  word-break: keep-all;
+  overflow-wrap: normal;
   cursor: text;
   box-sizing: border-box;
 }
@@ -1152,6 +1158,10 @@ body {
   text-justify: inter-word;
   text-align-last: left;
   font-family: var(--font-sans);
+  hyphens: none;
+  -webkit-hyphens: none;
+  word-break: keep-all;
+  overflow-wrap: normal;
 }
 
 .ProseMirror p:last-child {
@@ -3861,6 +3871,11 @@ label {
   line-height: 1.55;
   resize: vertical;
   background: #fff;
+  text-align: left;
+  hyphens: none;
+  -webkit-hyphens: none;
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
 .mw-admin-form {
