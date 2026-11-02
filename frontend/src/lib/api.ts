@@ -1224,3 +1224,120 @@ export async function syncBillingOrder(
   if (!response.ok) throw new Error("Төлбөрийн төлөв шалгаж чадсангүй");
   return response.json() as Promise<{ order: BillingOrder; paid: boolean }>;
 }
+
+export type SttPublicStatus = {
+  enabled: boolean;
+  remaining_seconds: number;
+  remaining_hours: number;
+  used_seconds: number;
+  prepaid_seconds: number;
+  price_mnt_per_hour: number;
+  low_balance: boolean;
+  needs_renewal: boolean;
+};
+
+export type SttSubmitResponse = {
+  uuid: string;
+  duration_seconds: number;
+  mnt: number;
+  remaining_seconds: number;
+  remaining_hours: number;
+  price_mnt_per_hour: number;
+};
+
+export type SttPollResponse = {
+  done: boolean;
+  transcription: string;
+  duration_seconds: number;
+};
+
+export type ChimegeAdminSnapshot = {
+  has_token: boolean;
+  token_masked: string;
+  prepaid_seconds: number;
+  used_seconds: number;
+  remaining_seconds: number;
+  remaining_hours: number;
+  prepaid_mnt_spent: number;
+  remaining_mnt_value: number;
+  price_mnt_per_hour: number;
+  low_balance: boolean;
+  needs_renewal: boolean;
+  updated_at?: string | null;
+  usage: Array<{
+    at: string;
+    duration_seconds: number;
+    mnt: number;
+    filename?: string;
+    user_id?: string | null;
+    uuid?: string | null;
+  }>;
+};
+
+export async function sttStatus(): Promise<SttPublicStatus> {
+  const response = await fetch(apiUrl("/api/v1/stt/status"), {
+    credentials: "include",
+    headers: authHeaders(),
+  });
+  if (!response.ok) throw new Error("Яриа→бичвэр төлөв уншигдсангүй");
+  return response.json() as Promise<SttPublicStatus>;
+}
+
+export async function sttTranscribe(file: File): Promise<SttSubmitResponse> {
+  const body = new FormData();
+  body.append("file", file, file.name);
+  const response = await fetch(apiUrl("/api/v1/stt/transcribe"), {
+    method: "POST",
+    credentials: "include",
+    headers: authHeaders(),
+    body,
+  });
+  if (!response.ok) {
+    const detail = await response
+      .json()
+      .then((row: { detail?: string }) => row.detail)
+      .catch(() => null);
+    throw new Error(detail || `Хөрвүүлэлт амжилтгүй (${response.status})`);
+  }
+  return response.json() as Promise<SttSubmitResponse>;
+}
+
+export async function sttResult(uuid: string): Promise<SttPollResponse> {
+  const response = await fetch(
+    apiUrl(`/api/v1/stt/result?uuid=${encodeURIComponent(uuid)}`),
+    { credentials: "include", headers: authHeaders() },
+  );
+  if (!response.ok) {
+    const detail = await response
+      .json()
+      .then((row: { detail?: string }) => row.detail)
+      .catch(() => null);
+    throw new Error(detail || "Бичвэр уншигдсангүй");
+  }
+  return response.json() as Promise<SttPollResponse>;
+}
+
+export async function adminChimegeGet(): Promise<ChimegeAdminSnapshot> {
+  const response = await fetch(apiUrl("/api/v1/admin/chimege"), {
+    credentials: "include",
+  });
+  if (!response.ok) throw new Error("Chimege тохиргоо уншигдсангүй");
+  return response.json() as Promise<ChimegeAdminSnapshot>;
+}
+
+export async function adminChimegeUpdate(body: {
+  token?: string;
+  add_prepaid_hours?: number;
+  set_prepaid_hours?: number;
+  price_mnt_per_hour?: number;
+  reset_used?: boolean;
+}): Promise<ChimegeAdminSnapshot> {
+  const response = await fetch(apiUrl("/api/v1/admin/chimege"), {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) throw new Error("Chimege тохиргоо хадгалагдаагүй");
+  return response.json() as Promise<ChimegeAdminSnapshot>;
+}
