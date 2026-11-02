@@ -263,7 +263,6 @@ export function SpeechToTextForm() {
         <p className="mw-muted">
           Формат: wav, mp3, m4a, mp4, aac, ogg, flac, webm · дээд хэмжээ 40MB
         </p>
-        <p className="mw-muted">Эхлээд QPay-ээр төлөөд дараа нь бичвэр бэлтгэнэ.</p>
         {serviceBlocked ? (
           <p className="mw-stt-warn">
             {!status?.enabled
