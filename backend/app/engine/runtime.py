@@ -11,10 +11,14 @@ from app.engine.pipeline import LanguageEngine
 
 _engine: LanguageEngine | None = None
 _lock = threading.Lock()
-# Allow a few concurrent checks so multi-user load does not queue behind one lock.
-# Cap via CHECK_CONCURRENCY (default 3) — Hunspell is CPU-heavy.
+# Allow concurrent checks so multi-user load does not queue behind one lock.
+# Cap via CHECK_CONCURRENCY — Hunspell/spylls is CPU-heavy.
 _check_slots = threading.Semaphore(max(1, int(settings.check_concurrency or 3)))
 _harvest_lock = threading.Lock()
+
+
+class CheckBusyError(RuntimeError):
+    """Raised when all check slots are busy longer than the wait budget."""
 
 
 def get_engine() -> LanguageEngine:
@@ -44,11 +48,28 @@ def _harvest_async(text: str) -> None:
     threading.Thread(target=_run, name="hunspell-harvest", daemon=True).start()
 
 
+def _queue_wait_seconds() -> float:
+    raw = getattr(settings, "check_queue_wait_seconds", 8.0)
+    try:
+        return max(0.5, float(raw))
+    except (TypeError, ValueError):
+        return 8.0
+
+
 def run_engine_check(text: str, style: str) -> list[Correction]:
     engine = get_engine()
     t0 = time.perf_counter()
-    with _check_slots:
+    wait = _queue_wait_seconds()
+    acquired = _check_slots.acquire(timeout=wait)
+    if not acquired:
+        raise CheckBusyError(
+            f"check slots full after {wait:.0f}s "
+            f"(concurrency={max(1, int(settings.check_concurrency or 3))})"
+        )
+    try:
         result = engine.check(text, style=style)
+    finally:
+        _check_slots.release()
     record((time.perf_counter() - t0) * 1000)
     _harvest_async(text)
     return result

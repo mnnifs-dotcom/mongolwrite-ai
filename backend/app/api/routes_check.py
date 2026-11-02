@@ -16,11 +16,23 @@ from app.core.users import touch_last_check
 from app.engine.improve import improve_text
 from app.engine.models import Correction
 from app.engine.ranker import rank_corrections
-from app.engine.runtime import get_engine, run_engine_check
+from app.engine.runtime import CheckBusyError, get_engine, run_engine_check
 
 router = APIRouter(prefix="/api/v1/check", tags=["check"])
 _ai = OpenAIProvider()
 _log = logging.getLogger(__name__)
+
+
+def _run_or_busy(text: str, style: str) -> list[Correction]:
+    """Run the engine; surface overload as 503 instead of empty «Алдаагүй»."""
+    try:
+        return run_engine_check(text, style)
+    except CheckBusyError as exc:
+        _log.warning("check busy: %s", exc)
+        raise HTTPException(
+            status_code=503,
+            detail="Одоо олон хүн зэрэг шалгаж байна. Хэсэг хүлээгээд дахин оролдоно уу.",
+        ) from exc
 
 UserDep = Annotated[dict | None, Depends(optional_user)]
 DeviceHeader = Annotated[str | None, Header(alias=DEVICE_HEADER)]
@@ -81,7 +93,9 @@ def _ai_corrections(text: str, style: str) -> list[Correction]:
 
 def run_check(text: str, style: str) -> list[Correction]:
     try:
-        rules = run_engine_check(text, style)
+        rules = _run_or_busy(text, style)
+    except HTTPException:
+        raise
     except Exception:
         _log.exception("check failed")
         rules = []
@@ -98,7 +112,9 @@ def check_deterministic(
     _assert_char_limit(body.text, user)
     _note_user_check(user, x_mw_device_id)
     try:
-        corrections = run_engine_check(body.text, style=body.style)
+        corrections = _run_or_busy(body.text, body.style)
+    except HTTPException:
+        raise
     except Exception:
         _log.exception("check failed")
         corrections = []

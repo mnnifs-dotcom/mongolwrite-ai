@@ -6,17 +6,21 @@ primary_region = "nrt"
 
 [env]
   APP_ENV = "production"
-  # Concurrent spell-checks per machine (Hunspell CPU). Raise with more RAM/CPU.
-  CHECK_CONCURRENCY = "4"
-  # Optional shared Hunspell cache across machines — leave unset for memory-only (no cost).
-  # REDIS_URL = "redis://default:...@...."
+  # Concurrent spell-checks per machine. Sized for ~peak school/office load on
+  # performance-4x (4 dedicated cores / 8 GB). Spylls is CPU-bound; Redis L2
+  # cuts repeat Hunspell work so slots free faster under many short checks.
+  CHECK_CONCURRENCY = "24"
+  # How long a request may wait for a free check slot before 503 (avoid freeze).
+  CHECK_QUEUE_WAIT_SECONDS = "8"
+  # REDIS_URL is set as a Fly secret (Upstash) — not stored in this file.
 
 [http_service]
   internal_port = 8080
   force_https = true
   auto_stop_machines = "off"
   auto_start_machines = true
-  # Start with 1. Raise when concurrent users need more APP instances.
+  # Persist volume is single-writer — stay on 1 machine; scale vertically first.
+  # Horizontal APP N needs Redis + split persist before raising this.
   min_machines_running = 1
   processes = ["app"]
 
@@ -25,6 +29,6 @@ primary_region = "nrt"
   destination = "/app/data/persist"
 
 [[vm]]
-  memory = "2gb"
-  cpu_kind = "shared"
-  cpus = 1
+  memory = "8gb"
+  cpu_kind = "performance"
+  cpus = 4

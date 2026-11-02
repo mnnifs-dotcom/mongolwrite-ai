@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     check_max_chars: int = 500_000
     # How many spell-checks may run at once on one machine (Hunspell is CPU-heavy).
     check_concurrency: int = 3
+    # Max seconds to wait for a free check slot before failing fast (503).
+    check_queue_wait_seconds: float = 8.0
     # Optional shared Hunspell membership cache across APP instances (Upstash/Fly Redis).
     # Empty = memory-only L1 (default on single-machine Fly — no extra cost).
     redis_url: str = ""
