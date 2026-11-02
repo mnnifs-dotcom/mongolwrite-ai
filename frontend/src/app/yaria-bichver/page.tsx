@@ -45,6 +45,11 @@ export default function SpeechToTextPage() {
           үлдэхгүй — зөвхөн хөрвүүлээд үр дүнг харуулна.
         </p>
         <SpeechToTextForm />
+        <p className="mw-report-note">
+          Энэ үйлчилгээг ашигласнаар{" "}
+          <Link href="/uilchilgeenii-nokhtsol">Үйлчилгээний нөхцөл</Link>-ийг
+          хүлээн зөвшөөрсөнд тооцно. Файл серверт хадгалагдахгүй.
+        </p>
       </article>
 
       <SiteFooter />
