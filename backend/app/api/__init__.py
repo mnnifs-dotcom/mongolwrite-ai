@@ -10,6 +10,8 @@ from app.api.routes_export import router as export_router
 from app.api.routes_feedback import router as feedback_router
 from app.api.routes_health import router as health_router
 from app.api.routes_import import router as import_router
+from app.api.routes_stt import admin_router as chimege_admin_router
+from app.api.routes_stt import router as stt_router
 
 api_router = APIRouter()
 api_router.include_router(health_router)
@@ -21,4 +23,6 @@ api_router.include_router(dictionary_router)
 api_router.include_router(import_router)
 api_router.include_router(export_router)
 api_router.include_router(feedback_router)
+api_router.include_router(stt_router)
+api_router.include_router(chimege_admin_router)
 api_router.include_router(admin_router)

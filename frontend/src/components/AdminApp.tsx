@@ -35,10 +35,13 @@ import {
   adminFeedbackList,
   adminFeedbackDelete,
   adminFeedbackPurgeTests,
+  adminChimegeGet,
+  adminChimegeUpdate,
   type AdminAddedWord,
   type AdminFeedbackItem,
   type AdminUser,
   type AdminUsersPage,
+  type ChimegeAdminSnapshot,
   type FailedLawItem,
   type HunspellCandidate,
   type LegalBotStatus,
@@ -65,6 +68,7 @@ type AdminSection =
   | "review"
   | "users"
   | "legal"
+  | "chimege"
   | "health";
 
 const PAGE_SIZE = 400;
@@ -194,6 +198,11 @@ export function AdminApp() {
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
   const [editPlan, setEditPlan] = useState<"free" | "pro_3m" | "pro_year">("free");
   const [editExpiry, setEditExpiry] = useState("");
+  const [chimege, setChimege] = useState<ChimegeAdminSnapshot | null>(null);
+  const [chimegeToken, setChimegeToken] = useState("");
+  const [chimegeAddHours, setChimegeAddHours] = useState("");
+  const [chimegeSetHours, setChimegeSetHours] = useState("");
+  const [chimegeBusy, setChimegeBusy] = useState(false);
 
   const applyOverview = useCallback((next: SiteOverview) => {
     setOverview(next);
@@ -406,6 +415,50 @@ export function AdminApp() {
     void loadLaws();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authed, section]);
+
+  useEffect(() => {
+    if (!authed || section !== "chimege") return;
+    void loadChimege();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authed, section]);
+
+  async function loadChimege() {
+    try {
+      const next = await adminChimegeGet();
+      setChimege(next);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Chimege уншигдсангүй");
+    }
+  }
+
+  async function saveChimege(event: FormEvent) {
+    event.preventDefault();
+    setChimegeBusy(true);
+    setError(null);
+    setStatus("");
+    try {
+      const add = chimegeAddHours.trim() ? Number(chimegeAddHours) : undefined;
+      const setHours = chimegeSetHours.trim() ? Number(chimegeSetHours) : undefined;
+      const next = await adminChimegeUpdate({
+        token: chimegeToken.trim() ? chimegeToken.trim() : undefined,
+        add_prepaid_hours:
+          add != null && Number.isFinite(add) && add > 0 ? add : undefined,
+        set_prepaid_hours:
+          setHours != null && Number.isFinite(setHours) && setHours >= 0
+            ? setHours
+            : undefined,
+      });
+      setChimege(next);
+      setChimegeToken("");
+      setChimegeAddHours("");
+      setChimegeSetHours("");
+      setStatus("Chimege тохиргоо хадгаллаа");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Хадгалж чадсангүй");
+    } finally {
+      setChimegeBusy(false);
+    }
+  }
 
   async function onLogin(event: FormEvent) {
     event.preventDefault();
@@ -1207,6 +1260,7 @@ export function AdminApp() {
       label: "legalinfo.mn",
       count: lawsRemainingCount || lawsCatalogCount || legalPreview?.trusted_count,
     },
+    { id: "chimege", label: "Яриа API" },
     { id: "overview", label: "Тойм" },
     { id: "health", label: "Сайтын төлөв" },
   ];
@@ -1256,6 +1310,136 @@ export function AdminApp() {
         <div className="mw-admin mw-admin-pane">
           {error ? <p className="mw-banner">{error}</p> : null}
           {status ? <p className="mw-admin-status">{status}</p> : null}
+
+          {section === "chimege" ? (
+            <section className="mw-admin-card">
+              <h2>Chimege яриа → бичвэр</h2>
+              <p className="mw-muted">
+                Урьдчилсан төлбөрт API token оруулж, үлдэгдэл цагаа хянана. Үнэ{" "}
+                {(chimege?.price_mnt_per_hour ?? 7000).toLocaleString("mn-MN")}₮/цаг.
+                Аудио серверт хадгалагдахгүй.
+              </p>
+              {chimege ? (
+                <div className="mw-overview-grid" style={{ marginTop: "1rem" }}>
+                  <div className="mw-overview-tile">
+                    <span>API</span>
+                    <strong>{chimege.has_token ? "Холбогдсон" : "Байхгүй"}</strong>
+                    <em>{chimege.token_masked || "token оруулаагүй"}</em>
+                  </div>
+                  <div className="mw-overview-tile">
+                    <span>Үлдсэн</span>
+                    <strong>
+                      {chimege.remaining_hours.toLocaleString("mn-MN", {
+                        maximumFractionDigits: 2,
+                      })}{" "}
+                      цаг
+                    </strong>
+                    <em>
+                      {chimege.remaining_mnt_value.toLocaleString("mn-MN")}₮ үнэ цэнэ
+                    </em>
+                  </div>
+                  <div className="mw-overview-tile">
+                    <span>Зарцуулсан</span>
+                    <strong>
+                      {(chimege.used_seconds / 3600).toLocaleString("mn-MN", {
+                        maximumFractionDigits: 2,
+                      })}{" "}
+                      цаг
+                    </strong>
+                    <em>{chimege.prepaid_mnt_spent.toLocaleString("mn-MN")}₮</em>
+                  </div>
+                  <div className="mw-overview-tile">
+                    <span>Төлөв</span>
+                    <strong>
+                      {chimege.needs_renewal
+                        ? "Сунгах хэрэгтэй"
+                        : chimege.low_balance
+                          ? "Бага үлдсэн"
+                          : "Хэвийн"}
+                    </strong>
+                    <em>
+                      <a href="/yaria-bichver" target="_blank" rel="noreferrer">
+                        /yaria-bichver
+                      </a>
+                    </em>
+                  </div>
+                </div>
+              ) : (
+                <p className="mw-muted">Уншиж байна…</p>
+              )}
+
+              <form className="mw-admin-form" onSubmit={(event) => void saveChimege(event)}>
+                <label>
+                  API token
+                  <input
+                    type="password"
+                    autoComplete="off"
+                    placeholder={chimege?.token_masked || "Chimege Token"}
+                    value={chimegeToken}
+                    onChange={(event) => setChimegeToken(event.target.value)}
+                  />
+                </label>
+                <label>
+                  Нэмэх урьдчилсан цаг
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    placeholder="ж: 10"
+                    value={chimegeAddHours}
+                    onChange={(event) => setChimegeAddHours(event.target.value)}
+                  />
+                </label>
+                <label>
+                  Нийт урьдчилсан цагийг шууд тавих (заавал биш)
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    placeholder="ж: 50"
+                    value={chimegeSetHours}
+                    onChange={(event) => setChimegeSetHours(event.target.value)}
+                  />
+                </label>
+                <button type="submit" className="mw-btn-primary" disabled={chimegeBusy}>
+                  {chimegeBusy ? "Хадгалж байна…" : "Хадгалах"}
+                </button>
+              </form>
+
+              {chimege?.usage?.length ? (
+                <div style={{ marginTop: "1.25rem" }}>
+                  <h3>Сүүлийн хэрэглээ</h3>
+                  <div className="mw-table-wrap">
+                    <table className="mw-table">
+                      <thead>
+                        <tr>
+                          <th>Огноо</th>
+                          <th>Файл</th>
+                          <th>Үргэлжлэх</th>
+                          <th>₮</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {chimege.usage.slice(0, 40).map((row) => (
+                          <tr key={`${row.at}-${row.uuid || row.filename}`}>
+                            <td>{formatWhen(row.at)}</td>
+                            <td>{row.filename || "—"}</td>
+                            <td>
+                              {(row.duration_seconds / 60).toLocaleString("mn-MN", {
+                                maximumFractionDigits: 1,
+                              })}{" "}
+                              мин
+                            </td>
+                            <td>{row.mnt.toLocaleString("mn-MN")}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : null}
+            </section>
+          ) : null}
 
           {section === "health" && overview?.health ? (
             <section className="mw-admin-card">
