@@ -669,6 +669,7 @@ body {
 
 .mw-top-actions .mw-btn,
 .mw-top-actions .mw-btn-primary,
+.mw-top-actions .mw-btn-stt,
 .mw-top-actions .mw-menu-trigger {
   min-height: 36px;
 }
