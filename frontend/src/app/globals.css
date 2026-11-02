@@ -3967,3 +3967,7 @@ label {
   font-weight: 700;
   color: color-mix(in srgb, var(--text, #1a2a3a) 80%, transparent);
 }
+
+.mw-table tr.mw-row-selected td {
+  background: color-mix(in srgb, var(--accent, #1f6fad) 12%, #fff);
+}
