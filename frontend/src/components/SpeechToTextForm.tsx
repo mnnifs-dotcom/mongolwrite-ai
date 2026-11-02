@@ -155,19 +155,38 @@ export function SpeechToTextForm() {
       </div>
 
       <form className="mw-stt-form" onSubmit={(event) => void onSubmit(event)}>
-        <label className="mw-stt-file">
-          <span>Аудио / видео файл</span>
-          <input
-            ref={inputRef}
-            type="file"
-            accept="audio/*,video/mp4,video/webm,.wav,.mp3,.m4a,.mp4,.ogg,.flac,.webm"
+        <input
+          ref={inputRef}
+          type="file"
+          accept="audio/*,video/mp4,video/webm,.wav,.mp3,.m4a,.mp4,.ogg,.flac,.webm"
+          hidden
+          disabled={busy || !status?.enabled || !!status?.needs_renewal}
+          onChange={(event) => {
+            const next = event.target.files?.[0] ?? null;
+            void onPick(next);
+          }}
+        />
+        <div className="mw-stt-actions">
+          <button
+            type="button"
+            className="mw-seo-cta mw-seo-cta-inline mw-stt-pick"
             disabled={busy || !status?.enabled || !!status?.needs_renewal}
-            onChange={(event) => {
-              const next = event.target.files?.[0] ?? null;
-              void onPick(next);
-            }}
-          />
-        </label>
+            onClick={() => inputRef.current?.click()}
+          >
+            {file ? "Файл солих" : "Файл оруулах"}
+          </button>
+          <button
+            type="submit"
+            className="mw-seo-cta mw-seo-cta-inline"
+            disabled={busy || !file || !status?.enabled || !!status?.needs_renewal}
+          >
+            {phase === "uploading"
+              ? "Илгээж байна…"
+              : phase === "waiting"
+                ? "Хөрвүүлж байна…"
+                : "Бичвэр болгох"}
+          </button>
+        </div>
         {file ? (
           <p className="mw-muted">
             {file.name} · {(file.size / (1024 * 1024)).toLocaleString("mn-MN", {
@@ -181,17 +200,6 @@ export function SpeechToTextForm() {
               : ""}
           </p>
         ) : null}
-        <button
-          type="submit"
-          className="mw-seo-cta mw-seo-cta-inline"
-          disabled={busy || !file || !status?.enabled || !!status?.needs_renewal}
-        >
-          {phase === "uploading"
-            ? "Илгээж байна…"
-            : phase === "waiting"
-              ? "Хөрвүүлж байна…"
-              : "Бичвэр болгох"}
-        </button>
       </form>
 
       {error ? <p className="mw-banner">{error}</p> : null}

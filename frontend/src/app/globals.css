@@ -3771,14 +3771,28 @@ label {
   max-width: 36rem;
 }
 
-.mw-stt-file {
-  display: grid;
-  gap: 0.4rem;
-  font-weight: 650;
+.mw-stt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  align-items: center;
 }
 
-.mw-stt-file input[type="file"] {
-  font-weight: 500;
+.mw-stt-actions .mw-seo-cta-inline {
+  margin: 0;
+  width: auto;
+  min-width: 10.5rem;
+}
+
+.mw-stt-pick {
+  background: #fff !important;
+  color: var(--accent, #1f6fad) !important;
+  border: 1.5px solid color-mix(in srgb, var(--accent, #1f6fad) 55%, #fff) !important;
+  box-shadow: none !important;
+}
+
+.mw-stt-pick:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent, #1f6fad) 8%, #fff) !important;
 }
 
 .mw-stt-result {
