@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { AuthButton } from "@/components/AuthButton";
 import { BrandWordmark } from "@/components/BrandWordmark";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SpeechToTextForm } from "@/components/SpeechToTextForm";
@@ -32,9 +33,12 @@ export default function SpeechToTextPage() {
           <img src="/logo.png" alt="" width={36} height={33} />
           <BrandWordmark />
         </Link>
-        <Link href="/" className="mw-seo-cta">
-          Алдаа шалгах
-        </Link>
+        <div className="mw-seo-top-actions">
+          <AuthButton />
+          <Link href="/" className="mw-seo-cta">
+            Алдаа шалгах
+          </Link>
+        </div>
       </header>
 
       <article className="mw-seo-article">

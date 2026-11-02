@@ -233,6 +233,9 @@ export function AuthButton() {
                 </p>
               ) : null}
               <p className="mw-auth-email">{user.email}</p>
+              <a href="/yaria-bichver#history" className="mw-auth-upgrade">
+                Миний бичвэр
+              </a>
               <a href="/tolbor" className="mw-auth-upgrade">
                 {user.is_paid && !user.is_trial ? "Хугацаа сунгах" : "Төлбөрийн багц"}
               </a>

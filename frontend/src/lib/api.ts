@@ -1460,6 +1460,38 @@ export async function sttResult(
   return response.json() as Promise<SttPollResponse>;
 }
 
+export type SttHistoryItem = {
+  id: string;
+  filename?: string;
+  duration_seconds?: number;
+  amount_mnt?: number;
+  created_at?: string;
+  preview?: string;
+  transcription?: string;
+};
+
+export async function sttHistory(): Promise<SttHistoryItem[]> {
+  const response = await fetch(apiUrl("/api/v1/stt/history"), {
+    credentials: "include",
+    headers: authHeaders(),
+  });
+  if (response.status === 401) throw new Error("Нэвтрэх шаардлагатай");
+  if (!response.ok) throw new Error("Бичвэрийн жагсаалт уншигдсангүй");
+  const body = (await response.json()) as { items?: SttHistoryItem[] };
+  return Array.isArray(body.items) ? body.items : [];
+}
+
+export async function sttHistoryItem(id: string): Promise<SttHistoryItem> {
+  const response = await fetch(apiUrl(`/api/v1/stt/history/${encodeURIComponent(id)}`), {
+    credentials: "include",
+    headers: authHeaders(),
+  });
+  if (response.status === 401) throw new Error("Нэвтрэх шаардлагатай");
+  if (!response.ok) throw new Error("Бичвэр олдсонгүй");
+  const body = (await response.json()) as { item: SttHistoryItem };
+  return body.item;
+}
+
 export async function adminChimegeGet(): Promise<ChimegeAdminSnapshot> {
   const response = await fetch(apiUrl("/api/v1/admin/chimege"), {
     credentials: "include",

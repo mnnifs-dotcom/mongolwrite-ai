@@ -2777,6 +2777,14 @@ body {
   text-align: left;
 }
 
+.mw-seo-top-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.65rem;
+}
+
 .mw-seo-brand {
   display: inline-flex;
   align-items: center;
@@ -3876,6 +3884,43 @@ label {
   -webkit-hyphens: none;
   word-break: keep-all;
   overflow-wrap: break-word;
+}
+
+.mw-stt-history {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 0.5rem;
+}
+
+.mw-stt-history h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.mw-stt-history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.mw-stt-history-item {
+  width: 100%;
+  display: grid;
+  gap: 0.15rem;
+  text-align: left;
+  padding: 0.7rem 0.85rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--border, #c9d4e0) 85%, transparent);
+  background: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+.mw-stt-history-item.is-active,
+.mw-stt-history-item:hover {
+  border-color: color-mix(in srgb, var(--accent, #1f6fad) 45%, #fff);
 }
 
 .mw-admin-form {

@@ -6,8 +6,13 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from starlette.responses import Response
 
 from app.core import billing, chimege
+from app.core import stt_history
+from app.core import users as users_mod
+from app.core.user_auth import set_user_cookie
+from app.core.users import upsert_google_user
 from app.main import app
 
 
@@ -30,7 +35,21 @@ def _isolate_chimege(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(chimege, "_token_path", lambda: tmp_path / ".chimege_token")
     monkeypatch.setattr(chimege.settings, "chimege_api_token", "")
     monkeypatch.setattr(billing, "persist_dir", lambda: persist)
+    monkeypatch.setattr(users_mod, "persist_dir", lambda: persist)
+    monkeypatch.setattr(stt_history, "persist_dir", lambda: persist)
     yield
+
+
+def _auth_client(user_id: str = "stt-user-1", email: str = "stt@example.com") -> TestClient:
+    upsert_google_user(sub=user_id, email=email, name="STT")
+    client = TestClient(app)
+    probe = Response()
+    set_user_cookie(probe, user_id)
+    cookie_header = probe.headers.get("set-cookie", "")
+    token = cookie_header.split("mw_user=", 1)[1].split(";", 1)[0]
+    client.cookies.set("mw_user", token)
+    client.headers.update({"X-MW-Device-Id": "sttdevice01aa"})
+    return client
 
 
 def test_public_status_disabled_by_default():
@@ -41,6 +60,16 @@ def test_public_status_disabled_by_default():
     assert body["enabled"] is False
     assert body["price_mnt_per_hour"] == 7000
     assert "checkout_ready" in body
+
+
+def test_checkout_requires_login():
+    chimege.update_admin(token="test-token", set_prepaid_seconds=3600)
+    client = TestClient(app)
+    response = client.post(
+        "/api/v1/stt/checkout",
+        json={"duration_seconds": 60, "filename": "a.wav"},
+    )
+    assert response.status_code == 401
 
 
 def test_admin_sets_token_and_prepaid():
@@ -71,11 +100,18 @@ def test_insufficient_prepaid_raises():
         chimege.reserve_and_record_usage(duration_seconds=60, filename="x.wav")
 
 
-def _paid_stt_order(*, duration_seconds: float = 12.5) -> tuple[str, str]:
+def _paid_stt_order(
+    *,
+    duration_seconds: float = 12.5,
+    user_id: str = "stt-user-1",
+    email: str = "stt@example.com",
+) -> tuple[str, str]:
     created = billing.create_stt_checkout(
         duration_seconds=duration_seconds,
         filename="sample.wav",
         price_mnt_per_hour=7000,
+        user_id=user_id,
+        email=email,
     )
     order = created["order"]
     token = str(order["access_token"])
@@ -86,13 +122,28 @@ def _paid_stt_order(*, duration_seconds: float = 12.5) -> tuple[str, str]:
     return str(order["id"]), token
 
 
-def test_transcribe_requires_payment(monkeypatch: pytest.MonkeyPatch):
+def test_transcribe_requires_login(monkeypatch: pytest.MonkeyPatch):
     chimege.update_admin(token="test-token", set_prepaid_seconds=3600)
     monkeypatch.setattr(
         "app.core.stt_jobs.submit_long",
         lambda audio, token: {"uuid": "job-1", "duration": 12.5},
     )
     client = TestClient(app)
+    wav = _silent_wav(1.0)
+    response = client.post(
+        "/api/v1/stt/transcribe",
+        files={"file": ("sample.wav", wav, "audio/wav")},
+    )
+    assert response.status_code == 401
+
+
+def test_transcribe_requires_payment(monkeypatch: pytest.MonkeyPatch):
+    chimege.update_admin(token="test-token", set_prepaid_seconds=3600)
+    monkeypatch.setattr(
+        "app.core.stt_jobs.submit_long",
+        lambda audio, token: {"uuid": "job-1", "duration": 12.5},
+    )
+    client = _auth_client()
     wav = _silent_wav(1.0)
     response = client.post(
         "/api/v1/stt/transcribe",
@@ -112,7 +163,7 @@ def test_transcribe_proxies_without_saving_file(monkeypatch: pytest.MonkeyPatch,
     # Background job calls submit_long from stt_jobs (not routes_stt).
     monkeypatch.setattr("app.core.stt_jobs.submit_long", fake_submit)
     order_id, access_token = _paid_stt_order(duration_seconds=12.5)
-    client = TestClient(app)
+    client = _auth_client()
     wav = _silent_wav(1.0)
     response = client.post(
         "/api/v1/stt/transcribe",
@@ -189,11 +240,16 @@ def test_transcribe_proxies_without_saving_file(monkeypatch: pytest.MonkeyPatch,
     )
     assert cached.status_code == 200
     assert cached.json()["transcription"] == "сайн байна уу"
+    history = client.get("/api/v1/stt/history")
+    assert history.status_code == 200
+    items = history.json()["items"]
+    assert len(items) >= 1
+    assert items[0]["preview"].startswith("сайн")
 
 
 def test_checkout_quotes_by_minutes():
     chimege.update_admin(token="test-token", set_prepaid_seconds=3600)
-    client = TestClient(app)
+    client = _auth_client()
     response = client.post(
         "/api/v1/stt/checkout",
         json={"duration_seconds": 125, "filename": "talk.mp3"},
@@ -204,6 +260,7 @@ def test_checkout_quotes_by_minutes():
     assert body["amount_mnt"] == 350  # 3/60 * 7000
     assert body["order"]["access_token"]
     assert body["order"]["product_kind"] == "stt"
+    assert body["order"]["id"]
 
 
 def test_poll_result(monkeypatch: pytest.MonkeyPatch):
@@ -214,7 +271,7 @@ def test_poll_result(monkeypatch: pytest.MonkeyPatch):
         return {"done": True, "transcription": "сайн байна уу", "duration": 3.0}
 
     monkeypatch.setattr("app.api.routes_stt.fetch_transcript", fake_fetch)
-    client = TestClient(app)
+    client = _auth_client()
     response = client.get("/api/v1/stt/result", params={"uuid": "job-9"})
     assert response.status_code == 200
     assert response.json()["transcription"] == "сайн байна уу"

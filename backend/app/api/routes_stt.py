@@ -37,7 +37,8 @@ from app.core.stt_jobs import (
     pending_uuid,
     start_submit_job,
 )
-from app.core.user_auth import optional_user
+from app.core.stt_history import get_transcript, list_transcripts, save_transcript
+from app.core.user_auth import require_user
 from app.core.users import touch_last_check
 
 router = APIRouter(prefix="/api/v1/stt", tags=["stt"])
@@ -45,8 +46,35 @@ admin_router = APIRouter(prefix="/api/v1/admin/chimege", tags=["admin-chimege"])
 _log = logging.getLogger(__name__)
 
 AdminDep = Annotated[None, Depends(require_admin)]
-UserDep = Annotated[dict | None, Depends(optional_user)]
+AuthedUser = Annotated[dict, Depends(require_user)]
 DeviceHeader = Annotated[str | None, Header(alias=DEVICE_HEADER)]
+
+
+def _require_order_owner(order: dict[str, Any], user: dict) -> None:
+    owner = str(order.get("user_id") or "").strip()
+    uid = str(user.get("id") or "").strip()
+    if not uid or not owner or owner != uid:
+        raise HTTPException(status_code=403, detail="Энэ захиалга таных биш.")
+
+
+def _save_user_transcript(order: dict[str, Any], *, text: str, chimege_uuid: str = "") -> None:
+    uid = str(order.get("user_id") or "").strip()
+    if not uid or not (text or "").strip():
+        return
+    try:
+        save_transcript(
+            uid,
+            transcription=text,
+            filename=str(order.get("filename") or ""),
+            duration_seconds=float(
+                order.get("actual_duration_seconds") or order.get("duration_seconds") or 0
+            ),
+            amount_mnt=float(order.get("amount_mnt") or 0),
+            order_id=str(order.get("id") or ""),
+            chimege_uuid=chimege_uuid or str(order.get("chimege_uuid") or ""),
+        )
+    except Exception:  # noqa: BLE001 — history must not break delivery
+        _log.exception("stt history save failed order=%s", order.get("id"))
 
 
 class SttPublicStatus(BaseModel):
@@ -118,7 +146,7 @@ def stt_status() -> SttPublicStatus:
 
 
 @router.post("/checkout")
-def stt_checkout(body: SttCheckoutRequest, user: UserDep = None) -> dict[str, Any]:
+def stt_checkout(body: SttCheckoutRequest, user: AuthedUser) -> dict[str, Any]:
     """Quote audio length → QPay invoice. Conversion starts only after payment."""
     status = chimege.public_status()
     if not status["enabled"]:
@@ -134,8 +162,8 @@ def stt_checkout(body: SttCheckoutRequest, user: UserDep = None) -> dict[str, An
     try:
         return create_stt_checkout(
             duration_seconds=body.duration_seconds,
-            user_id=str((user or {}).get("id") or ""),
-            email=str((user or {}).get("email") or ""),
+            user_id=str(user.get("id") or ""),
+            email=str(user.get("email") or ""),
             filename=body.filename,
             price_mnt_per_hour=float(status["price_mnt_per_hour"]),
         )
@@ -143,11 +171,25 @@ def stt_checkout(body: SttCheckoutRequest, user: UserDep = None) -> dict[str, An
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
+@router.get("/history")
+def stt_history(user: AuthedUser) -> dict[str, Any]:
+    return {"items": list_transcripts(str(user.get("id") or ""))}
+
+
+@router.get("/history/{item_id}")
+def stt_history_item(item_id: str, user: AuthedUser) -> dict[str, Any]:
+    row = get_transcript(str(user.get("id") or ""), item_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Бичвэр олдсонгүй")
+    return {"item": row}
+
+
 @router.get("/orders/{order_id}")
-def stt_order_detail(order_id: str, access_token: str = "") -> dict[str, Any]:
+def stt_order_detail(order_id: str, user: AuthedUser, access_token: str = "") -> dict[str, Any]:
     order = get_stt_order(order_id, access_token)
     if not order:
         raise HTTPException(status_code=404, detail="Захиалга олдсонгүй")
+    _require_order_owner(order, user)
     return {
         "order": public_order(order, include_access_token=False),
         "checkout_ready": qpay_configured(),
@@ -155,10 +197,11 @@ def stt_order_detail(order_id: str, access_token: str = "") -> dict[str, Any]:
 
 
 @router.post("/orders/{order_id}/sync")
-def stt_order_sync(order_id: str, access_token: str = "") -> dict[str, Any]:
+def stt_order_sync(order_id: str, user: AuthedUser, access_token: str = "") -> dict[str, Any]:
     order = get_stt_order(order_id, access_token)
     if not order:
         raise HTTPException(status_code=404, detail="Захиалга олдсонгүй")
+    _require_order_owner(order, user)
     synced = sync_order_payment(order)
     # Re-fetch with token check so response stays scoped.
     fresh = get_stt_order(order_id, access_token) or synced
@@ -171,9 +214,9 @@ def stt_order_sync(order_id: str, access_token: str = "") -> dict[str, Any]:
 @router.post("/transcribe", response_model=SttSubmitResponse)
 async def stt_transcribe(
     file: Annotated[UploadFile, File()],
+    user: AuthedUser,
     order_id: Annotated[str, Form()] = "",
     access_token: Annotated[str, Form()] = "",
-    user: UserDep = None,
     x_mw_device_id: DeviceHeader = None,
 ) -> SttSubmitResponse:
     """Accept paid upload quickly, then submit to Chimege in the background."""
@@ -193,12 +236,14 @@ async def stt_transcribe(
     order = get_stt_order(order_id, access_token)
     if not order:
         raise HTTPException(status_code=402, detail="Эхлээд төлбөрөө төлнө үү.")
+    _require_order_owner(order, user)
     if order.get("status") != "paid":
         raise HTTPException(status_code=402, detail="Эхлээд төлбөрөө төлнө үү.")
     if order.get("consumed"):
         cached = str(order.get("transcription") or "").strip()
         existing_uuid = str(order.get("chimege_uuid") or "").strip()
         if cached:
+            _save_user_transcript(order, text=cached, chimege_uuid=existing_uuid)
             return SttSubmitResponse(
                 uuid=existing_uuid or pending_uuid(order_id),
                 duration_seconds=float(
@@ -275,11 +320,10 @@ async def stt_transcribe(
     if size < 2_000:
         raise HTTPException(status_code=400, detail="Аудио файл хэт жижиг байна.")
 
-    if user:
-        user_id = str(user.get("id") or "")
-        if user_id:
-            enforce_device(user_id, x_mw_device_id)
-            touch_last_check(user_id)
+    user_id = str(user.get("id") or "")
+    if user_id:
+        enforce_device(user_id, x_mw_device_id)
+        touch_last_check(user_id)
 
     token = chimege.get_api_token()
     if not token:
@@ -291,7 +335,7 @@ async def stt_transcribe(
         audio=audio,
         filename=name,
         token=token,
-        user_id=str((user or {}).get("id") or "") or None,
+        user_id=user_id or None,
     )
     audio = b""
     _log.info(
@@ -316,6 +360,7 @@ async def stt_transcribe(
 
 @router.get("/result", response_model=SttPollResponse)
 def stt_result(
+    user: AuthedUser,
     uuid: str,
     order_id: str = "",
     access_token: str = "",
@@ -328,9 +373,16 @@ def stt_result(
     # Served transcript from a completed paid order (Chimege deletes UUID quickly).
     if order_id and access_token:
         order = get_stt_order(order_id, access_token)
+        if order:
+            _require_order_owner(order, user)
         if order and order.get("consumed"):
             cached = str(order.get("transcription") or "").strip()
             if cached:
+                _save_user_transcript(
+                    order,
+                    text=cached,
+                    chimege_uuid=str(order.get("chimege_uuid") or uuid),
+                )
                 return SttPollResponse(
                     done=True,
                     transcription=cached,
@@ -413,7 +465,7 @@ def stt_result(
 
     if done and order_id and access_token:
         try:
-            complete_stt_order(
+            completed = complete_stt_order(
                 order_id,
                 access_token=access_token,
                 chimege_uuid=uuid,
@@ -421,6 +473,7 @@ def stt_result(
             )
             order_completed = True
             discard_job(order_id)
+            _save_user_transcript(completed, text=text, chimege_uuid=uuid)
         except ValueError:
             order_completed = False
 

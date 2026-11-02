@@ -1,18 +1,26 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { QpayCheckoutPanel } from "@/components/QpayCheckoutPanel";
 import {
+  authMe,
   fetchSttOrder,
+  getSettings,
   sttCheckout,
+  sttHistory,
+  sttHistoryItem,
   sttResult,
   sttStatus,
   sttTranscribe,
   syncSttOrder,
+  type AuthUser,
   type BillingOrder,
+  type SttHistoryItem,
   type SttPublicStatus,
 } from "@/lib/api";
+import { formatDateMn } from "@/lib/formatDate";
+import { loginWithGooglePopup } from "@/lib/googleLogin";
 
 function formatHours(seconds: number): string {
   if (seconds <= 0) return "0 мин";
@@ -92,6 +100,10 @@ export function SpeechToTextForm() {
   const accessTokenRef = useRef("");
   const busyRef = useRef(false);
   const convertAfterPayRef = useRef(false);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [clientId, setClientId] = useState("");
+  const [loginBusy, setLoginBusy] = useState(false);
   const [status, setStatus] = useState<SttPublicStatus | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [clientSeconds, setClientSeconds] = useState<number | null>(null);
@@ -105,6 +117,8 @@ export function SpeechToTextForm() {
   const [payOrder, setPayOrder] = useState<BillingOrder | null>(null);
   const [accessToken, setAccessToken] = useState("");
   const [checkoutReady, setCheckoutReady] = useState(false);
+  const [history, setHistory] = useState<SttHistoryItem[]>([]);
+  const [historyId, setHistoryId] = useState<string | null>(null);
 
   useEffect(() => {
     busyRef.current = busy;
@@ -117,6 +131,48 @@ export function SpeechToTextForm() {
   useEffect(() => {
     fileRef.current = file;
   }, [file]);
+
+  const refreshAuth = useCallback(async () => {
+    try {
+      const me = await authMe();
+      setUser(me.user);
+      setClientId(me.google_client_id || "");
+    } catch {
+      setUser(null);
+      try {
+        const settings = await getSettings();
+        setClientId(settings.google_client_id || "");
+      } catch {
+        /* ignore */
+      }
+    } finally {
+      setAuthReady(true);
+    }
+  }, []);
+
+  const refreshHistory = useCallback(async () => {
+    try {
+      const items = await sttHistory();
+      setHistory(items);
+    } catch {
+      setHistory([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshAuth();
+    const onAuth = () => void refreshAuth();
+    window.addEventListener("mw-auth-changed", onAuth);
+    return () => window.removeEventListener("mw-auth-changed", onAuth);
+  }, [refreshAuth]);
+
+  useEffect(() => {
+    if (!user) {
+      setHistory([]);
+      return;
+    }
+    void refreshHistory();
+  }, [user, refreshHistory]);
 
   useEffect(() => {
     let cancelled = false;
@@ -143,13 +199,27 @@ export function SpeechToTextForm() {
     return estimateMnt(clientSeconds, status.price_mnt_per_hour);
   }, [status, clientSeconds]);
 
+  async function onLogin() {
+    if (!clientId || loginBusy) return;
+    setLoginBusy(true);
+    setError(null);
+    try {
+      await loginWithGooglePopup(clientId);
+      await refreshAuth();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Нэвтэрч чадсангүй");
+    } finally {
+      setLoginBusy(false);
+    }
+  }
+
   async function onPick(next: File | null) {
     setText("");
+    setHistoryId(null);
     setPhase("idle");
     setProgress(0);
     setProgressLabel("");
     setClientSeconds(null);
-    // Keep a paid-but-undelivered session so retry does not charge again.
     const paid = loadPaidSession();
     if (!paid) {
       setPayOrder(null);
@@ -162,7 +232,6 @@ export function SpeechToTextForm() {
       setError(null);
       return;
     }
-    // Fail fast before metadata/upload — large files used to hang then show size error.
     if (next.size > MAX_STT_BYTES) {
       setFile(null);
       setError(
@@ -183,6 +252,7 @@ export function SpeechToTextForm() {
     setBusy(true);
     setError(null);
     setText("");
+    setHistoryId(null);
     setPhase("uploading");
     setProgress(4);
     setProgressLabel("Файл илгээж байна…");
@@ -194,13 +264,11 @@ export function SpeechToTextForm() {
     });
     const payment = { orderId: paidOrder.id, accessToken: token };
     const started = Date.now();
-    // Long audio (e.g. 40+ мин) needs generous poll budget; Chimege often finishes faster.
     const expectedMs = Math.max(45_000, (clientSeconds ?? 60) * 350);
     let progressTimer: number | null = null;
     try {
       const submitted = await sttTranscribe(audio, payment, {
         onUploadProgress: (pct) => {
-          // Map raw upload 0–100 → UI 5–42 while bytes leave the browser.
           const mapped = Math.max(5, Math.min(42, Math.round(5 + pct * 0.37)));
           setProgress((prev) => Math.max(prev, mapped));
           setProgressLabel("Файл илгээж байна…");
@@ -246,6 +314,7 @@ export function SpeechToTextForm() {
           setPayOrder(null);
           setAccessToken("");
           convertAfterPayRef.current = false;
+          void refreshHistory();
           return;
         }
         await new Promise((resolve) => setTimeout(resolve, 1500));
@@ -256,7 +325,6 @@ export function SpeechToTextForm() {
       setProgress(0);
       setProgressLabel("");
       setError(err instanceof Error ? err.message : "Хөрвүүлэлт амжилтгүй");
-      // Keep paid session — next click retries convert without new QPay.
       setAccessToken(token);
       setPayOrder(paidOrder);
       convertAfterPayRef.current = true;
@@ -268,13 +336,16 @@ export function SpeechToTextForm() {
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
+    if (!user) {
+      setError("Нэвтэрнэ үү");
+      return;
+    }
     if (!file || busy) return;
     if (clientSeconds == null || clientSeconds <= 0) {
       setError("Файлын үргэлжлэх хугацаа уншигдсангүй. Өөр файл сонгоно уу.");
       return;
     }
 
-    // Already paid this session — convert again, do not open QPay.
     const existing = loadPaidSession();
     if (existing) {
       setBusy(true);
@@ -292,7 +363,6 @@ export function SpeechToTextForm() {
           return;
         }
         if (statusRow.order.consumed) {
-          // Delivered earlier — try to pull cached transcript without recharging.
           try {
             const uuid = String(statusRow.order.chimege_uuid || "");
             if (uuid) {
@@ -308,6 +378,7 @@ export function SpeechToTextForm() {
                 savePaidSession(null);
                 setPayOrder(null);
                 setAccessToken("");
+                void refreshHistory();
                 return;
               }
             }
@@ -379,6 +450,21 @@ export function SpeechToTextForm() {
     await runConversion(order, token, audio);
   }
 
+  async function openHistory(item: SttHistoryItem) {
+    setError(null);
+    try {
+      const full = await sttHistoryItem(item.id);
+      setHistoryId(item.id);
+      setText(normalizeTranscript(full.transcription || full.preview || ""));
+      setPhase("done");
+      setProgress(100);
+      setFile(null);
+      setClientSeconds(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Бичвэр уншигдсангүй");
+    }
+  }
+
   async function copyText() {
     if (!text) return;
     await navigator.clipboard.writeText(text);
@@ -387,6 +473,26 @@ export function SpeechToTextForm() {
   const serviceBlocked =
     status != null && (!status.enabled || status.needs_renewal);
   const showProgress = phase === "uploading" || phase === "waiting" || (phase === "done" && progress === 100);
+
+  if (!authReady) {
+    return <div className="mw-stt" />;
+  }
+
+  if (!user) {
+    return (
+      <div className="mw-stt">
+        <button
+          type="button"
+          className="mw-seo-cta mw-seo-cta-inline"
+          disabled={loginBusy || !clientId}
+          onClick={() => void onLogin()}
+        >
+          {loginBusy ? "Нэвтэрч байна…" : "Нэвтрэх"}
+        </button>
+        {error ? <p className="mw-banner">{error}</p> : null}
+      </div>
+    );
+  }
 
   return (
     <div className="mw-stt">
@@ -472,7 +578,7 @@ export function SpeechToTextForm() {
         <QpayCheckoutPanel
           order={payOrder}
           checkoutReady={checkoutReady}
-          paidNote="Төлбөр амжилттай. Бичвэр бэлтгэж байна…"
+          paidNote="Төлбөр амжилттай."
           onBack={() => {
             setPhase("idle");
             setPayOrder(null);
@@ -517,8 +623,36 @@ export function SpeechToTextForm() {
             value={text}
             onChange={(event) => setText(event.target.value)}
             rows={12}
-            placeholder="Хөрвүүлсэн бичвэр энд гарна."
           />
+        </div>
+      ) : null}
+
+      {history.length ? (
+        <div className="mw-stt-history" id="history">
+          <h2>Миний бичвэр</h2>
+          <ul className="mw-stt-history-list">
+            {history.map((item) => (
+              <li key={item.id}>
+                <button
+                  type="button"
+                  className={
+                    historyId === item.id
+                      ? "mw-stt-history-item is-active"
+                      : "mw-stt-history-item"
+                  }
+                  onClick={() => void openHistory(item)}
+                >
+                  <span>{item.filename || "Бичвэр"}</span>
+                  <span className="mw-muted">
+                    {item.created_at ? formatDateMn(item.created_at) : ""}
+                    {item.duration_seconds
+                      ? ` · ${formatHours(Number(item.duration_seconds))}`
+                      : ""}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
         </div>
       ) : null}
     </div>
