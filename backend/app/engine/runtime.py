@@ -35,15 +35,20 @@ def _harvest_async(text: str) -> None:
 
     Skip tiny docs (nothing useful to learn). Very long documents only sample
     the start — full harvest of 1M chars would compete with the live check.
+    If a harvest is already running, skip — do not queue CPU work behind checks.
     """
     if len(text.strip()) < 3_000:
+        return
+    if not _harvest_lock.acquire(blocking=False):
         return
     sample = text if len(text) <= 500_000 else text[:500_000]
     engine = get_engine()
 
     def _run() -> None:
-        with _harvest_lock:
+        try:
             harvest_safe(engine, sample)
+        finally:
+            _harvest_lock.release()
 
     threading.Thread(target=_run, name="hunspell-harvest", daemon=True).start()
 

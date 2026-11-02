@@ -39,7 +39,6 @@ export default function SpeechToTextPage() {
 
       <article className="mw-seo-article">
         <h1>Яриа → бичвэр</h1>
-        <p className="mw-seo-lead">Аудио эсвэл видео файлаа оруулаад монгол бичвэр авна.</p>
         <SpeechToTextForm />
         <p className="mw-report-note">
           <Link href="/uilchilgeenii-nokhtsol">Үйлчилгээний нөхцөл</Link>

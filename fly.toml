@@ -6,10 +6,10 @@ primary_region = "nrt"
 
 [env]
   APP_ENV = "production"
-  # Free shared-1x: a few concurrent checks without paid CPU/Redis.
-  # Software fail-fast (503) still prevents freeze under burst load.
-  CHECK_CONCURRENCY = "8"
-  CHECK_QUEUE_WAIT_SECONDS = "8"
+  # Free shared-1x (1 CPU): keep concurrency low so each check finishes fast
+  # instead of 8 jobs thrashing the same core (client then times out).
+  CHECK_CONCURRENCY = "2"
+  CHECK_QUEUE_WAIT_SECONDS = "25"
   # No Redis — memory L1 only (zero extra cost). Set REDIS_URL only if you accept paid cache.
 
 [http_service]
